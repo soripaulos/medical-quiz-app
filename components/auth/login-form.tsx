@@ -39,7 +39,7 @@ export function LoginForm() {
     try {
       await signIn(loginEmail, loginPassword)
       // Success will be handled by the auth state change
-    } catch (err: any) {
+    } catch (err) {
       console.error("Sign in error:", err)
 
       let errorMessage = "Failed to sign in"

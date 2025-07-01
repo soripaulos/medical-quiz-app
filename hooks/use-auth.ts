@@ -1,8 +1,6 @@
 "use client"
 
-import type React from "react"
-
-import { createContext, useContext, useEffect, useState } from "react"
+import React, { createContext, useContext, useEffect, useState } from "react"
 import { createClient } from "@/lib/supabase/client"
 import type { User } from "@supabase/supabase-js"
 
@@ -62,8 +60,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const fetchProfile = async (userId: string) => {
     try {
-      console.log("Fetching profile for user:", userId)
-
       // First try to get existing profile
       let { data, error } = await supabase.from("profiles").select("*").eq("id", userId).maybeSingle() // Use maybeSingle instead of single to handle no rows gracefully
 
@@ -74,8 +70,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
       // If no profile exists, create one
       if (!data) {
-        console.log("No profile found, creating one...")
-
         const { data: userData } = await supabase.auth.getUser()
 
         const { data: newProfile, error: createError } = await supabase
@@ -97,7 +91,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         data = newProfile
       }
 
-      console.log("Profile fetched successfully:", data)
       setProfile(data)
     } catch (error) {
       console.error("Error in fetchProfile:", error)

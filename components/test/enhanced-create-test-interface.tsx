@@ -184,14 +184,14 @@ export function EnhancedCreateTestInterface() {
       const specialtiesRes = await fetch("/api/specialties")
       const specialtiesData = (await safeJson(specialtiesRes)) as any
       if (specialtiesData?.specialties) {
-        setSpecialties(specialtiesData.specialties.map((s: any) => s.name))
+        setSpecialties(specialtiesData.specialties.map((s: { name: string }) => s.name))
       }
 
       // Fetch exam types
       const examTypesRes = await fetch("/api/exam-types")
       const examTypesData = (await safeJson(examTypesRes)) as any
       if (examTypesData?.examTypes) {
-        setExamTypes(examTypesData.examTypes.map((e: any) => e.name))
+        setExamTypes(examTypesData.examTypes.map((e: { name: string }) => e.name))
       }
 
       // Fetch available years
