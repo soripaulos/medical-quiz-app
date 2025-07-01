@@ -181,12 +181,12 @@ export function UserProgressDashboard() {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50 p-6">
+    <div className="min-h-screen bg-background p-6">
       <div className="max-w-7xl mx-auto space-y-6">
         {/* Header */}
         <div className="text-center space-y-2">
-          <h1 className="text-3xl font-bold text-gray-900">My Progress Dashboard</h1>
-          <p className="text-gray-600">Track your learning journey and performance</p>
+          <h1 className="text-3xl font-bold text-foreground">My Progress Dashboard</h1>
+          <p className="text-muted-foreground">Track your learning journey and performance</p>
         </div>
 
         {/* Overview Cards */}
@@ -212,7 +212,7 @@ export function UserProgressDashboard() {
               <Clock className="h-4 w-4 text-muted-foreground" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold text-gray-900">{formatTime(stats?.totalTimeSpent || 0)}</div>
+              <div className="text-2xl font-bold text-foreground">{formatTime(stats?.totalTimeSpent || 0)}</div>
               <p className="text-xs text-muted-foreground">Across {stats?.totalSessions || 0} sessions</p>
             </CardContent>
           </Card>
@@ -223,7 +223,7 @@ export function UserProgressDashboard() {
               <BookOpen className="h-4 w-4 text-muted-foreground" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold text-gray-900">{uniqueQuestions.uniqueQuestions}</div>
+              <div className="text-2xl font-bold text-foreground">{uniqueQuestions.uniqueQuestions}</div>
               <p className="text-xs text-muted-foreground">
                 {uniqueQuestions.percentageAttempted.toFixed(1)}% of total questions
               </p>
@@ -236,7 +236,7 @@ export function UserProgressDashboard() {
               <Target className="h-4 w-4 text-muted-foreground" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold text-gray-900">{stats?.totalSessions || 0}</div>
+              <div className="text-2xl font-bold text-foreground">{stats?.totalSessions || 0}</div>
               <p className="text-xs text-muted-foreground">Total completed sessions</p>
             </CardContent>
           </Card>

@@ -58,13 +58,13 @@ export function AdminDashboard() {
   }, [])
 
   return (
-    <div className="min-h-screen bg-gray-50 p-6">
+    <div className="min-h-screen bg-background p-6">
       <div className="max-w-7xl mx-auto space-y-6">
         {/* Header */}
         <div className="flex items-center justify-between">
           <div>
-            <h1 className="text-3xl font-bold text-gray-900">Admin Dashboard</h1>
-            <p className="text-gray-600">Manage questions, users, and exam content</p>
+            <h1 className="text-3xl font-bold text-foreground">Admin Dashboard</h1>
+            <p className="text-muted-foreground">Manage questions, users, and exam content</p>
           </div>
           <div className="flex items-center gap-3">
             <Link href="/">

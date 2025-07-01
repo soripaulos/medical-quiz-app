@@ -407,8 +407,8 @@ export function EnhancedCreateTestInterface({ userProfile }: EnhancedCreateTestI
   }
 
   return (
-    <div className={`border border-blue-200 rounded-lg p-4 bg-slate-100 dark:bg-gray-900 bg-gray-50`}>
-      <div className="max-w-7xl mx-auto">
+    <div className="bg-background">
+      <div className="max-w-7xl mx-auto p-6">
         {/* Header */}
         <div className="flex items-center justify-between mb-6">
           <div className="flex items-center gap-4">

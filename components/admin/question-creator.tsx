@@ -133,7 +133,7 @@ export function QuestionCreator() {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50 p-6">
+    <div className="min-h-screen bg-background p-6">
       <div className="max-w-4xl mx-auto space-y-6">
         {/* Header */}
         <div className="flex items-center gap-4">
@@ -144,8 +144,8 @@ export function QuestionCreator() {
             </Button>
           </Link>
           <div>
-            <h1 className="text-3xl font-bold text-gray-900">Create Question</h1>
-            <p className="text-gray-600">Add a new question to the database</p>
+            <h1 className="text-3xl font-bold text-foreground">Create Question</h1>
+            <p className="text-muted-foreground">Add a new question to the database</p>
           </div>
         </div>
 
