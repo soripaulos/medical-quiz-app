@@ -1,7 +1,7 @@
-import { type NextRequest, NextResponse } from "next/server"
+import { NextResponse } from "next/server"
 import { createClient } from "@/lib/supabase/server"
 
-export async function POST(request: NextRequest, { params }: { params: { sessionId: string } }) {
+export async function POST(req: Request, { params }: { params: { sessionId: string } }) {
   try {
     const supabase = await createClient()
     const { sessionId } = params
@@ -20,24 +20,31 @@ export async function POST(request: NextRequest, { params }: { params: { session
     // Calculate metrics
     const { data: answers } = await supabase.from("user_answers").select("is_correct").eq("session_id", sessionId)
 
-    const correctAnswers = (answers || []).filter((a) => a.is_correct).length
-    const incorrectAnswers = (answers || []).filter((a) => !a.is_correct).length
+    const correctAnswers = answers?.filter((a) => a.is_correct).length || 0
+    const incorrectAnswers = answers?.filter((a) => !a.is_correct).length || 0
     const totalAnswered = correctAnswers + incorrectAnswers
     const unansweredQuestions = Math.max(0, session.total_questions - totalAnswered)
 
-    // Calculate total time spent in seconds
-    const now = new Date()
-    const createdAt = new Date(session.created_at)
-    const totalTimeSpentSeconds = Math.floor((now.getTime() - createdAt.getTime()) / 1000)
+    // Calculate time spent
+    let totalTimeSpent = 0
+    if (session.time_limit && session.time_remaining !== null) {
+      // Timed session: time_limit (minutes) * 60 - time_remaining (seconds)
+      totalTimeSpent = session.time_limit * 60 - session.time_remaining
+    } else {
+      // Untimed session: calculate elapsed time from creation to now
+      const startTime = new Date(session.created_at).getTime()
+      const endTime = new Date().getTime()
+      totalTimeSpent = Math.floor((endTime - startTime) / 1000)
+    }
 
-    // End the session with calculated metrics
+    // Update session with completion data and metrics
     const { error: updateError } = await supabase
       .from("user_sessions")
       .update({
         is_active: false,
         is_paused: false,
-        completed_at: now.toISOString(),
-        total_time_spent: totalTimeSpentSeconds,
+        completed_at: new Date().toISOString(),
+        total_time_spent: totalTimeSpent,
         correct_answers: correctAnswers,
         incorrect_answers: incorrectAnswers,
         unanswered_questions: unansweredQuestions,
@@ -45,21 +52,21 @@ export async function POST(request: NextRequest, { params }: { params: { session
       .eq("id", sessionId)
 
     if (updateError) {
-      console.error("Error ending session:", updateError)
-      return NextResponse.json({ error: "Failed to end session" }, { status: 500 })
+      console.error("Error updating session:", updateError)
+      return NextResponse.json({ error: "Failed to update session" }, { status: 500 })
     }
 
     return NextResponse.json({
       success: true,
       metrics: {
-        totalTimeSpent: totalTimeSpentSeconds,
         correctAnswers,
         incorrectAnswers,
         unansweredQuestions,
+        totalTimeSpent,
       },
     })
   } catch (error) {
-    console.error("Error in end session API:", error)
+    console.error("Error ending session:", error)
     return NextResponse.json({ error: "Internal server error" }, { status: 500 })
   }
 }

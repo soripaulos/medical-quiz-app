@@ -5,19 +5,7 @@ import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet"
-import {
-  Calculator,
-  Flag,
-  ChevronLeft,
-  ChevronRight,
-  Pause,
-  Square,
-  Beaker,
-  StickyNote,
-  Menu,
-  Moon,
-  Sun,
-} from "lucide-react"
+import { Calculator, Flag, ChevronLeft, ChevronRight, Square, Beaker, StickyNote, Menu, Moon, Sun } from "lucide-react"
 import { QuestionSidebar } from "./question-sidebar"
 import { LabValuesModal } from "./lab-values-modal"
 import { CalculatorModal } from "./calculator-modal"
@@ -218,11 +206,36 @@ export function QuizInterface({
   }
 
   const getChoiceStyle = (choice: any, isSelected: boolean) => {
+    // Before explanation is shown
     if (!showCurrentExplanation) {
-      return isSelected ? "border-blue-500 bg-blue-50" : "border-gray-200 hover:border-gray-300"
+      if (isDarkMode) {
+        return isSelected
+          ? "border-blue-500 bg-blue-500/20" // Selected answer in dark mode
+          : "border-gray-700 hover:border-gray-500"
+      }
+      return isSelected
+        ? "border-blue-500 bg-blue-50" // Selected answer in light mode
+        : "border-gray-200 hover:border-gray-300"
     }
-    if (choice.is_correct) return "border-green-500 bg-green-50"
-    if (isSelected && !choice.is_correct) return "border-red-500 bg-red-50"
+
+    // After explanation is shown
+    if (isDarkMode) {
+      if (choice.is_correct) {
+        return "border-green-500 bg-green-500/20" // Correct answer in dark mode
+      }
+      if (isSelected && !choice.is_correct) {
+        return "border-red-500 bg-red-500/20" // Incorrect answer in dark mode
+      }
+      return "border-gray-700" // Default for other choices in dark mode
+    }
+
+    // Light mode (existing logic)
+    if (choice.is_correct) {
+      return "border-green-500 bg-green-50"
+    }
+    if (isSelected && !choice.is_correct) {
+      return "border-red-500 bg-red-50"
+    }
     return "border-gray-200 bg-gray-50"
   }
 
@@ -407,9 +420,7 @@ export function QuizInterface({
                   return (
                     <Card
                       key={choice.letter}
-                      className={`cursor-pointer transition-all ${getChoiceStyle(choice, isSelected)} ${
-                        isDarkMode ? "bg-gray-800 border-gray-700 hover:border-gray-600" : ""
-                      }`}
+                      className={`cursor-pointer transition-all ${getChoiceStyle(choice, isSelected)}`}
                       onClick={() => !showCurrentExplanation && handleAnswerSelect(choice.letter)}
                     >
                       <CardContent className="p-4">
@@ -421,12 +432,24 @@ export function QuizInterface({
                             <p className={`text-sm ${isDarkMode ? "text-gray-100" : ""}`}>{choice.text}</p>
                           </div>
                           {showCurrentExplanation && choice.is_correct && (
-                            <Badge variant="secondary" className="bg-green-100 text-green-800">
+                            <Badge
+                              variant="secondary"
+                              className={
+                                isDarkMode
+                                  ? "bg-green-500/20 text-green-300 border-green-500/30"
+                                  : "bg-green-100 text-green-800"
+                              }
+                            >
                               Correct
                             </Badge>
                           )}
                           {showCurrentExplanation && isSelected && !choice.is_correct && (
-                            <Badge variant="secondary" className="bg-red-100 text-red-800">
+                            <Badge
+                              variant="secondary"
+                              className={
+                                isDarkMode ? "bg-red-500/20 text-red-300 border-red-500/30" : "bg-red-100 text-red-800"
+                              }
+                            >
                               Incorrect
                             </Badge>
                           )}
@@ -509,10 +532,6 @@ export function QuizInterface({
 
           <div className="flex items-center gap-4">
             {session.time_limit && <span className="text-sm">block time remaining: {formatTime(timeRemaining)}</span>}
-            <Button variant="ghost" size="sm" className="text-white hover:bg-blue-700" onClick={onPauseSession}>
-              <Pause className="w-4 h-4 mr-1" />
-              Suspend
-            </Button>
             <Button variant="destructive" size="sm" onClick={() => setShowSubmitPrompt(true)}>
               <Square className="w-4 h-4 mr-1" />
               End Block

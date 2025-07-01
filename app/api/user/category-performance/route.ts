@@ -1,62 +1,69 @@
-import { type NextRequest, NextResponse } from "next/server"
+import { NextResponse } from "next/server"
 import { createClient } from "@/lib/supabase/server"
 
-export async function GET(request: NextRequest) {
+export async function GET() {
   try {
-    const { searchParams } = new URL(request.url)
-    const userId = searchParams.get("userId")
-
-    if (!userId) {
-      return NextResponse.json({ error: "User ID is required" }, { status: 400 })
-    }
-
     const supabase = await createClient()
 
-    // Get user answers with question categories
-    const { data: answers, error } = await supabase
+    // Get current user
+    const {
+      data: { user },
+      error: userError,
+    } = await supabase.auth.getUser()
+
+    if (userError || !user) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
+    }
+
+    // Get user answers with question specialty information
+    const { data: answers, error: answersError } = await supabase
       .from("user_answers")
       .select(`
         is_correct,
         questions (
-          specialties (name)
+          specialties (
+            name
+          )
         )
       `)
-      .eq("user_id", userId)
+      .eq("user_id", user.id)
 
-    if (error) {
-      console.error("Error fetching category performance:", error)
-      return NextResponse.json({ error: "Failed to fetch category performance" }, { status: 500 })
+    if (answersError) {
+      console.error("Answers error:", answersError)
+      return NextResponse.json({ error: "Failed to fetch answers" }, { status: 500 })
     }
 
-    // Group by category and calculate performance
-    const categoryStats: { [key: string]: { correct: number; incorrect: number; total: number } } = {}
-    ;(answers || []).forEach((answer) => {
-      const categoryName = answer.questions?.specialties?.name || "Unknown"
+    // Group by specialty and calculate performance
+    const categoryMap = new Map()
 
-      if (!categoryStats[categoryName]) {
-        categoryStats[categoryName] = { correct: 0, incorrect: 0, total: 0 }
+    answers?.forEach((answer: any) => {
+      const specialty = answer.questions?.specialties?.name || "Unknown"
+
+      if (!categoryMap.has(specialty)) {
+        categoryMap.set(specialty, { total: 0, correct: 0 })
       }
 
-      categoryStats[categoryName].total++
+      const stats = categoryMap.get(specialty)
+      stats.total++
       if (answer.is_correct) {
-        categoryStats[categoryName].correct++
-      } else {
-        categoryStats[categoryName].incorrect++
+        stats.correct++
       }
     })
 
-    // Transform to array format with accuracy calculation
-    const categories = Object.entries(categoryStats).map(([category, stats]) => ({
+    // Convert to array format
+    const categoryPerformance = Array.from(categoryMap.entries()).map(([category, stats]) => ({
       category,
       total: stats.total,
       correct: stats.correct,
-      incorrect: stats.incorrect,
       accuracy: stats.total > 0 ? (stats.correct / stats.total) * 100 : 0,
     }))
 
-    return NextResponse.json({ categories })
+    // Sort by accuracy descending
+    categoryPerformance.sort((a, b) => b.accuracy - a.accuracy)
+
+    return NextResponse.json({ categoryPerformance })
   } catch (error) {
-    console.error("Error in category performance API:", error)
+    console.error("Error fetching category performance:", error)
     return NextResponse.json({ error: "Internal server error" }, { status: 500 })
   }
 }

@@ -94,7 +94,7 @@ export function AdminDashboard() {
             </CardHeader>
             <CardContent>
               <div className="text-2xl font-bold">{stats.totalUsers}</div>
-              <p className="text-xs text-muted-foreground">+12% from last month</p>
+              
             </CardContent>
           </Card>
 

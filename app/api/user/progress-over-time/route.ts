@@ -1,61 +1,69 @@
-import { type NextRequest, NextResponse } from "next/server"
+import { NextResponse } from "next/server"
 import { createClient } from "@/lib/supabase/server"
 
-export async function GET(request: NextRequest) {
+export async function GET() {
   try {
-    const { searchParams } = new URL(request.url)
-    const userId = searchParams.get("userId")
-
-    if (!userId) {
-      return NextResponse.json({ error: "User ID is required" }, { status: 400 })
-    }
-
     const supabase = await createClient()
 
-    // Get completed sessions with their metrics
-    const { data: sessions, error } = await supabase
+    // Get current user
+    const {
+      data: { user },
+      error: userError,
+    } = await supabase.auth.getUser()
+
+    if (userError || !user) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
+    }
+
+    // Get completed sessions with stored metrics, ordered by completion date
+    const { data: sessions, error: sessionsError } = await supabase
       .from("user_sessions")
       .select(`
-        completed_at,
+        id,
+        session_name,
+        total_questions,
         correct_answers,
-        incorrect_answers
+        incorrect_answers,
+        completed_at
       `)
-      .eq("user_id", userId)
+      .eq("user_id", user.id)
       .not("completed_at", "is", null)
       .order("completed_at", { ascending: true })
 
-    if (error) {
-      console.error("Error fetching progress over time:", error)
-      return NextResponse.json({ error: "Failed to fetch progress over time" }, { status: 500 })
+    if (sessionsError) {
+      console.error("Sessions error:", sessionsError)
+      return NextResponse.json({ error: "Failed to fetch sessions" }, { status: 500 })
     }
 
-    // Group sessions by date and calculate daily accuracy
-    const dailyProgress: { [key: string]: { correct: number; total: number; sessions: number } } = {}
-    ;(sessions || []).forEach((session) => {
-      const date = new Date(session.completed_at).toISOString().split("T")[0]
-      const correct = session.correct_answers || 0
-      const incorrect = session.incorrect_answers || 0
-      const total = correct + incorrect
+    // Calculate cumulative progress over time
+    let cumulativeCorrect = 0
+    let cumulativeTotal = 0
 
-      if (!dailyProgress[date]) {
-        dailyProgress[date] = { correct: 0, total: 0, sessions: 0 }
-      }
+    const progressData =
+      sessions?.map((session, index) => {
+        const sessionCorrect = session.correct_answers || 0
+        const sessionTotal = (session.correct_answers || 0) + (session.incorrect_answers || 0)
 
-      dailyProgress[date].correct += correct
-      dailyProgress[date].total += total
-      dailyProgress[date].sessions += 1
-    })
+        cumulativeCorrect += sessionCorrect
+        cumulativeTotal += sessionTotal
 
-    // Transform to array format
-    const progress = Object.entries(dailyProgress).map(([date, stats]) => ({
-      date,
-      accuracy: stats.total > 0 ? (stats.correct / stats.total) * 100 : 0,
-      sessionsCount: stats.sessions,
-    }))
+        const sessionAccuracy = sessionTotal > 0 ? (sessionCorrect / sessionTotal) * 100 : 0
+        const cumulativeAccuracy = cumulativeTotal > 0 ? (cumulativeCorrect / cumulativeTotal) * 100 : 0
 
-    return NextResponse.json({ progress })
+        return {
+          sessionNumber: index + 1,
+          sessionName: session.session_name,
+          date: session.completed_at,
+          sessionAccuracy: Math.round(sessionAccuracy * 10) / 10,
+          cumulativeAccuracy: Math.round(cumulativeAccuracy * 10) / 10,
+          questionsAnswered: sessionTotal,
+          totalQuestionsAnswered: cumulativeTotal,
+        }
+      }) || []
+
+    return NextResponse.json({ progressData })
   } catch (error) {
-    console.error("Error in progress over time API:", error)
+    console.error("Error fetching progress over time:", error)
     return NextResponse.json({ error: "Internal server error" }, { status: 500 })
   }
 }

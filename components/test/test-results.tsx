@@ -8,21 +8,7 @@ import { Progress } from "@/components/ui/progress"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Separator } from "@/components/ui/separator"
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell } from "recharts"
-import {
-  Trophy,
-  Target,
-  Clock,
-  CheckCircle,
-  XCircle,
-  Flag,
-  Download,
-  Share2,
-  RotateCcw,
-  Home,
-  Eye,
-  Brain,
-  Zap,
-} from "lucide-react"
+import { Trophy, Target, Clock, CheckCircle, XCircle, Flag, RotateCcw, Home, Eye, Brain } from "lucide-react"
 import Link from "next/link"
 import type { Question, UserSession, UserAnswer, UserQuestionProgress } from "@/lib/types"
 
@@ -119,33 +105,6 @@ export function TestResults({ sessionId }: TestResultsProps) {
       return `${minutes}m ${secs}s`
     }
     return `${secs}s`
-  }
-
-  const exportResults = () => {
-    if (!results) return
-
-    const csvContent = [
-      ["Question", "Your Answer", "Correct Answer", "Result", "Time Spent", "Difficulty", "Specialty"],
-      ...results.questionDetails.map((q) => [
-        q.questionText.substring(0, 100) + "...",
-        q.userAnswer || "Not Answered",
-        q.correctAnswer,
-        q.isCorrect ? "Correct" : "Incorrect",
-        formatTime(q.timeSpent),
-        q.difficulty.toString(),
-        q.specialty,
-      ]),
-    ]
-      .map((row) => row.map((cell) => `"${cell}"`).join(","))
-      .join("\n")
-
-    const blob = new Blob([csvContent], { type: "text/csv" })
-    const url = URL.createObjectURL(blob)
-    const a = document.createElement("a")
-    a.href = url
-    a.download = `test-results-${sessionId}.csv`
-    a.click()
-    URL.revokeObjectURL(url)
   }
 
   if (loading) {
@@ -520,7 +479,7 @@ export function TestResults({ sessionId }: TestResultsProps) {
           </TabsContent>
 
           <TabsContent value="insights" className="space-y-6">
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            <div className="grid grid-cols-1 lg:grid-cols-1 gap-6">
               <Card>
                 <CardHeader>
                   <CardTitle className="flex items-center gap-2">
@@ -558,58 +517,12 @@ export function TestResults({ sessionId }: TestResultsProps) {
                   </div>
                 </CardContent>
               </Card>
-
-              <Card>
-                <CardHeader>
-                  <CardTitle className="flex items-center gap-2">
-                    <Zap className="w-5 h-5" />
-                    Recommendations
-                  </CardTitle>
-                </CardHeader>
-                <CardContent className="space-y-3">
-                  {performance.accuracy < 70 && (
-                    <div className="p-3 bg-red-50 border border-red-200 rounded">
-                      <p className="text-sm text-red-800">
-                        <strong>Focus on fundamentals:</strong> Your overall score suggests reviewing basic concepts
-                        would be beneficial.
-                      </p>
-                    </div>
-                  )}
-                  {performance.averageTimePerQuestion > 120 && (
-                    <div className="p-3 bg-yellow-50 border border-yellow-200 rounded">
-                      <p className="text-sm text-yellow-800">
-                        <strong>Time management:</strong> Consider practicing with time limits to improve your pace.
-                      </p>
-                    </div>
-                  )}
-                  {difficultyBreakdown.find((d) => d.level >= 4 && d.accuracy < 60) && (
-                    <div className="p-3 bg-blue-50 border border-blue-200 rounded">
-                      <p className="text-sm text-blue-800">
-                        <strong>Advanced topics:</strong> Focus on higher difficulty questions to challenge yourself.
-                      </p>
-                    </div>
-                  )}
-                  <div className="p-3 bg-green-50 border border-green-200 rounded">
-                    <p className="text-sm text-green-800">
-                      <strong>Keep practicing:</strong> Regular practice sessions will help reinforce your knowledge.
-                    </p>
-                  </div>
-                </CardContent>
-              </Card>
             </div>
           </TabsContent>
         </Tabs>
 
         {/* Action Buttons */}
         <div className="flex flex-wrap items-center justify-center gap-4 pt-6">
-          <Button onClick={exportResults} variant="outline">
-            <Download className="w-4 h-4 mr-2" />
-            Export Results
-          </Button>
-          <Button variant="outline">
-            <Share2 className="w-4 h-4 mr-2" />
-            Share Results
-          </Button>
           <Link href="/create-test">
             <Button variant="outline">
               <RotateCcw className="w-4 h-4 mr-2" />

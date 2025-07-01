@@ -18,8 +18,6 @@ import {
   Filter,
   RefreshCw,
   Settings,
-  Clock,
-  BookOpen,
   Target,
   Calendar,
   GraduationCap,
@@ -38,6 +36,40 @@ import { useAuth } from "@/hooks/use-auth"
 import type { Question, QuestionFilters } from "@/lib/types"
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
 import { UserProgressDashboard } from "./user-progress-dashboard"
+
+// Helper: safely parse JSON, logs non-JSON text responses for easier debugging
+/**
+ * Attempts to parse a Response as JSON.
+ *  – Returns the parsed JSON on success.
+ *  – Returns `null` if the server returned a non-2xx status OR non-JSON body.
+ *     In both cases the error text is logged so we can debug without crashing the UI.
+ */
+async function safeJson(res: Response) {
+  const url = res.url || "«unknown»"
+  const ct = res.headers.get("content-type") ?? ""
+
+  // If the server signalled failure, read the body as text for the log.
+  if (!res.ok) {
+    const errText = await res.text()
+    console.error(`Request to ${url} failed – ${res.status}:`, errText)
+    return null
+  }
+
+  // If the body isn't JSON, log & return null
+  if (!ct.includes("application/json")) {
+    const raw = await res.text()
+    console.error(`Non-JSON response from ${url}:`, raw)
+    return null
+  }
+
+  // Finally, safely parse JSON
+  try {
+    return await res.json()
+  } catch (err) {
+    console.error(`JSON parse error for ${url}:`, err)
+    return null
+  }
+}
 
 interface TestPreset {
   id: string
@@ -80,42 +112,6 @@ export function EnhancedCreateTestInterface() {
   const [availableYears, setAvailableYears] = useState<number[]>([])
 
   // Test presets
-  const testPresets: TestPreset[] = [
-    {
-      id: "quick-practice",
-      name: "Quick Practice",
-      description: "20 random questions for quick review",
-      filters: { difficulties: [1, 2, 3] },
-      sessionMode: "practice",
-      icon: <Target className="w-5 h-5" />,
-    },
-    {
-      id: "internal-medicine",
-      name: "Internal Medicine Focus",
-      description: "Practice internal medicine questions",
-      filters: { specialties: ["Internal Medicine"] },
-      sessionMode: "practice",
-      icon: <BookOpen className="w-5 h-5" />,
-    },
-    {
-      id: "exam-simulation",
-      name: "Exam Simulation",
-      description: "Full exam simulation with time limit",
-      filters: {},
-      sessionMode: "exam",
-      timeLimit: 120,
-      icon: <Clock className="w-5 h-5" />,
-    },
-    {
-      id: "recent-years",
-      name: "Recent Years",
-      description: "Questions from the last 3 years",
-      filters: { years: [2023, 2022, 2021] },
-      sessionMode: "practice",
-      icon: <Calendar className="w-5 h-5" />,
-    },
-  ]
-
   const difficulties = [1, 2, 3, 4, 5]
   const questionStatuses = [
     { value: "answered", label: "Answered" },
@@ -185,26 +181,27 @@ export function EnhancedCreateTestInterface() {
   const fetchFilterOptions = async () => {
     try {
       // Fetch specialties
-      const specialtiesResponse = await fetch("/api/specialties")
-      const specialtiesData = await specialtiesResponse.json()
-      if (specialtiesData.specialties) {
+      const specialtiesRes = await fetch("/api/specialties")
+      const specialtiesData = (await safeJson(specialtiesRes)) as any
+      if (specialtiesData?.specialties) {
         setSpecialties(specialtiesData.specialties.map((s: any) => s.name))
       }
 
       // Fetch exam types
-      const examTypesResponse = await fetch("/api/exam-types")
-      const examTypesData = await examTypesResponse.json()
-      if (examTypesData.examTypes) {
+      const examTypesRes = await fetch("/api/exam-types")
+      const examTypesData = (await safeJson(examTypesRes)) as any
+      if (examTypesData?.examTypes) {
         setExamTypes(examTypesData.examTypes.map((e: any) => e.name))
       }
 
-      // Fetch available years from questions
-      const yearsResponse = await fetch("/api/questions/years")
-      const yearsData = await yearsResponse.json()
-      if (yearsData.years) {
+      // Fetch available years
+      const yearsRes = await fetch("/api/questions/years")
+      const yearsData = (await safeJson(yearsRes)) as any
+      if (yearsData?.years) {
         setAvailableYears(yearsData.years.sort((a: number, b: number) => b - a))
       }
     } catch (error) {
+      // This will catch network errors or JSON parsing failures
       console.error("Error fetching filter options:", error)
     }
   }
@@ -212,27 +209,35 @@ export function EnhancedCreateTestInterface() {
   const fetchFilteredQuestions = async () => {
     setLoading(true)
     try {
-      const response = await fetch("/api/questions/filtered", {
+      const res = await fetch("/api/questions/filtered", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          filters,
-          userId: user?.id,
-        }),
+        body: JSON.stringify({ filters, userId: user?.id }),
       })
 
-      const data = await response.json()
-      if (data.questions) {
+      const data = await safeJson(res)
+
+      if (!res.ok || !data) {
+        throw new Error(data?.message || `Server returned ${res.status}`)
+      }
+
+      if (data?.questions) {
         setAvailableQuestions(data.questions)
         setQuestionCount(data.count)
       } else {
         setAvailableQuestions([])
         setQuestionCount(0)
+        if (process.env.NODE_ENV === "development") {
+          alert("Failed to load questions. Check the console for errors.")
+        }
       }
-    } catch (error) {
-      console.error("Error fetching questions:", error)
+    } catch (err) {
+      console.error("Error fetching questions:", err)
       setAvailableQuestions([])
       setQuestionCount(0)
+      if (process.env.NODE_ENV === "development") {
+        alert("Failed to load questions. Check the console for errors.")
+      }
     } finally {
       setLoading(false)
     }
@@ -262,20 +267,6 @@ export function EnhancedCreateTestInterface() {
     }
 
     setValidationErrors(errors)
-  }
-
-  const applyPreset = (preset: TestPreset) => {
-    setFilters((prev) => ({
-      ...prev,
-      ...preset.filters,
-    }))
-    setSessionMode(preset.sessionMode)
-    if (preset.timeLimit) {
-      setTimeLimit(preset.timeLimit)
-    }
-    if (preset.id === "quick-practice") {
-      setMaxQuestions(20)
-    }
   }
 
   const handleFilterChange = (filterType: keyof QuestionFilters, value: string | number, checked: boolean) => {
@@ -409,12 +400,12 @@ export function EnhancedCreateTestInterface() {
   }
 
   return (
-    <div className={`min-h-screen p-6 ${isDarkMode ? "bg-gray-900" : "bg-gray-50"}`}>
+    <div className={`border border-blue-200 rounded-lg p-4 bg-slate-100 ${isDarkMode ? "bg-gray-900" : "bg-gray-50"}`}>
       <div className="max-w-7xl mx-auto">
         {/* Header */}
         <div className="flex items-center justify-between mb-6">
           <div className="flex items-center gap-4">
-            <h1 className="text-3xl font-bold text-gray-900">Medical Quiz App</h1>
+            <h1 className="text-3xl font-bold">Med Exam Prep</h1>
             <Button variant="outline" size="sm" onClick={fetchFilteredQuestions} disabled={loading}>
               <RefreshCw className={`w-4 h-4 mr-2 ${loading ? "animate-spin" : ""}`} />
               Refresh
@@ -464,50 +455,10 @@ export function EnhancedCreateTestInterface() {
         </div>
 
         <Tabs defaultValue="custom" className="space-y-6">
-          <TabsList className="grid w-full grid-cols-3">
-            <TabsTrigger value="presets">Quick Start</TabsTrigger>
+          <TabsList className="grid w-full grid-cols-2">
             <TabsTrigger value="custom">Create Test</TabsTrigger>
             <TabsTrigger value="progress">My Progress</TabsTrigger>
           </TabsList>
-
-          <TabsContent value="presets" className="space-y-6">
-            <Card>
-              <CardHeader>
-                <CardTitle>Quick Start Presets</CardTitle>
-                <p className="text-sm text-gray-600">Choose a preset to quickly configure your test</p>
-              </CardHeader>
-              <CardContent>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  {testPresets.map((preset) => (
-                    <Card
-                      key={preset.id}
-                      className="cursor-pointer hover:shadow-md transition-shadow border-2 hover:border-blue-200"
-                    >
-                      <CardContent className="p-4" onClick={() => applyPreset(preset)}>
-                        <div className="flex items-start gap-3">
-                          <div className="text-blue-600 mt-1">{preset.icon}</div>
-                          <div className="flex-1">
-                            <h3 className="font-semibold text-gray-900">{preset.name}</h3>
-                            <p className="text-sm text-gray-600 mt-1">{preset.description}</p>
-                            <div className="flex items-center gap-2 mt-2">
-                              <Badge variant="outline" className="text-xs">
-                                {preset.sessionMode}
-                              </Badge>
-                              {preset.timeLimit && (
-                                <Badge variant="outline" className="text-xs">
-                                  {preset.timeLimit} min
-                                </Badge>
-                              )}
-                            </div>
-                          </div>
-                        </div>
-                      </CardContent>
-                    </Card>
-                  ))}
-                </div>
-              </CardContent>
-            </Card>
-          </TabsContent>
 
           <TabsContent value="custom" className="space-y-6">
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
@@ -539,7 +490,7 @@ export function EnhancedCreateTestInterface() {
                           <GraduationCap className="w-4 h-4 inline mr-2" />
                           Specialties
                           {filters.specialties.length === 0 && (
-                            <span className="text-sm text-green-600 font-normal ml-2">(All included)</span>
+                            <span className="text-sm text-green-600 font-normal ml-2">(All)</span>
                           )}
                         </Label>
                         <div className="flex gap-2">
@@ -588,7 +539,7 @@ export function EnhancedCreateTestInterface() {
                           <Calendar className="w-4 h-4 inline mr-2" />
                           Years
                           {filters.years.length === 0 && (
-                            <span className="text-sm text-green-600 font-normal ml-2">(All included)</span>
+                            <span className="text-sm text-green-600 font-normal ml-2">(All)</span>
                           )}
                         </Label>
                         <div className="flex gap-2">
@@ -635,7 +586,7 @@ export function EnhancedCreateTestInterface() {
                           <Target className="w-4 h-4 inline mr-2" />
                           Difficulty
                           {filters.difficulties.length === 0 && (
-                            <span className="text-sm text-green-600 font-normal ml-2">(All included)</span>
+                            <span className="text-sm text-green-600 font-normal ml-2">(All)</span>
                           )}
                         </Label>
                         <div className="flex gap-2">
@@ -684,7 +635,7 @@ export function EnhancedCreateTestInterface() {
                           <CheckCircle className="w-4 h-4 inline mr-2" />
                           Question Status
                           {filters.questionStatus.length === 0 && (
-                            <span className="text-sm text-green-600 font-normal ml-2">(All included)</span>
+                            <span className="text-sm text-green-600 font-normal ml-2">(All)</span>
                           )}
                         </Label>
                         <div className="flex gap-2">
@@ -733,7 +684,7 @@ export function EnhancedCreateTestInterface() {
                           <FileText className="w-4 h-4 inline mr-2" />
                           Exam Types
                           {filters.examTypes.length === 0 && (
-                            <span className="text-sm text-green-600 font-normal ml-2">(All included)</span>
+                            <span className="text-sm text-green-600 font-normal ml-2">(All)</span>
                           )}
                         </Label>
                         <div className="flex gap-2">
@@ -817,7 +768,7 @@ export function EnhancedCreateTestInterface() {
                     </div>
 
                     {sessionMode === "practice" && (
-                      <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+                      <div className="border border-blue-200 rounded-lg p-4 bg-transparent">
                         <div className="flex items-start space-x-3">
                           <TrendingUp className="w-5 h-5 text-blue-600 mt-0.5" />
                           <div className="flex-1">

@@ -1,35 +1,52 @@
-import { type NextRequest, NextResponse } from "next/server"
+import { NextResponse } from "next/server"
 import { createClient } from "@/lib/supabase/server"
 
-export async function GET(request: NextRequest) {
+export async function GET() {
   try {
-    const { searchParams } = new URL(request.url)
-    const userId = searchParams.get("userId")
-
-    if (!userId) {
-      return NextResponse.json({ error: "User ID is required" }, { status: 400 })
-    }
-
     const supabase = await createClient()
 
-    // Count unique questions the user has encountered
-    const { data: uniqueQuestions, error } = await supabase
-      .from("user_answers")
-      .select("question_id")
-      .eq("user_id", userId)
+    // Get current user
+    const {
+      data: { user },
+      error: userError,
+    } = await supabase.auth.getUser()
 
-    if (error) {
-      console.error("Error fetching unique questions:", error)
-      return NextResponse.json({ error: "Failed to fetch unique questions" }, { status: 500 })
+    if (userError || !user) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
     }
 
-    // Get unique question IDs
-    const uniqueQuestionIds = new Set((uniqueQuestions || []).map((q) => q.question_id))
-    const uniqueQuestionCount = uniqueQuestionIds.size
+    // Get unique questions the user has attempted
+    const { data: userAnswers, error: answersError } = await supabase
+      .from("user_answers")
+      .select("question_id")
+      .eq("user_id", user.id)
 
-    return NextResponse.json({ uniqueQuestions: uniqueQuestionCount })
+    if (answersError) {
+      console.error("User answers error:", answersError)
+      return NextResponse.json({ error: "Failed to fetch user answers" }, { status: 500 })
+    }
+
+    // Get total questions in database
+    const { data: allQuestions, error: questionsError } = await supabase.from("questions").select("id")
+
+    if (questionsError) {
+      console.error("Questions error:", questionsError)
+      return NextResponse.json({ error: "Failed to fetch questions" }, { status: 500 })
+    }
+
+    const uniqueQuestionIds = new Set(userAnswers?.map((a) => a.question_id) || [])
+    const totalUniqueQuestions = uniqueQuestionIds.size
+    const totalQuestionsInDatabase = allQuestions?.length || 0
+    const percentageAttempted =
+      totalQuestionsInDatabase > 0 ? (totalUniqueQuestions / totalQuestionsInDatabase) * 100 : 0
+
+    return NextResponse.json({
+      uniqueQuestions: totalUniqueQuestions,
+      totalQuestions: totalQuestionsInDatabase,
+      percentageAttempted: Math.round(percentageAttempted * 10) / 10,
+    })
   } catch (error) {
-    console.error("Error in unique questions API:", error)
+    console.error("Error fetching unique questions:", error)
     return NextResponse.json({ error: "Internal server error" }, { status: 500 })
   }
 }
