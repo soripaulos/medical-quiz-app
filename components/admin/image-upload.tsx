@@ -2,7 +2,7 @@
 
 import type React from "react"
 
-import { useState } from "react"
+import { useState, useRef } from "react"
 import { Button } from "@/components/ui/button"
 import { Upload, X } from "lucide-react"
 
@@ -13,6 +13,7 @@ interface ImageUploadProps {
 export function ImageUpload({ onImageSelect }: ImageUploadProps) {
   const [selectedImage, setSelectedImage] = useState<File | null>(null)
   const [previewUrl, setPreviewUrl] = useState<string | null>(null)
+  const inputRef = useRef<HTMLInputElement>(null)
 
   const handleFileSelect = (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0]
@@ -30,6 +31,13 @@ export function ImageUpload({ onImageSelect }: ImageUploadProps) {
     setSelectedImage(null)
     setPreviewUrl(null)
     onImageSelect(null)
+    if (inputRef.current) {
+      inputRef.current.value = ""
+    }
+  }
+  
+  const handleButtonClick = () => {
+    inputRef.current?.click()
   }
 
   return (
@@ -38,12 +46,16 @@ export function ImageUpload({ onImageSelect }: ImageUploadProps) {
         <div className="border-2 border-dashed border-gray-300 rounded-lg p-6 text-center">
           <Upload className="w-8 h-8 mx-auto text-gray-400 mb-2" />
           <p className="text-sm text-gray-600 mb-2">Click to upload an image</p>
-          <input type="file" accept="image/*" onChange={handleFileSelect} className="hidden" id="image-upload" />
-          <label htmlFor="image-upload">
-            <Button type="button" variant="outline" size="sm" asChild>
-              <span>Choose File</span>
-            </Button>
-          </label>
+          <input
+            type="file"
+            accept="image/*"
+            onChange={handleFileSelect}
+            className="hidden"
+            ref={inputRef}
+          />
+          <Button type="button" variant="outline" size="sm" onClick={handleButtonClick}>
+            Choose File
+          </Button>
         </div>
       ) : (
         <div className="space-y-2">
