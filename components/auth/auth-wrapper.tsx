@@ -1,6 +1,7 @@
 "use client"
 
-import React from "react"
+import React, { useEffect } from "react"
+import { useRouter } from "next/navigation"
 import { useAuth } from "@/hooks/use-auth"
 import { LoginForm } from "./login-form"
 import { LoadingSpinner } from "@/components/ui/loading-spinner"
@@ -14,6 +15,14 @@ interface AuthWrapperProps {
 
 export function AuthWrapper({ children, requireAdmin = false }: AuthWrapperProps) {
   const { user, loading, signOut } = useAuth()
+  const router = useRouter()
+
+  // Automatically redirect to login if no user is present and not loading
+  useEffect(() => {
+    if (!loading && !user) {
+      router.push('/login')
+    }
+  }, [loading, user, router])
 
   if (loading) {
     return <LoadingSpinner />

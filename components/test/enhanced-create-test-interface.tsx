@@ -29,11 +29,13 @@ import {
   Moon,
   Sun,
   TrendingUp,
+  Shield,
 } from "lucide-react"
 import Link from "next/link"
 import { useRouter } from "next/navigation"
 import { useAuth } from "@/hooks/use-auth"
 import type { Question, QuestionFilters } from "@/lib/types"
+import type { UserProfile } from "@/lib/auth"
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
 import { UserProgressDashboard } from "./user-progress-dashboard"
 
@@ -81,7 +83,11 @@ interface TestPreset {
   icon: React.ReactNode
 }
 
-export function EnhancedCreateTestInterface() {
+interface EnhancedCreateTestInterfaceProps {
+  userProfile: UserProfile
+}
+
+export function EnhancedCreateTestInterface({ userProfile }: EnhancedCreateTestInterfaceProps) {
   const { user, signOut } = useAuth()
   const router = useRouter()
 
@@ -396,9 +402,11 @@ export function EnhancedCreateTestInterface() {
   const handleSignOut = async () => {
     try {
       await signOut()
-      router.push("/")
+      // The AuthProvider will automatically redirect to /login after signOut
     } catch (error) {
       console.error("Error signing out:", error)
+      // Force redirect to login if signOut fails
+      router.push("/login")
     }
   }
 
@@ -415,6 +423,14 @@ export function EnhancedCreateTestInterface() {
             </Button>
           </div>
           <div className="flex gap-2">
+            {userProfile.role === "admin" && (
+              <Link href="/admin">
+                <Button variant="outline" size="sm" className="flex items-center gap-2">
+                  <Shield className="w-4 h-4" />
+                  Admin Panel
+                </Button>
+              </Link>
+            )}
             <Button variant="ghost" size="sm" onClick={toggleDarkMode} className="flex items-center gap-2">
               {isDarkMode ? <Sun className="w-4 h-4" /> : <Moon className="w-4 h-4" />}
               {isDarkMode ? "Light" : "Dark"}

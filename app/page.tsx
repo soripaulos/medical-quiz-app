@@ -9,5 +9,5 @@ export default async function HomePage() {
     return null
   }
 
-  return <EnhancedCreateTestInterface />
+  return <EnhancedCreateTestInterface userProfile={session.profile} />
 }

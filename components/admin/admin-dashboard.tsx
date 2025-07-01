@@ -66,12 +66,20 @@ export function AdminDashboard() {
             <h1 className="text-3xl font-bold text-gray-900">Admin Dashboard</h1>
             <p className="text-gray-600">Manage questions, users, and exam content</p>
           </div>
-          <Link href="/admin/questions/create">
-            <Button className="flex items-center gap-2">
-              <Plus className="w-4 h-4" />
-              Create Question
-            </Button>
-          </Link>
+          <div className="flex items-center gap-3">
+            <Link href="/">
+              <Button variant="outline" className="flex items-center gap-2">
+                <FileText className="w-4 h-4" />
+                Back to Tests
+              </Button>
+            </Link>
+            <Link href="/admin/questions/create">
+              <Button className="flex items-center gap-2">
+                <Plus className="w-4 h-4" />
+                Create Question
+              </Button>
+            </Link>
+          </div>
         </div>
 
         {/* Stats Cards */}
