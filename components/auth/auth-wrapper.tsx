@@ -1,6 +1,6 @@
 "use client"
 
-import type { ReactNode } from "react"
+import React from "react"
 import { useAuth } from "@/hooks/use-auth"
 import { LoginForm } from "./login-form"
 import { LoadingSpinner } from "@/components/ui/loading-spinner"
@@ -8,7 +8,7 @@ import { Button } from "@/components/ui/button"
 import { LogOut, Shield } from "lucide-react"
 
 interface AuthWrapperProps {
-  children: ReactNode
+  children: React.ReactNode
   requireAdmin?: boolean
 }
 

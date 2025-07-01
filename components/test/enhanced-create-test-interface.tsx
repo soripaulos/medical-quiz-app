@@ -272,7 +272,9 @@ export function EnhancedCreateTestInterface() {
   const handleFilterChange = (filterType: keyof QuestionFilters, value: string | number, checked: boolean) => {
     setFilters((prev) => ({
       ...prev,
-      [filterType]: checked ? [...prev[filterType], value] : prev[filterType].filter((item) => item !== value),
+      [filterType]: checked 
+        ? [...(prev[filterType] as (string | number)[]), value] 
+        : (prev[filterType] as (string | number)[]).filter((item) => item !== value),
     }))
   }
 
@@ -886,7 +888,7 @@ export function EnhancedCreateTestInterface() {
                       ) : (
                         <div className="flex flex-wrap gap-1">
                           {Object.entries(filters).map(([key, values]) =>
-                            values.map((value) => (
+                            values.map((value: string | number) => (
                               <Badge key={`${key}-${value}`} variant="outline" className="text-xs">
                                 {String(value)}
                               </Badge>

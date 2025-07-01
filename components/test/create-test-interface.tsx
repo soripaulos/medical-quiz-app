@@ -113,7 +113,7 @@ export function CreateTestInterface() {
       const examTypesResponse = await fetch("/api/exam-types")
       const examTypesData = await examTypesResponse.json()
       if (examTypesData.examTypes) {
-        setExamTypes(examTypesData.examTypes.map((e: any) => e.name))
+        setExamTypes(examTypesData.examTypes.map((e: { name: string }) => e.name))
       }
 
       // Fetch available years from questions
@@ -159,7 +159,9 @@ export function CreateTestInterface() {
   const handleFilterChange = (filterType: keyof QuestionFilters, value: string | number, checked: boolean) => {
     setFilters((prev) => ({
       ...prev,
-      [filterType]: checked ? [...prev[filterType], value] : prev[filterType].filter((item) => item !== value),
+      [filterType]: checked 
+        ? [...(prev[filterType] as (string | number)[]), value] 
+        : (prev[filterType] as (string | number)[]).filter((item) => item !== value),
     }))
   }
 
@@ -231,7 +233,7 @@ export function CreateTestInterface() {
           sessionMode,
           filters,
           questionIds: availableQuestions.map((q) => q.id),
-          userId: user?.id || "anonymous"
+          userId: user?.id || "anonymous",
           timeLimit: sessionMode === "exam" ? timeLimit : null,
         }),
       })
@@ -554,7 +556,7 @@ export function CreateTestInterface() {
                   ) : (
                     <div className="flex flex-wrap gap-1">
                       {Object.entries(filters).map(([key, values]) =>
-                        values.map((value) => (
+                        values.map((value: string | number) => (
                           <Badge key={`${key}-${value}`} variant="outline" className="text-xs">
                             {String(value)}
                           </Badge>

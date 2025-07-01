@@ -44,7 +44,7 @@ export function LoginForm() {
 
       let errorMessage = "Failed to sign in"
 
-      if (err.message) {
+      if (err instanceof Error && err.message) {
         if (err.message.includes("Invalid login credentials")) {
           errorMessage = "Invalid email or password"
         } else if (err.message.includes("Email not confirmed")) {

@@ -126,10 +126,13 @@ export function TestSession({ sessionId }: TestSessionProps) {
             ...prev,
             {
               id: `progress-${questionId}`,
+              user_id: session.user_id,
               question_id: questionId,
               times_attempted: 0,
               times_correct: 0,
               is_flagged: true,
+              created_at: new Date().toISOString(),
+              updated_at: new Date().toISOString(),
             },
           ]
         }

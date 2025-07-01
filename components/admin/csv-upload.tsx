@@ -33,7 +33,7 @@ export function CSVUpload() {
       if (!line) continue
 
       // Handle CSV parsing with quoted values
-      const values = []
+      const values: string[] = []
       let current = ""
       let inQuotes = false
 

@@ -21,9 +21,9 @@ export async function GET() {
 
     if (error) throw error
 
-    const activities = questions.map((q) => {
-      const createdAt = new Date(q.created_at)
-      const updatedAt = new Date(q.updated_at)
+    const activities = questions.map((q: any) => {
+      const createdAt = new Date(q.created_at as string)
+      const updatedAt = new Date(q.updated_at as string)
       // Simple heuristic: if created_at and updated_at are very close, assume it's a creation
       const isCreated = Math.abs(createdAt.getTime() - updatedAt.getTime()) < 1000 // within 1 second
 
