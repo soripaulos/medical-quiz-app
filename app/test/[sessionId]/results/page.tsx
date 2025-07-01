@@ -1,11 +1,12 @@
 import { TestResults } from "@/components/test/test-results"
 
 interface ResultsPageProps {
-  params: {
+  params: Promise<{
     sessionId: string
-  }
+  }>
 }
 
-export default function ResultsPage({ params }: ResultsPageProps) {
-  return <TestResults sessionId={params.sessionId} />
+export default async function ResultsPage({ params }: ResultsPageProps) {
+  const { sessionId } = await params
+  return <TestResults sessionId={sessionId} />
 }

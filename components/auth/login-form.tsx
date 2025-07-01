@@ -39,12 +39,12 @@ export function LoginForm() {
     try {
       await signIn(loginEmail, loginPassword)
       // Success will be handled by the auth state change
-    } catch (err: any) {
+    } catch (err) {
       console.error("Sign in error:", err)
 
       let errorMessage = "Failed to sign in"
 
-      if (err.message) {
+      if (err instanceof Error && err.message) {
         if (err.message.includes("Invalid login credentials")) {
           errorMessage = "Invalid email or password"
         } else if (err.message.includes("Email not confirmed")) {

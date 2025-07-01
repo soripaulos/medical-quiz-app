@@ -21,7 +21,7 @@ interface AnswerChoice {
   text: string
 }
 
-export default function QuestionCreator() {
+export function QuestionCreator() {
   const [questionText, setQuestionText] = useState("")
   const [explanation, setExplanation] = useState("")
   const [sources, setSources] = useState("")

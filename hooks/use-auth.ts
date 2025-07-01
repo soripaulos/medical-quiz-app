@@ -1,10 +1,8 @@
 "use client"
 
-import type React from "react"
-
-import { createContext, useContext, useEffect, useState } from "react"
+import React, { createContext, useContext, useEffect, useState } from "react"
 import { createClient } from "@/lib/supabase/client"
-import type { User } from "@supabase/supabase-js"
+import type { User, Session } from "@supabase/supabase-js"
 
 interface AuthContextType {
   user: User | null
@@ -35,7 +33,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   useEffect(() => {
     // Get initial session
-    supabase.auth.getSession().then(({ data: { session } }) => {
+    supabase.auth.getSession().then(({ data: { session } }: { data: { session: Session | null } }) => {
       setUser(session?.user ?? null)
       if (session?.user) {
         fetchProfile(session.user.id)
@@ -47,7 +45,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     // Listen for auth changes
     const {
       data: { subscription },
-    } = supabase.auth.onAuthStateChange(async (event, session) => {
+    } = supabase.auth.onAuthStateChange(async (event: string, session: Session | null) => {
       setUser(session?.user ?? null)
       if (session?.user) {
         await fetchProfile(session.user.id)
@@ -62,8 +60,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const fetchProfile = async (userId: string) => {
     try {
-      console.log("Fetching profile for user:", userId)
-
       // First try to get existing profile
       let { data, error } = await supabase.from("profiles").select("*").eq("id", userId).maybeSingle() // Use maybeSingle instead of single to handle no rows gracefully
 
@@ -74,8 +70,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
       // If no profile exists, create one
       if (!data) {
-        console.log("No profile found, creating one...")
-
         const { data: userData } = await supabase.auth.getUser()
 
         const { data: newProfile, error: createError } = await supabase
@@ -97,7 +91,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         data = newProfile
       }
 
-      console.log("Profile fetched successfully:", data)
       setProfile(data)
     } catch (error) {
       console.error("Error in fetchProfile:", error)
@@ -190,7 +183,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
   }
 
-  const value = {
+  const contextValue = {
     user,
     profile,
     loading,
@@ -200,7 +193,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     refreshProfile,
   }
 
-  return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>
+  return React.createElement(AuthContext.Provider, { value: contextValue }, children)
 }
 
 export function useAuth() {

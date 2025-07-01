@@ -254,7 +254,7 @@ export function TestResults({ sessionId }: TestResultsProps) {
                       </Pie>
                       <Tooltip
                         formatter={(value, name) => [
-                          `${value} questions (${((value / performance.totalQuestions) * 100).toFixed(1)}%)`,
+                          `${value} questions (${(((value as number) / performance.totalQuestions) * 100).toFixed(1)}%)`,
                           name,
                         ]}
                       />

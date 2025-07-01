@@ -8,7 +8,7 @@ import { Button } from "@/components/ui/button"
 import { Upload, Download, ArrowLeft, FileText, AlertCircle } from "lucide-react"
 import Link from "next/link"
 
-export default function CsvUpload() {
+export function CSVUpload() {
   const [file, setFile] = useState<File | null>(null)
   const [uploading, setUploading] = useState(false)
   const [results, setResults] = useState<{ success: number; errors: string[] } | null>(null)
@@ -33,7 +33,7 @@ export default function CsvUpload() {
       if (!line) continue
 
       // Handle CSV parsing with quoted values
-      const values = []
+      const values: string[] = []
       let current = ""
       let inQuotes = false
 

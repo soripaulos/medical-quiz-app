@@ -1,10 +1,10 @@
 import { NextResponse } from "next/server"
 import { createClient } from "@/lib/supabase/server"
 
-export async function POST(req: Request, { params }: { params: { sessionId: string } }) {
+export async function POST(req: Request, context: { params: Promise<{ sessionId: string }> }) {
   try {
     const supabase = await createClient()
-    const { sessionId } = params
+    const { sessionId } = await context.params
 
     // Get current session data
     const { data: session, error: sessionError } = await supabase

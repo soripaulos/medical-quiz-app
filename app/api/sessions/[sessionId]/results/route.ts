@@ -3,10 +3,10 @@ import { createClient } from "@/lib/supabase/server"
 
 export const dynamic = "force-dynamic"
 
-export async function GET(_req: Request, { params }: { params: { sessionId: string } }) {
+export async function GET(_req: Request, context: { params: Promise<{ sessionId: string }> }) {
   try {
     const supabase = await createClient()
-    const { sessionId } = params
+    const { sessionId } = await context.params
 
     // Fetch session details with stored metrics
     const { data: session, error: sessionError } = await supabase

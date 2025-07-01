@@ -11,9 +11,13 @@ import { Badge } from "@/components/ui/badge"
 import { Play, Filter, RefreshCw } from "lucide-react"
 import Link from "next/link"
 import { useRouter } from "next/navigation"
+import { useAuth } from "@/hooks/use-auth"
 import type { Question, QuestionFilters } from "@/lib/types"
 
 export function CreateTestInterface() {
+  const { user } = useAuth()
+  const router = useRouter()
+  
   const [filters, setFilters] = useState<QuestionFilters>({
     specialties: [],
     years: [],
@@ -34,8 +38,6 @@ export function CreateTestInterface() {
   const [specialties, setSpecialties] = useState<string[]>([])
   const [examTypes, setExamTypes] = useState<string[]>([])
   const [availableYears, setAvailableYears] = useState<number[]>([])
-
-  const router = useRouter()
 
   const difficulties = [1, 2, 3, 4, 5]
   const questionStatuses = [
@@ -104,14 +106,14 @@ export function CreateTestInterface() {
       const specialtiesResponse = await fetch("/api/specialties")
       const specialtiesData = await specialtiesResponse.json()
       if (specialtiesData.specialties) {
-        setSpecialties(specialtiesData.specialties.map((s: any) => s.name))
+        setSpecialties(specialtiesData.specialties.map((s: { name: string }) => s.name))
       }
 
       // Fetch exam types
       const examTypesResponse = await fetch("/api/exam-types")
       const examTypesData = await examTypesResponse.json()
       if (examTypesData.examTypes) {
-        setExamTypes(examTypesData.examTypes.map((e: any) => e.name))
+        setExamTypes(examTypesData.examTypes.map((e: { name: string }) => e.name))
       }
 
       // Fetch available years from questions
@@ -133,7 +135,7 @@ export function CreateTestInterface() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           filters,
-          userId: "temp-user-id", // Replace with actual user ID from auth
+          userId: user?.id || "anonymous",
         }),
       })
 
@@ -157,7 +159,9 @@ export function CreateTestInterface() {
   const handleFilterChange = (filterType: keyof QuestionFilters, value: string | number, checked: boolean) => {
     setFilters((prev) => ({
       ...prev,
-      [filterType]: checked ? [...prev[filterType], value] : prev[filterType].filter((item) => item !== value),
+      [filterType]: checked 
+        ? [...(prev[filterType] as (string | number)[]), value] 
+        : (prev[filterType] as (string | number)[]).filter((item) => item !== value),
     }))
   }
 
@@ -229,7 +233,7 @@ export function CreateTestInterface() {
           sessionMode,
           filters,
           questionIds: availableQuestions.map((q) => q.id),
-          userId: "temp-user-id", // TODO: replace with real auth uid
+          userId: user?.id || "anonymous",
           timeLimit: sessionMode === "exam" ? timeLimit : null,
         }),
       })
@@ -552,7 +556,7 @@ export function CreateTestInterface() {
                   ) : (
                     <div className="flex flex-wrap gap-1">
                       {Object.entries(filters).map(([key, values]) =>
-                        values.map((value) => (
+                        values.map((value: string | number) => (
                           <Badge key={`${key}-${value}`} variant="outline" className="text-xs">
                             {String(value)}
                           </Badge>

@@ -1,18 +1,27 @@
 export interface Question {
   id: string
-  text: string
-  options: string[]
-  correctAnswer: string
-  difficulty: number
-  specialty: string
+  question_text: string
+  question_image_url?: string
   explanation: string
   explanation_image_url?: string
   sources?: string
   year?: number
+  difficulty?: number
+  specialty?: {
+    id: string
+    name: string
+  }
   exam_type?: {
     id: string
     name: string
   }
+  choice_a?: string
+  choice_b?: string
+  choice_c?: string
+  choice_d?: string
+  choice_e?: string
+  choice_f?: string
+  correct_answer?: string
   created_at: string
   updated_at: string
 }
@@ -35,7 +44,7 @@ export interface UserSession {
   time_limit?: number
   time_remaining?: number
   created_at: string
-  completed_at: string | null
+  completed_at?: string
   user_id: string
   total_time_spent?: number
   correct_answers?: number
@@ -44,10 +53,11 @@ export interface UserSession {
 }
 
 export interface UserAnswer {
+  id: string
   question_id: string
-  user_answer: string | null
+  selected_choice_letter: string
   is_correct: boolean
-  time_spent: number
+  answered_at: string
 }
 
 export interface UserQuestionProgress {
@@ -60,7 +70,6 @@ export interface UserQuestionProgress {
   user_id: string
   created_at: string
   updated_at: string
-  status: "correct" | "incorrect" | "unanswered"
 }
 
 export interface UserNote {
@@ -92,14 +101,53 @@ export interface QuestionFilters {
 export function getAnswerChoices(question: Question): AnswerChoice[] {
   const choices: AnswerChoice[] = []
 
-  question.options.forEach((option, index) => {
-    const letter = String.fromCharCode(65 + index) // Convert index to A, B, C, etc.
+  if (question.choice_a) {
     choices.push({
-      letter: letter,
-      text: option,
-      is_correct: question.correctAnswer === letter,
+      letter: "A",
+      text: question.choice_a,
+      is_correct: question.correct_answer === "A",
     })
-  })
+  }
+
+  if (question.choice_b) {
+    choices.push({
+      letter: "B",
+      text: question.choice_b,
+      is_correct: question.correct_answer === "B",
+    })
+  }
+
+  if (question.choice_c) {
+    choices.push({
+      letter: "C",
+      text: question.choice_c,
+      is_correct: question.correct_answer === "C",
+    })
+  }
+
+  if (question.choice_d) {
+    choices.push({
+      letter: "D",
+      text: question.choice_d,
+      is_correct: question.correct_answer === "D",
+    })
+  }
+
+  if (question.choice_e) {
+    choices.push({
+      letter: "E",
+      text: question.choice_e,
+      is_correct: question.correct_answer === "E",
+    })
+  }
+
+  if (question.choice_f) {
+    choices.push({
+      letter: "F",
+      text: question.choice_f,
+      is_correct: question.correct_answer === "F",
+    })
+  }
 
   return choices
 }

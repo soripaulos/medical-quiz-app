@@ -275,7 +275,7 @@ export function UserProgressDashboard() {
                           <Cell key={`cell-${index}`} fill={entry.color} />
                         ))}
                       </Pie>
-                      <Tooltip formatter={(value) => [`${value.toFixed(1)}%`, ""]} />
+                      <Tooltip formatter={(value) => [`${(value as number).toFixed(1)}%`, ""]} />
                     </PieChart>
                   </ResponsiveContainer>
                   <div className="mt-4 flex flex-wrap justify-center gap-4">
