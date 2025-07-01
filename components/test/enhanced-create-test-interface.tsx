@@ -82,7 +82,7 @@ interface TestPreset {
 }
 
 export function EnhancedCreateTestInterface() {
-  const { user, profile, signOut } = useAuth()
+  const { user, signOut } = useAuth()
   const router = useRouter()
 
   const [filters, setFilters] = useState<QuestionFilters>({
@@ -415,14 +415,6 @@ export function EnhancedCreateTestInterface() {
             </Button>
           </div>
           <div className="flex gap-2">
-            {profile?.role === "admin" && (
-              <Link href="/admin">
-                <Button variant="outline" size="sm">
-                  <Settings className="w-4 h-4 mr-2" />
-                  Admin Panel
-                </Button>
-              </Link>
-            )}
             <Button variant="ghost" size="sm" onClick={toggleDarkMode} className="flex items-center gap-2">
               {isDarkMode ? <Sun className="w-4 h-4" /> : <Moon className="w-4 h-4" />}
               {isDarkMode ? "Light" : "Dark"}
@@ -431,17 +423,14 @@ export function EnhancedCreateTestInterface() {
               <PopoverTrigger asChild>
                 <Button variant="outline" className="flex items-center gap-2 bg-transparent">
                   <User className="w-4 h-4" />
-                  {profile?.full_name || profile?.email}
+                  {user?.user_metadata?.full_name || user?.email}
                 </Button>
               </PopoverTrigger>
               <PopoverContent className="w-64" align="end">
                 <div className="space-y-3">
                   <div className="border-b pb-3">
-                    <p className="font-medium">{profile?.full_name || "User"}</p>
-                    <p className="text-sm text-gray-600">{profile?.email}</p>
-                    <Badge variant="outline" className="mt-1 text-xs">
-                      {profile?.role}
-                    </Badge>
+                    <p className="font-medium">{user?.user_metadata?.full_name || "User"}</p>
+                    <p className="text-sm text-gray-600">{user?.email}</p>
                   </div>
                   <Button
                     variant="ghost"

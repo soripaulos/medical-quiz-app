@@ -1,6 +1,9 @@
 import type React from "react"
-import { AuthWrapper } from "@/components/auth/auth-wrapper"
+import { requireAdmin } from "@/lib/auth"
 
-export default function AdminLayout({ children }: { children: React.ReactNode }) {
-  return <AuthWrapper requireAdmin={true}>{children}</AuthWrapper>
+export default async function AdminLayout({ children }: { children: React.ReactNode }) {
+  // This will redirect to login if not authenticated, or to home if not admin
+  await requireAdmin()
+  
+  return <>{children}</>
 }

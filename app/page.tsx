@@ -1,12 +1,13 @@
-"use client"
-
+import { verifySession, redirectToLogin } from "@/lib/auth"
 import { EnhancedCreateTestInterface } from "@/components/test/enhanced-create-test-interface"
-import { AuthWrapper } from "@/components/auth/auth-wrapper"
 
-export default function HomePage() {
-  return (
-    <AuthWrapper>
-      <EnhancedCreateTestInterface />
-    </AuthWrapper>
-  )
+export default async function HomePage() {
+  const session = await verifySession()
+  
+  if (!session) {
+    redirectToLogin()
+    return null
+  }
+
+  return <EnhancedCreateTestInterface />
 }

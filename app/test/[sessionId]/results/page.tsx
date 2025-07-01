@@ -1,5 +1,5 @@
+import { getUser } from "@/lib/auth"
 import { TestResults } from "@/components/test/test-results"
-import { AuthWrapper } from "@/components/auth/auth-wrapper"
 
 interface ResultsPageProps {
   params: Promise<{
@@ -8,10 +8,9 @@ interface ResultsPageProps {
 }
 
 export default async function ResultsPage({ params }: ResultsPageProps) {
+  // This will redirect to login if not authenticated
+  await getUser()
+  
   const { sessionId } = await params
-  return (
-    <AuthWrapper>
-      <TestResults sessionId={sessionId} />
-    </AuthWrapper>
-  )
+  return <TestResults sessionId={sessionId} />
 }

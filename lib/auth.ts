@@ -1,39 +1,124 @@
-import { createClient } from "@/lib/supabase/server"
-import type { NextRequest } from "next/server"
+import { cache } from 'react'
+import { cookies } from 'next/headers'
+import { redirect } from 'next/navigation'
+import { createClient } from '@/lib/supabase/server'
+import type { User } from '@supabase/supabase-js'
 
-export async function getAuthenticatedUser(request?: NextRequest) {
+export interface UserProfile {
+  id: string
+  email: string
+  full_name: string | null
+  role: "student" | "admin"
+  created_at: string
+  updated_at: string
+}
+
+export interface AuthSession {
+  user: User
+  profile: UserProfile
+}
+
+// Cache the session verification to avoid multiple database calls
+export const verifySession = cache(async (): Promise<AuthSession | null> => {
   const supabase = await createClient()
+  
+  try {
+    const { data: { session }, error: sessionError } = await supabase.auth.getSession()
+    
+    if (sessionError || !session?.user) {
+      return null
+    }
 
-  const {
-    data: { user },
-    error,
-  } = await supabase.auth.getUser()
+    // Get user profile
+    const { data: profile, error: profileError } = await supabase
+      .from('profiles')
+      .select('*')
+      .eq('id', session.user.id)
+      .single()
 
-  if (error || !user) {
-    throw new Error("Unauthorized")
+    if (profileError || !profile) {
+      // If no profile exists, create one
+      const { data: newProfile, error: createError } = await supabase
+        .from('profiles')
+        .insert({
+          id: session.user.id,
+          email: session.user.email || '',
+          full_name: session.user.user_metadata?.full_name || session.user.email || '',
+          role: 'student',
+        })
+        .select()
+        .single()
+
+      if (createError || !newProfile) {
+        console.error('Failed to create user profile:', createError)
+        return null
+      }
+
+      return {
+        user: session.user,
+        profile: newProfile
+      }
+    }
+
+    return {
+      user: session.user,
+      profile
+    }
+  } catch (error) {
+    console.error('Session verification failed:', error)
+    return null
   }
+})
 
-  return user
-}
+// Get current user (requires authentication)
+export const getUser = cache(async (): Promise<UserProfile> => {
+  const session = await verifySession()
+  
+  if (!session) {
+    redirect('/login')
+  }
+  
+  return session.profile
+})
 
-export async function getUserProfile(userId: string) {
+// Check if user is admin
+export const requireAdmin = cache(async (): Promise<UserProfile> => {
+  const session = await verifySession()
+  
+  if (!session) {
+    redirect('/login')
+  }
+  
+  if (session.profile.role !== 'admin') {
+    redirect('/')
+  }
+  
+  return session.profile
+})
+
+// Sign out function
+export async function signOut() {
   const supabase = await createClient()
-
-  const { data: profile, error } = await supabase.from("profiles").select("*").eq("id", userId).single()
-
-  if (error || !profile) {
-    throw new Error("Profile not found")
-  }
-
-  return profile
+  await supabase.auth.signOut()
+  redirect('/login')
 }
 
-export async function requireAdmin(userId: string) {
-  const profile = await getUserProfile(userId)
-
-  if (profile.role !== "admin") {
-    throw new Error("Admin access required")
-  }
-
-  return profile
+// Server-side redirect helpers
+export async function redirectToLogin() {
+  redirect('/login')
 }
+
+export async function redirectToDashboard() {
+  redirect('/')
+}
+
+// Check auth status without throwing (for conditional rendering)
+export const checkAuthStatus = cache(async (): Promise<{ isAuthenticated: boolean; user?: UserProfile }> => {
+  const session = await verifySession()
+  
+  if (!session) {
+    return { isAuthenticated: false }
+  }
+  
+  return { isAuthenticated: true, user: session.profile }
+})
