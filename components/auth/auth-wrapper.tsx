@@ -16,7 +16,16 @@ export function AuthWrapper({ children, requireAdmin = false }: AuthWrapperProps
   const { user, profile, loading, signOut } = useAuth()
 
   if (loading) {
-    return <LoadingSpinner />
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-background">
+        <div className="text-center space-y-4">
+          <div className="h-12 w-12 mx-auto">
+            <LoadingSpinner />
+          </div>
+          <p className="text-lg font-medium text-muted-foreground">Loading your session...</p>
+        </div>
+      </div>
+    )
   }
 
   if (!user) {
