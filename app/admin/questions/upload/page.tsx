@@ -1,7 +1,5 @@
-export default function UploadQuestionsPage() {
-  return (
-    <main className="p-6">
-      <h1 className="text-xl font-bold">Bulk upload (placeholder)</h1>
-    </main>
-  )
+import { CSVUpload } from "@/components/admin/csv-upload"
+
+export default function UploadPage() {
+  return <CSVUpload />
 }

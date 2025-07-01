@@ -11,7 +11,7 @@ interface RichTextEditorProps {
   placeholder?: string
 }
 
-export default function RichTextEditor({ content, onChange, placeholder }: RichTextEditorProps) {
+export function RichTextEditor({ content, onChange, placeholder }: RichTextEditorProps) {
   const [showLinkDialog, setShowLinkDialog] = useState(false)
   const [linkUrl, setLinkUrl] = useState("")
   const [linkText, setLinkText] = useState("")

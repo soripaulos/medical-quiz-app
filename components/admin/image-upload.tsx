@@ -10,7 +10,7 @@ interface ImageUploadProps {
   onImageSelect: (file: File | null) => void
 }
 
-export default function ImageUpload({ onImageSelect }: ImageUploadProps) {
+export function ImageUpload({ onImageSelect }: ImageUploadProps) {
   const [selectedImage, setSelectedImage] = useState<File | null>(null)
   const [previewUrl, setPreviewUrl] = useState<string | null>(null)
 
