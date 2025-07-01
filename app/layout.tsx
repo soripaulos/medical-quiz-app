@@ -2,6 +2,7 @@ import type React from "react"
 import type { Metadata } from "next"
 import { Inter } from "next/font/google"
 import { AuthProvider } from "@/hooks/use-auth"
+import { ThemeProvider } from "@/components/theme-provider"
 import "./globals.css"
 
 const inter = Inter({ subsets: ["latin"] })
@@ -9,7 +10,7 @@ const inter = Inter({ subsets: ["latin"] })
 export const metadata: Metadata = {
   title: "Medical Quiz App",
   description: "A comprehensive medical quiz application for USMLE preparation",
-    generator: 'v0.dev'
+  generator: "v0.dev",
 }
 
 // Check if we have environment variables available
@@ -24,13 +25,15 @@ export default function RootLayout({
   children: React.ReactNode
 }) {
   return (
-    <html lang="en">
+    <html lang="en" suppressHydrationWarning>
       <body className={inter.className}>
-        {hasSupabaseConfig ? (
-          <AuthProvider>{children}</AuthProvider>
-        ) : (
-          children
-        )}
+        <ThemeProvider attribute="class" defaultTheme="system" enableSystem disableTransitionOnChange>
+          {hasSupabaseConfig ? (
+            <AuthProvider>{children}</AuthProvider>
+          ) : (
+            children
+          )}
+        </ThemeProvider>
       </body>
     </html>
   )

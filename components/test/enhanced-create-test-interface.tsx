@@ -3,6 +3,7 @@
 import type React from "react"
 
 import { useState, useEffect } from "react"
+import { useTheme } from "next-themes"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Checkbox } from "@/components/ui/checkbox"
@@ -89,6 +90,7 @@ interface EnhancedCreateTestInterfaceProps {
 
 export function EnhancedCreateTestInterface({ userProfile }: EnhancedCreateTestInterfaceProps) {
   const { user, signOut } = useAuth()
+  const { theme, setTheme } = useTheme()
   const router = useRouter()
 
   const [filters, setFilters] = useState<QuestionFilters>({
@@ -109,7 +111,6 @@ export function EnhancedCreateTestInterface({ userProfile }: EnhancedCreateTestI
   const [randomizeOrder, setRandomizeOrder] = useState(true)
   const [creating, setCreating] = useState(false)
   const [validationErrors, setValidationErrors] = useState<string[]>([])
-  const [isDarkMode, setIsDarkMode] = useState(false)
   const [trackProgress, setTrackProgress] = useState(true)
 
   // Available options from database
@@ -394,11 +395,6 @@ export function EnhancedCreateTestInterface({ userProfile }: EnhancedCreateTestI
     return Math.ceil(finalCount * averageTimePerQuestion)
   }
 
-  const toggleDarkMode = () => {
-    setIsDarkMode(!isDarkMode)
-    document.documentElement.classList.toggle("dark")
-  }
-
   const handleSignOut = async () => {
     try {
       await signOut()
@@ -411,7 +407,7 @@ export function EnhancedCreateTestInterface({ userProfile }: EnhancedCreateTestI
   }
 
   return (
-    <div className={`border border-blue-200 rounded-lg p-4 bg-slate-100 ${isDarkMode ? "bg-gray-900" : "bg-gray-50"}`}>
+    <div className={`border border-blue-200 rounded-lg p-4 bg-slate-100 dark:bg-gray-900 bg-gray-50`}>
       <div className="max-w-7xl mx-auto">
         {/* Header */}
         <div className="flex items-center justify-between mb-6">
@@ -431,9 +427,8 @@ export function EnhancedCreateTestInterface({ userProfile }: EnhancedCreateTestI
                 </Button>
               </Link>
             )}
-            <Button variant="ghost" size="sm" onClick={toggleDarkMode} className="flex items-center gap-2">
-              {isDarkMode ? <Sun className="w-4 h-4" /> : <Moon className="w-4 h-4" />}
-              {isDarkMode ? "Light" : "Dark"}
+            <Button variant="ghost" size="sm" onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')} className="flex items-center gap-2">
+              {theme === 'dark' ? <Sun className="w-4 h-4" /> : <Moon className="w-4 h-4" />}
             </Button>
             <Popover>
               <PopoverTrigger asChild>

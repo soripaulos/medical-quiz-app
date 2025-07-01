@@ -17,35 +17,31 @@ export function AuthWrapper({ children, requireAdmin = false }: AuthWrapperProps
   const { user, loading, signOut } = useAuth()
   const router = useRouter()
 
-  // Automatically redirect to login if no user is present and not loading
   useEffect(() => {
     if (!loading && !user) {
-      router.push('/login')
+      router.push("/login")
     }
   }, [loading, user, router])
 
-  if (loading) {
-    return <LoadingSpinner />
+  if (loading || !user) {
+    return <LoadingSpinner /> // Show spinner while loading or redirecting
   }
 
-  if (!user) {
-    return <LoginForm />
-  }
-
-  // Note: Admin role checking moved to server-side components
-  // Client-side components should use the DAL requireAdmin() function in server components
+  // At this point, user is authenticated
   if (requireAdmin) {
+    // Note: Actual admin role check is done on the server via `requireAdmin`
+    // This is a client-side fallback UI.
     return (
       <div className="min-h-screen flex items-center justify-center bg-gray-50">
         <div className="text-center space-y-4">
           <Shield className="w-16 h-16 text-red-500 mx-auto" />
           <h1 className="text-2xl font-bold text-gray-900">Access Denied</h1>
           <p className="text-gray-600 max-w-md">
-            Admin access is required. Please ensure you have administrator privileges.
+            You do not have permission to view this page.
           </p>
           <div className="pt-4 space-x-2">
-            <Button variant="outline" onClick={() => window.history.back()}>
-              Go Back
+            <Button variant="outline" onClick={() => router.push("/")}>
+              Go to Homepage
             </Button>
             <Button variant="outline" onClick={signOut}>
               <LogOut className="w-4 h-4 mr-2" />
