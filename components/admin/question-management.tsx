@@ -12,7 +12,7 @@ import Link from "next/link"
 import type { Question } from "@/lib/types"
 import { getAnswerChoices } from "@/lib/types"
 
-export function QuestionManagement() {
+export default function QuestionManagement() {
   const [questions, setQuestions] = useState<Question[]>([])
   const [filteredQuestions, setFilteredQuestions] = useState<Question[]>([])
   const [loading, setLoading] = useState(true)

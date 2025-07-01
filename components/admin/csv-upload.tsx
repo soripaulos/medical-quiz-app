@@ -8,7 +8,7 @@ import { Button } from "@/components/ui/button"
 import { Upload, Download, ArrowLeft, FileText, AlertCircle } from "lucide-react"
 import Link from "next/link"
 
-export function CSVUpload() {
+export default function CsvUpload() {
   const [file, setFile] = useState<File | null>(null)
   const [uploading, setUploading] = useState(false)
   const [results, setResults] = useState<{ success: number; errors: string[] } | null>(null)
