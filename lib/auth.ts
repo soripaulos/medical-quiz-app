@@ -18,11 +18,20 @@ export interface AuthSession {
   profile: UserProfile
 }
 
+// Check if we're in a build environment or missing required env vars
+function isBuildTime(): boolean {
+  return !process.env.NEXT_PUBLIC_SUPABASE_URL || !process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
+}
+
 // Cache the session verification to avoid multiple database calls
 export const verifySession = cache(async (): Promise<AuthSession | null> => {
-  const supabase = await createClient()
-  
+  // Handle build time when env vars are not available
+  if (isBuildTime()) {
+    return null
+  }
+
   try {
+    const supabase = await createClient()
     const { data: { session }, error: sessionError } = await supabase.auth.getSession()
     
     if (sessionError || !session?.user) {
@@ -65,6 +74,10 @@ export const verifySession = cache(async (): Promise<AuthSession | null> => {
       profile
     }
   } catch (error) {
+    // Handle Supabase client creation errors (e.g., missing env vars during build)
+    if (error instanceof Error && error.message.includes("Supabase environment variables")) {
+      return null
+    }
     console.error('Session verification failed:', error)
     return null
   }
@@ -72,6 +85,11 @@ export const verifySession = cache(async (): Promise<AuthSession | null> => {
 
 // Get current user (requires authentication)
 export const getUser = cache(async (): Promise<UserProfile> => {
+  // Handle build time
+  if (isBuildTime()) {
+    redirect('/login')
+  }
+
   const session = await verifySession()
   
   if (!session) {
@@ -83,6 +101,11 @@ export const getUser = cache(async (): Promise<UserProfile> => {
 
 // Check if user is admin
 export const requireAdmin = cache(async (): Promise<UserProfile> => {
+  // Handle build time
+  if (isBuildTime()) {
+    redirect('/login')
+  }
+
   const session = await verifySession()
   
   if (!session) {

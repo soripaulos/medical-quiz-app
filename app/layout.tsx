@@ -12,6 +12,12 @@ export const metadata: Metadata = {
     generator: 'v0.dev'
 }
 
+// Check if we have environment variables available
+const hasSupabaseConfig = Boolean(
+  process.env.NEXT_PUBLIC_SUPABASE_URL && 
+  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
+)
+
 export default function RootLayout({
   children,
 }: {
@@ -20,7 +26,11 @@ export default function RootLayout({
   return (
     <html lang="en">
       <body className={inter.className}>
-        <AuthProvider>{children}</AuthProvider>
+        {hasSupabaseConfig ? (
+          <AuthProvider>{children}</AuthProvider>
+        ) : (
+          children
+        )}
       </body>
     </html>
   )

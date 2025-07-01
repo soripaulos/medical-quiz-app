@@ -1,11 +1,18 @@
 import { NextResponse } from "next/server"
 import { createClient } from "@/lib/supabase/server"
-import { getAuthenticatedUser } from "@/lib/auth"
+import { verifySession } from "@/lib/auth"
 
 export async function POST(req: Request) {
   try {
     // Authenticate user
-    const user = await getAuthenticatedUser()
+    const session = await verifySession()
+    
+    if (!session) {
+      return NextResponse.json(
+        { ok: false, message: "Unauthorized" },
+        { status: 401 }
+      )
+    }
 
     const { sessionName, sessionMode, filters, questionIds, timeLimit, randomizeOrder, trackProgress } =
       await req.json()
@@ -16,10 +23,10 @@ export async function POST(req: Request) {
     const finalQuestionIds = randomizeOrder ? [...questionIds].sort(() => Math.random() - 0.5) : questionIds
 
     // Create the session
-    const { data: session, error: sessionError } = await supabase
+    const { data: userSession, error: sessionError } = await supabase
       .from("user_sessions")
       .insert({
-        user_id: user.id,
+        user_id: session.user.id,
         session_name: sessionName,
         session_type: sessionMode === "exam" ? "exam" : "practice",
         session_mode: sessionMode,
@@ -39,7 +46,7 @@ export async function POST(req: Request) {
 
     // Create session questions
     const sessionQuestions = finalQuestionIds.map((questionId: string, index: number) => ({
-      session_id: session.id,
+      session_id: userSession.id,
       question_id: questionId,
       question_order: index + 1,
     }))
@@ -48,7 +55,7 @@ export async function POST(req: Request) {
 
     if (questionsError) throw questionsError
 
-    return NextResponse.json({ session })
+    return NextResponse.json({ session: userSession })
   } catch (err) {
     console.error("Error creating session:", err)
     return NextResponse.json(
