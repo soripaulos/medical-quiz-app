@@ -123,10 +123,10 @@ export function CalculatorModal({ open, onOpenChange }: CalculatorModalProps) {
             <div className="text-4xl font-mono break-all">{display}</div>
           </div>
           <div className="grid grid-cols-4 gap-2">
-            {buttons.map((btn) => {
-              const isOperator = ["/", "*", "-", "+"].includes(btn)
+            {buttons.flat().map((btn) => {
+              const isOperator = ["/", "×", "-", "+"].includes(btn)
               const isEquals = btn === "="
-              const isClear = btn === "AC"
+              const isClear = btn === "C"
               const isZero = btn === "0"
 
               return (
