@@ -417,66 +417,54 @@ export function TestResults({ sessionId }: TestResultsProps) {
             </div>
           </TabsContent>
 
-          <TabsContent value="questions" className="space-y-6">
+          <TabsContent value="questions">
             <Card>
               <CardHeader>
                 <CardTitle>Question-by-Question Review</CardTitle>
-                <p className="text-sm text-gray-600">Click on any question to view details</p>
+                <p className="text-sm text-muted-foreground">Click on any question to view details</p>
               </CardHeader>
               <CardContent>
                 <div className="space-y-2">
-                  {questionDetails.map((question, index) => (
+                  {questionDetails.map((q, index) => (
                     <div
-                      key={question.questionId}
-                      className={`p-4 border rounded-lg cursor-pointer transition-colors ${
-                        question.isCorrect
-                          ? "border-green-200 bg-green-50 hover:bg-green-100"
-                          : question.userAnswer
-                            ? "border-red-200 bg-red-50 hover:bg-red-100"
-                            : "border-gray-200 bg-gray-50 hover:bg-gray-100"
+                      key={q.questionId}
+                      className={`p-3 rounded-lg border cursor-pointer hover:bg-muted/50 ${
+                        selectedQuestion === q.questionId ? "bg-muted" : ""
                       }`}
-                      onClick={() =>
-                        setSelectedQuestion(selectedQuestion === question.questionId ? null : question.questionId)
-                      }
+                      onClick={() => setSelectedQuestion(selectedQuestion === q.questionId ? null : q.questionId)}
                     >
-                      <div className="flex items-center justify-between">
-                        <div className="flex items-center gap-3">
-                          <span className="font-medium">Q{index + 1}</span>
-                          {question.isCorrect ? (
-                            <CheckCircle className="w-5 h-5 text-green-600" />
-                          ) : question.userAnswer ? (
-                            <XCircle className="w-5 h-5 text-red-600" />
+                      <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-2">
+                        <div className="flex items-center gap-3 flex-grow min-w-0">
+                          <span className="font-semibold">Q{index + 1}</span>
+                          {q.isCorrect ? (
+                            <CheckCircle className="h-5 w-5 text-green-500" />
                           ) : (
-                            <div className="w-5 h-5 rounded-full border-2 border-gray-400" />
+                            <XCircle className="h-5 w-5 text-red-500" />
                           )}
-                          {question.isFlagged && <Flag className="w-4 h-4 text-orange-500" />}
-                          <span className="text-sm text-gray-600 truncate max-w-md">
-                            {question.questionText.substring(0, 80)}...
-                          </span>
+                          {q.isFlagged && <Flag className="h-5 w-5 text-yellow-500" />}
+                          <p className="truncate text-sm">{q.questionText}</p>
                         </div>
-                        <div className="flex items-center gap-4">
-                          <Badge variant="outline">Level {question.difficulty}</Badge>
-                          <Badge variant="outline">{question.specialty}</Badge>
-                          <span className="text-sm text-gray-500">{formatTime(question.timeSpent)}</span>
-                          <Eye className="w-4 h-4 text-gray-400" />
+                        <div className="flex items-center gap-3 text-sm text-muted-foreground flex-shrink-0">
+                          <Badge variant="outline">Level {q.difficulty}</Badge>
+                          <Badge variant="secondary">{q.specialty}</Badge>
+                          <span>{formatTime(q.timeSpent)}</span>
                         </div>
                       </div>
 
-                      {selectedQuestion === question.questionId && (
-                        <div className="mt-4 pt-4 border-t space-y-2">
+                      {selectedQuestion === q.questionId && (
+                        <div className="mt-4 p-4 bg-background rounded-md border">
                           <div className="grid grid-cols-2 gap-4 text-sm">
                             <div>
                               <span className="font-medium">Your Answer: </span>
-                              <span className={question.userAnswer ? "" : "text-gray-500"}>
-                                {question.userAnswer || "Not Answered"}
+                              <span className={q.userAnswer ? "" : "text-gray-500"}>
+                                {q.userAnswer || "Not Answered"}
                               </span>
                             </div>
                             <div>
                               <span className="font-medium">Correct Answer: </span>
-                              <span className="text-green-600">{question.correctAnswer}</span>
+                              <span className="text-green-600">{q.correctAnswer}</span>
                             </div>
                           </div>
-                          <p className="text-sm text-gray-700">{question.questionText}</p>
                         </div>
                       )}
                     </div>

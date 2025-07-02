@@ -189,8 +189,8 @@ export function UserProgressDashboard() {
   }
 
   return (
-    <div className="min-h-screen bg-background p-6">
-      <div className="max-w-7xl mx-auto space-y-6">
+    <div className="min-h-screen bg-background p-2 sm:p-4 md:p-6">
+      <div className="w-full space-y-6">
         {/* Header */}
         <div className="text-center space-y-2">
           <h1 className="text-3xl font-bold text-foreground">My Progress Dashboard</h1>

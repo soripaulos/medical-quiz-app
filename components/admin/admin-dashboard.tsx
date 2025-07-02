@@ -58,24 +58,23 @@ export function AdminDashboard() {
   }, [])
 
   return (
-    <div className="min-h-screen bg-background p-6">
-      <div className="max-w-7xl mx-auto space-y-6">
+    <div className="min-h-screen bg-background p-4 sm:p-6">
+      <div className="w-full space-y-6">
         {/* Header */}
-        <div className="flex items-center justify-between">
+        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
           <div>
             <h1 className="text-3xl font-bold text-foreground">Admin Dashboard</h1>
             <p className="text-muted-foreground">Manage questions, users, and exam content</p>
           </div>
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-2">
             <Link href="/">
-              <Button variant="outline" className="flex items-center gap-2">
-                <FileText className="w-4 h-4" />
+              <Button variant="outline" size="sm">
                 Back to Tests
               </Button>
             </Link>
             <Link href="/admin/questions/create">
-              <Button className="flex items-center gap-2">
-                <Plus className="w-4 h-4" />
+              <Button size="sm">
+                <Plus className="w-4 h-4 mr-2" />
                 Create Question
               </Button>
             </Link>
@@ -196,7 +195,7 @@ export function AdminDashboard() {
             <div className="space-y-4">
               {recentActivity.length > 0 ? (
                 recentActivity.map((activity, index) => (
-                  <div key={index} className="flex items-center justify-between py-2 border-b last:border-b-0">
+                  <div key={index} className="flex flex-wrap items-center justify-between gap-2 py-2 border-b last:border-b-0">
                     <div className="flex items-center gap-3">
                       <div
                         className={`w-2 h-2 rounded-full ${
@@ -209,14 +208,14 @@ export function AdminDashboard() {
                       />
                       <div>
                         <p className="text-sm font-medium">{activity.action}</p>
-                        <p className="text-xs text-gray-600">{activity.subject}</p>
+                        <p className="text-xs text-muted-foreground truncate">{activity.subject}</p>
                       </div>
                     </div>
-                    <span className="text-xs text-gray-500">{activity.time}</span>
+                    <span className="text-xs text-muted-foreground flex-shrink-0">{activity.time}</span>
                   </div>
                 ))
               ) : (
-                <p className="text-sm text-gray-500 text-center py-4">No recent activity found.</p>
+                <p className="text-sm text-muted-foreground text-center py-4">No recent activity found.</p>
               )}
             </div>
           </CardContent>

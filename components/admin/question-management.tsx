@@ -124,10 +124,10 @@ export function QuestionManagement() {
   }
 
   return (
-    <div className="min-h-screen bg-background p-6">
-      <div className="max-w-7xl mx-auto space-y-6">
+    <div className="min-h-screen bg-background p-4 sm:p-6">
+      <div className="w-full space-y-6">
         {/* Header */}
-        <div className="flex items-center justify-between">
+        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
           <div className="flex items-center gap-4">
             <Link href="/admin">
               <Button variant="outline" size="sm">
@@ -136,12 +136,12 @@ export function QuestionManagement() {
               </Button>
             </Link>
             <div>
-              <h1 className="text-3xl font-bold text-gray-900">Question Management</h1>
-              <p className="text-gray-600">Manage and organize all questions</p>
+              <h1 className="text-3xl font-bold text-foreground">Question Management</h1>
+              <p className="text-muted-foreground">Manage and organize all questions</p>
             </div>
           </div>
           <Link href="/admin/questions/create">
-            <Button>
+            <Button size="sm">
               <Plus className="w-4 h-4 mr-2" />
               Create Question
             </Button>
@@ -235,81 +235,77 @@ export function QuestionManagement() {
             </CardTitle>
           </CardHeader>
           <CardContent>
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Question</TableHead>
-                  <TableHead>Specialty</TableHead>
-                  <TableHead>Exam Type</TableHead>
-                  <TableHead>Difficulty</TableHead>
-                  <TableHead>Year</TableHead>
-                  <TableHead>Choices</TableHead>
-                  <TableHead>Correct</TableHead>
-                  <TableHead>Created</TableHead>
-                  <TableHead>Actions</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {filteredQuestions.map((question) => (
-                  <TableRow key={question.id}>
-                    <TableCell className="max-w-md">
-                      <p className="truncate font-medium">{question.question_text}</p>
-                      {question.question_image_url && (
-                        <Badge variant="outline" className="mt-1">
-                          Has Image
-                        </Badge>
-                      )}
-                    </TableCell>
-                    <TableCell>
-                      <Badge variant="outline">{question.specialty?.name || "N/A"}</Badge>
-                    </TableCell>
-                    <TableCell>
-                      <Badge variant="outline">{question.exam_type?.name || "N/A"}</Badge>
-                    </TableCell>
-                    <TableCell>
-                      {question.difficulty && (
-                        getDifficultyBadge(question.difficulty)
-                      )}
-                    </TableCell>
-                    <TableCell>{question.year || "N/A"}</TableCell>
-                    <TableCell>
-                      <Badge variant="secondary">{getChoiceCount(question)} choices</Badge>
-                    </TableCell>
-                    <TableCell>
-                      <Badge variant="outline" className="bg-green-50 text-green-700">
-                        {question.correct_answer || "N/A"}
-                      </Badge>
-                    </TableCell>
-                    <TableCell className="text-sm text-gray-600">{formatDate(question.created_at)}</TableCell>
-                    <TableCell>
-                      <div className="flex items-center gap-2">
-                        <Button variant="outline" size="sm" title="View Question">
-                          <Eye className="w-4 h-4" />
-                        </Button>
-                        <Button variant="outline" size="sm" title="Edit Question">
-                          <Edit className="w-4 h-4" />
-                        </Button>
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          onClick={() => deleteQuestion(question.id)}
-                          className="text-red-600 hover:text-red-700"
-                          title="Delete Question"
-                        >
-                          <Trash2 className="w-4 h-4" />
-                        </Button>
-                      </div>
-                    </TableCell>
+            <div className="overflow-x-auto">
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Question</TableHead>
+                    <TableHead>Specialty</TableHead>
+                    <TableHead>Exam Type</TableHead>
+                    <TableHead>Difficulty</TableHead>
+                    <TableHead>Year</TableHead>
+                    <TableHead>Choices</TableHead>
+                    <TableHead>Correct</TableHead>
+                    <TableHead>Created</TableHead>
+                    <TableHead>Actions</TableHead>
                   </TableRow>
-                ))}
-              </TableBody>
-            </Table>
-
-            {filteredQuestions.length === 0 && (
-              <div className="text-center py-8 text-gray-500">
-                {questions.length === 0 ? "No questions created yet." : "No questions found matching your criteria."}
-              </div>
-            )}
+                </TableHeader>
+                <TableBody>
+                  {filteredQuestions.map((question) => (
+                    <TableRow key={question.id}>
+                      <TableCell className="max-w-md">
+                        <p className="truncate font-medium">{question.question_text}</p>
+                        {question.question_image_url && (
+                          <Badge variant="outline" className="mt-1">
+                            Has Image
+                          </Badge>
+                        )}
+                      </TableCell>
+                      <TableCell>
+                        <Badge variant="outline">{question.specialty?.name || "N/A"}</Badge>
+                      </TableCell>
+                      <TableCell>
+                        <Badge variant="outline">{question.exam_type?.name || "N/A"}</Badge>
+                      </TableCell>
+                      <TableCell>
+                        {question.difficulty && (
+                          getDifficultyBadge(question.difficulty)
+                        )}
+                      </TableCell>
+                      <TableCell>{question.year || "N/A"}</TableCell>
+                      <TableCell>
+                        <Badge variant="secondary">{getChoiceCount(question)} choices</Badge>
+                      </TableCell>
+                      <TableCell>
+                        <Badge variant="outline" className="bg-green-50 text-green-700">
+                          {question.correct_answer || "N/A"}
+                        </Badge>
+                      </TableCell>
+                      <TableCell className="text-sm text-gray-600">{formatDate(question.created_at)}</TableCell>
+                      <TableCell>
+                        <div className="flex items-center gap-2">
+                          <Button variant="outline" size="sm" title="View Question">
+                            <Eye className="w-4 h-4" />
+                          </Button>
+                          <Button variant="outline" size="sm" title="Edit Question">
+                            <Edit className="w-4 h-4" />
+                          </Button>
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => deleteQuestion(question.id)}
+                            className="text-red-600 hover:text-red-700"
+                            title="Delete Question"
+                          >
+                            <Trash2 className="w-4 h-4" />
+                          </Button>
+                        </div>
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            </div>
           </CardContent>
         </Card>
       </div>
