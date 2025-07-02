@@ -1,8 +1,12 @@
+import { Suspense } from 'react'
 import { verifySession } from "@/lib/auth"
-import { EnhancedCreateTestInterface } from "@/components/test/enhanced-create-test-interface"
 import { LoginForm } from "@/components/auth/login-form"
+import { EnhancedCreateTestInterface } from "@/components/test/enhanced-create-test-interface"
+import { FullPageSpinner } from '@/components/ui/loading-spinner'
 
-export default async function HomePage() {
+export const dynamic = 'force-dynamic'
+
+async function HomePage() {
   const session = await verifySession()
 
   if (!session) {
@@ -10,4 +14,12 @@ export default async function HomePage() {
   }
 
   return <EnhancedCreateTestInterface userProfile={session.profile} />
+}
+
+export default function Page() {
+  return (
+    <Suspense fallback={<FullPageSpinner />}>
+      <HomePage />
+    </Suspense>
+  )
 }
