@@ -11,137 +11,163 @@ interface CalculatorModalProps {
 
 export function CalculatorModal({ open, onOpenChange }: CalculatorModalProps) {
   const [display, setDisplay] = useState("0")
-  const [previousValue, setPreviousValue] = useState<number | null>(null)
   const [operation, setOperation] = useState<string | null>(null)
-  const [waitingForOperand, setWaitingForOperand] = useState(false)
+  const [previousValue, setPreviousValue] = useState<string | null>(null)
+  const [isNewOperand, setIsNewOperand] = useState(true)
 
-  const inputNumber = (num: string) => {
-    if (waitingForOperand) {
+  const handleNumberClick = (num: string) => {
+    if (isNewOperand || display === "0") {
       setDisplay(num)
-      setWaitingForOperand(false)
+      setIsNewOperand(false)
     } else {
-      setDisplay(display === "0" ? num : display + num)
+      setDisplay(display + num)
     }
   }
 
-  const inputOperation = (nextOperation: string) => {
-    const inputValue = Number.parseFloat(display)
-
-    if (previousValue === null) {
-      setPreviousValue(inputValue)
-    } else if (operation) {
-      const currentValue = previousValue || 0
-      const newValue = calculate(currentValue, inputValue, operation)
-
-      setDisplay(String(newValue))
-      setPreviousValue(newValue)
+  const handleOperatorClick = (op: string) => {
+    if (previousValue && operation && !isNewOperand) {
+      calculate()
+      setOperation(op)
+    } else {
+      setPreviousValue(display)
+      setOperation(op)
+      setIsNewOperand(true)
     }
-
-    setWaitingForOperand(true)
-    setOperation(nextOperation)
   }
 
-  const calculate = (firstValue: number, secondValue: number, operation: string) => {
+  const handleEqualsClick = () => {
+    if (!previousValue || !operation) return
+    calculate()
+    setPreviousValue(null)
+    setOperation(null)
+  }
+
+  const calculate = () => {
+    if (!operation || previousValue === null) return
+    const prev = parseFloat(previousValue)
+    const current = parseFloat(display)
+    let result = 0
+
     switch (operation) {
       case "+":
-        return firstValue + secondValue
+        result = prev + current
+        break
       case "-":
-        return firstValue - secondValue
+        result = prev - current
+        break
       case "×":
-        return firstValue * secondValue
+        result = prev * current
+        break
       case "÷":
-        return firstValue / secondValue
-      case "=":
-        return secondValue
+        result = prev / current
+        break
       default:
-        return secondValue
+        return
     }
+    setDisplay(String(result))
+    setIsNewOperand(true)
   }
 
-  const performCalculation = () => {
-    const inputValue = Number.parseFloat(display)
-
-    if (previousValue !== null && operation) {
-      const newValue = calculate(previousValue, inputValue, operation)
-      setDisplay(String(newValue))
-      setPreviousValue(null)
-      setOperation(null)
-      setWaitingForOperand(true)
-    }
-  }
-
-  const clear = () => {
+  const handleClearClick = () => {
     setDisplay("0")
     setPreviousValue(null)
     setOperation(null)
-    setWaitingForOperand(false)
+    setIsNewOperand(true)
+  }
+
+  const handleToggleSign = () => {
+    setDisplay((prev) => String(parseFloat(prev) * -1))
+  }
+
+  const handlePercent = () => {
+    setDisplay((prev) => String(parseFloat(prev) / 100))
+  }
+
+  const handleScientific = (func: string) => {
+    const value = parseFloat(display)
+    let result = 0
+    switch (func) {
+      case "√":
+        result = Math.sqrt(value)
+        break
+      case "x²":
+        result = value * value
+        break
+      case "sin":
+        result = Math.sin((value * Math.PI) / 180) // degree to radian
+        break
+      case "cos":
+        result = Math.cos((value * Math.PI) / 180)
+        break
+      case "tan":
+        result = Math.tan((value * Math.PI) / 180)
+        break
+      case "log":
+        result = Math.log10(value)
+        break
+      default:
+        return
+    }
+    setDisplay(String(result))
+    setIsNewOperand(true)
+  }
+
+  const handleButtonClick = (btn: string) => {
+    if (!isNaN(Number(btn)) || btn === ".") {
+      handleNumberClick(btn)
+    } else if (["+", "-", "×", "÷"].includes(btn)) {
+      handleOperatorClick(btn)
+    } else if (btn === "=") {
+      handleEqualsClick()
+    } else if (btn === "AC") {
+      handleClearClick()
+    } else if (btn === "±") {
+      handleToggleSign()
+    } else if (btn === "%") {
+      handlePercent()
+    } else {
+      handleScientific(btn)
+    }
   }
 
   const buttons = [
-    ["Del", "M+", "MR", "Rnd", "C"],
-    ["1/x", "log10", "ln", "e", "%"],
-    ["sin", "cos", "tan", "π", "√"],
-    ["n!", "Mod", "x^y", "∛√", "("],
-    ["7", "8", "9", "+", "-/+"],
-    ["4", "5", "6", "-", "√"],
-    ["1", "2", "3", "/", "x³"],
-    [".", "0", "=", "X", "x²"],
+    "AC", "±", "%", "÷",
+    "sin", "7", "8", "9", "×",
+    "cos", "4", "5", "6", "-",
+    "tan", "1", "2", "3", "+",
+    "log", "√", "x²", "0", ".",
+    "=",
   ]
 
-  const handleButtonClick = (btn: string) => {
-    switch (btn) {
-      case "C":
-        clear()
-        break
-      case "=":
-        performCalculation()
-        break
-      case "+":
-      case "-":
-      case "×":
-      case "÷":
-        inputOperation(btn)
-        break
-      case ".":
-        if (display.indexOf(".") === -1) {
-          inputNumber(".")
-        }
-        break
-      default:
-        if (/\d/.test(btn)) {
-          inputNumber(btn)
-        }
-        break
+  const getButtonClass = (btn: string) => {
+    if (["÷", "×", "-", "+", "="].includes(btn)) {
+      return "bg-primary text-primary-foreground hover:bg-primary/90"
     }
+    if (["AC", "±", "%", "sin", "cos", "tan", "log", "√", "x²"].includes(btn)) {
+      return "bg-muted hover:bg-muted/80"
+    }
+    return "bg-secondary hover:bg-secondary/80"
   }
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-xs p-0 border-0">
-        <div className="p-6">
-          <div className="bg-muted text-muted-foreground rounded-md p-4 h-24 flex flex-col justify-end items-end mb-4">
+      <DialogContent className="max-w-sm p-0 border-0">
+        <div className="p-4 space-y-4">
+          <div className="bg-muted text-muted-foreground rounded-md p-4 h-24 flex flex-col justify-end items-end">
             <div className="text-4xl font-mono break-all">{display}</div>
           </div>
           <div className="grid grid-cols-4 gap-2">
-            {buttons.flat().map((btn) => {
-              const isOperator = ["/", "×", "-", "+"].includes(btn)
-              const isEquals = btn === "="
-              const isClear = btn === "C"
-              const isZero = btn === "0"
-
-              return (
-                <Button
-                  key={btn}
-                  onClick={() => handleButtonClick(btn)}
-                  className={`h-16 text-2xl ${isZero ? "col-span-2" : ""} ${
-                    isOperator || isEquals ? "bg-primary text-primary-foreground hover:bg-primary/90" : ""
-                  } ${isClear ? "bg-destructive text-destructive-foreground hover:bg-destructive/90" : ""}`}
-                  variant={isOperator || isEquals || isClear ? "default" : "secondary"}
-                >
-                  {btn}
+            {buttons.slice(0, 4).map((btn) => (
+              <Button key={btn} onClick={() => handleButtonClick(btn)} className={`h-16 text-xl ${getButtonClass(btn)}`}>{btn}</Button>
+            ))}
+          </div>
+          <div className="grid grid-cols-5 gap-2">
+             {buttons.slice(4, 21).map((btn, index) => (
+                <Button key={btn} onClick={() => handleButtonClick(btn)} className={`h-16 text-xl ${index % 5 === 4 ? getButtonClass(btn) : getButtonClass(btn)} ${btn === '0' ? 'col-span-2' : ''}`}>
+                    {btn}
                 </Button>
-              )
-            })}
+            ))}
+            <Button onClick={() => handleButtonClick("=")} className={`h-16 text-xl col-span-2 ${getButtonClass("=")}`}>=</Button>
           </div>
         </div>
       </DialogContent>

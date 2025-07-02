@@ -621,7 +621,7 @@ export function EnhancedCreateTestInterface({ userProfile }: EnhancedCreateTestI
                                     }
                                   />
                                   <Label htmlFor={`difficulty-${difficulty}`} className="text-sm">
-                                    Level {difficulty}
+                                    {difficulty}
                                   </Label>
                                 </div>
                               ))}
@@ -795,7 +795,7 @@ export function EnhancedCreateTestInterface({ userProfile }: EnhancedCreateTestI
                           )}
 
                           <div>
-                            <Label htmlFor="maxQuestions">Maximum Questions (Optional)</Label>
+                            <Label htmlFor="maxQuestions">Number of Questions</Label>
                             <Input
                               id="maxQuestions"
                               type="number"

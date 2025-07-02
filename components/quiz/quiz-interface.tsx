@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet"
-import { Calculator, Flag, ChevronLeft, ChevronRight, Square, Beaker, StickyNote, Menu, Moon, Sun } from "lucide-react"
+import { Calculator, Flag, ChevronLeft, ChevronRight, Square, Beaker, StickyNote, Menu, Moon, Sun, Timer, Book } from "lucide-react"
 import { QuestionSidebar } from "./question-sidebar"
 import { LabValuesModal } from "./lab-values-modal"
 import { CalculatorModal } from "./calculator-modal"
@@ -21,8 +21,12 @@ import {
   AlertDialogFooter,
   AlertDialogHeader,
   AlertDialogTitle,
+  AlertDialogTrigger,
 } from "@/components/ui/alert-dialog"
 import { useTheme } from "next-themes"
+import { useToast } from "@/components/ui/use-toast"
+import { useUser } from "@supabase/auth-helpers-react"
+import { Skeleton } from "@/components/ui/skeleton"
 
 interface QuizInterfaceProps {
   session: UserSession
@@ -35,6 +39,7 @@ interface QuizInterfaceProps {
   onPauseSession: () => void
   onEndSession: () => void
   onCreateTest?: () => void
+  onQuestionChange: (questionId: string, index: number) => void
 }
 
 export function QuizInterface({
@@ -48,22 +53,37 @@ export function QuizInterface({
   onPauseSession,
   onEndSession,
   onCreateTest,
+  onQuestionChange,
 }: QuizInterfaceProps) {
-  const [currentQuestionIndex, setCurrentQuestionIndex] = useState(session.current_question_index)
-  const [selectedAnswers, setSelectedAnswers] = useState<Record<string, string>>({})
+  const { theme, setTheme } = useTheme()
+  const { toast } = useToast()
+  const user = useUser()
+
+  const [currentQuestionIndex, setCurrentQuestionIndex] = useState(
+    session.current_question_index ?? 0
+  )
+  const [selectedAnswers, setSelectedAnswers] = useState<Record<string, string>>(() => {
+    const initialAnswers: Record<string, string> = {}
+    userAnswers.forEach((answer) => {
+      initialAnswers[answer.question_id] = answer.selected_choice_letter
+    })
+    return initialAnswers
+  })
   const [showExplanations, setShowExplanations] = useState<Record<string, boolean>>({})
   const [showLabValues, setShowLabValues] = useState(false)
   const [showCalculator, setShowCalculator] = useState(false)
   const [showNotes, setShowNotes] = useState(false)
   const [sidebarOpen, setSidebarOpen] = useState(false)
-  const [timeRemaining, setTimeRemaining] = useState(session.time_remaining || 0)
+  const [timeRemaining, setTimeRemaining] = useState(session.time_remaining ?? 0)
   const [noteText, setNoteText] = useState("")
   const [showSubmitPrompt, setShowSubmitPrompt] = useState(false)
   const [localProgress, setLocalProgress] = useState<UserQuestionProgress[]>(userProgress)
   const [userNotes, setUserNotes] = useState<UserNote[]>([])
+  const [isLabModalOpen, setIsLabModalOpen] = useState(false)
+  const [isCalcModalOpen, setIsCalcModalOpen] = useState(false)
+  const [isNotesPanelOpen, setIsNotesPanelOpen] = useState(false)
 
   const router = useRouter()
-  const { theme, setTheme } = useTheme()
 
   const currentQuestion = questions[currentQuestionIndex]
   const currentAnswer = userAnswers.find((a) => a.question_id === currentQuestion?.id)
@@ -96,9 +116,67 @@ export function QuizInterface({
     }
   }, [currentQuestion, userNotes])
 
-  const toggleDarkMode = () => {
-    setTheme(theme === "dark" ? "light" : "dark")
-  }
+  // Persist state to localStorage
+  useEffect(() => {
+    if (typeof window !== "undefined") {
+      const stateToSave = {
+        currentQuestionIndex,
+        selectedAnswers,
+        showExplanations,
+        timeRemaining,
+      }
+      localStorage.setItem(`quizSession_${session.id}`, JSON.stringify(stateToSave))
+    }
+  }, [currentQuestionIndex, selectedAnswers, showExplanations, timeRemaining, session.id])
+
+  // Hydrate state from localStorage
+  useEffect(() => {
+    if (typeof window !== "undefined") {
+      const savedState = localStorage.getItem(`quizSession_${session.id}`)
+      if (savedState) {
+        try {
+          const restoredState = JSON.parse(savedState)
+          setCurrentQuestionIndex(restoredState.currentQuestionIndex ?? session.current_question_index ?? 0)
+          setSelectedAnswers(restoredState.selectedAnswers ?? {})
+          setShowExplanations(restoredState.showExplanations ?? {})
+          setTimeRemaining(restoredState.timeRemaining ?? session.time_remaining ?? 0)
+        } catch (error) {
+          console.error("Failed to parse saved quiz state:", error)
+          // Clear corrupted state
+          localStorage.removeItem(`quizSession_${session.id}`)
+        }
+      }
+    }
+  }, [session.id, session.current_question_index, session.time_remaining])
+
+  // Timer effect
+  useEffect(() => {
+    if (session.time_limit) {
+      const timer = setInterval(() => {
+        setTimeRemaining((prevTime) => {
+          if (prevTime <= 1) {
+            clearInterval(timer)
+            handleEndSession()
+            return 0
+          }
+          return prevTime - 1
+        })
+      }, 1000)
+
+      if (timeRemaining <= 0) {
+        return () => clearInterval(timer)
+      }
+    }
+  }, [timeRemaining, session.time_limit])
+
+  const answeredQuestionIds = new Set([...userAnswers.map((a) => a.question_id), ...Object.keys(selectedAnswers)])
+  const allQuestionsAnswered = questions.length > 0 && answeredQuestionIds.size >= questions.length
+
+  useEffect(() => {
+    if (allQuestionsAnswered) {
+      setShowSubmitPrompt(true)
+    }
+  }, [allQuestionsAnswered])
 
   const handleAnswerSelect = (choiceLetter: string) => {
     const questionId = currentQuestion.id
@@ -143,6 +221,11 @@ export function QuizInterface({
         ]
       }
     })
+
+    toast({
+      title: "Question Flagged",
+      description: "This question has been flagged for review.",
+    })
   }
 
   const handleSaveNote = (note: string) => {
@@ -173,6 +256,7 @@ export function QuizInterface({
 
   const handleQuestionSelect = (index: number) => {
     setCurrentQuestionIndex(index)
+    onQuestionChange(questions[index].id, index)
     setSidebarOpen(false)
   }
 
@@ -221,35 +305,29 @@ export function QuizInterface({
     return "border-border bg-card"
   }
 
-  const handleEndSession = () => {
-    onEndSession()
-    router.push(`/test/${session.id}/results`)
+  const handleEndSession = async () => {
+    await onEndSession()
+    if (typeof window !== "undefined") {
+      localStorage.removeItem(`quizSession_${session.id}`)
+    }
+    toast({
+      title: "Session Ended",
+      description: "Your quiz session has been successfully ended.",
+    })
   }
 
-  // Timer effect
-  useEffect(() => {
-    if (session.time_limit && timeRemaining > 0) {
-      const timer = setInterval(() => {
-        setTimeRemaining((prev) => {
-          if (prev <= 1) {
-            onEndSession()
-            return 0
-          }
-          return prev - 1
-        })
-      }, 1000)
-      return () => clearInterval(timer)
-    }
-  }, [timeRemaining, session.time_limit, onEndSession])
+  const getSubmitPromptDescription = () => {
+    const answeredCount = answeredQuestionIds.size
+    const totalCount = questions.length
 
-  const answeredQuestionIds = new Set([...userAnswers.map((a) => a.question_id), ...Object.keys(selectedAnswers)])
-  const allQuestionsAnswered = questions.length > 0 && answeredQuestionIds.size >= questions.length
-
-  useEffect(() => {
     if (allQuestionsAnswered) {
-      setShowSubmitPrompt(true)
+      return session.session_type === "practice"
+        ? "You have answered all questions. Would you like to submit and view your results?"
+        : "You have answered all questions. Once you submit, you will not be able to change your answers."
     }
-  }, [allQuestionsAnswered])
+
+    return `You have answered ${answeredCount} of ${totalCount} questions. Are you sure you want to end the block and submit your current answers?`
+  }
 
   if (!currentQuestion) {
     return (
@@ -269,74 +347,47 @@ export function QuizInterface({
 
   const answerChoices = getAnswerChoices(currentQuestion)
 
-  const getSubmitPromptDescription = () => {
-    const answeredCount = answeredQuestionIds.size
-    const totalCount = questions.length
-
-    if (allQuestionsAnswered) {
-      return session.session_type === "practice"
-        ? "You have answered all questions. Would you like to submit and view your results?"
-        : "You have answered all questions. Once you submit, you will not be able to change your answers."
-    }
-
-    return `You have answered ${answeredCount} of ${totalCount} questions. Are you sure you want to end the block and submit your current answers?`
-  }
+  const headerFooterStyles = theme === "dark"
+    ? "bg-card text-card-foreground"
+    : "bg-blue-600 text-white"
 
   return (
-    <div className="flex flex-col h-screen font-sans">
+    <div className={`flex flex-col h-screen ${theme === "dark" ? "dark" : ""}`}>
       {/* Header */}
-      <header className="flex items-center justify-between p-2 border-b bg-card text-card-foreground shadow-sm">
-        <div className="flex items-center gap-2">
-          <Sheet open={sidebarOpen} onOpenChange={setSidebarOpen}>
-            <SheetTrigger asChild>
-              <Button variant="ghost" size="icon">
-                <Menu className="h-6 w-6" />
-              </Button>
-            </SheetTrigger>
-            <SheetContent side="left" className="w-full sm:w-80">
-              <QuestionSidebar
-                questions={questions}
-                currentIndex={currentQuestionIndex}
-                onQuestionSelect={handleQuestionSelect}
-                userAnswers={userAnswers}
-                userProgress={localProgress}
-              />
-            </SheetContent>
-          </Sheet>
-          <div className="text-sm font-medium">
-            Item{" "}
-            <span className="font-bold">
-              {currentQuestionIndex + 1} of {questions.length}
-            </span>
-          </div>
+      <header
+        className={`flex items-center justify-between p-4 shadow-md ${headerFooterStyles}`}
+      >
+        <div className="flex items-center gap-4">
+          <Button variant="ghost" size="icon" onClick={() => setSidebarOpen(true)}>
+            <Menu className="h-6 w-6" />
+          </Button>
+          <h1 className="text-xl font-bold">
+            Item {currentQuestionIndex + 1} of {questions.length}
+          </h1>
         </div>
-
-        <div className="flex items-center gap-1 sm:gap-2 flex-wrap justify-end">
+        <div className="flex items-center gap-4">
+          {session.time_limit && (
+            <div className="flex items-center gap-2">
+              <Timer className="h-5 w-5" />
+              <span className="font-semibold">{formatTime(timeRemaining)}</span>
+            </div>
+          )}
           <Button variant="ghost" size="icon" onClick={handleFlagQuestion}>
             <Flag
               className={`h-5 w-5 ${currentProgress?.is_flagged ? "text-yellow-500 fill-current" : ""}`}
             />
-            <span className="sr-only">Flag</span>
           </Button>
           <Button variant="ghost" size="icon" onClick={() => setShowLabValues(true)}>
             <Beaker className="h-5 w-5" />
-            <span className="sr-only">Lab Values</span>
           </Button>
           <Button variant="ghost" size="icon" onClick={() => setShowNotes(!showNotes)}>
             <StickyNote className="h-5 w-5" />
-            <span className="sr-only">Notes</span>
           </Button>
-          <Button variant="ghost" size="icon" onClick={toggleDarkMode}>
-            {theme === "dark" ? (
-              <Sun className="h-5 w-5" />
-            ) : (
-              <Moon className="h-5 w-5" />
-            )}
-            <span className="sr-only">Toggle Theme</span>
+          <Button variant="ghost" size="icon" onClick={() => setTheme(theme === "dark" ? "light" : "dark")}>
+            {theme === "dark" ? <Sun className="h-5 w-5" /> : <Moon className="h-5 w-5" />}
           </Button>
           <Button variant="ghost" size="icon" onClick={() => setShowCalculator(true)}>
             <Calculator className="h-5 w-5" />
-            <span className="sr-only">Calculator</span>
           </Button>
         </div>
       </header>
@@ -413,38 +464,35 @@ export function QuizInterface({
       </main>
 
       {/* Footer */}
-      <div className="p-4 border-t bg-card">
-        <div className="max-w-4xl mx-auto flex justify-between items-center">
-          <div className="flex items-center gap-4">
-            <Button
-              variant="ghost"
-              size="sm"
-              className="text-white hover:bg-blue-700"
-              onClick={handlePreviousQuestion}
-              disabled={currentQuestionIndex === 0}
-            >
-              <ChevronLeft className="w-4 h-4 mr-1" />
-              Previous
-            </Button>
-            <Button
-              variant="ghost"
-              size="sm"
-              className="text-white hover:bg-blue-700"
-              onClick={handleNextQuestion}
-              disabled={currentQuestionIndex === questions.length - 1}
-            >
-              Next
-              <ChevronRight className="w-4 h-4 ml-1" />
-            </Button>
+      <div className={`p-4 shadow-md ${headerFooterStyles}`}>
+        <div className="flex justify-between items-center max-w-4xl mx-auto">
+          <Button
+            variant="outline"
+            size="sm"
+            className="text-white hover:bg-blue-700"
+            onClick={handlePreviousQuestion}
+            disabled={currentQuestionIndex === 0}
+          >
+            <ChevronLeft className="w-4 h-4 mr-1" />
+            Previous
+          </Button>
+          <div className="flex-grow text-center">
+            {session.session_type !== "exam" && currentSelectedAnswer && (
+              <Button onClick={() => setShowExplanations({ [currentQuestion.id]: !showCurrentExplanation })}>
+                {showCurrentExplanation ? "Hide Explanation" : "Show Explanation"}
+              </Button>
+            )}
           </div>
-
-          <div className="flex items-center gap-4">
-            {session.time_limit && <span className="text-sm">block time remaining: {formatTime(timeRemaining)}</span>}
-            <Button variant="destructive" size="sm" onClick={() => setShowSubmitPrompt(true)}>
-              <Square className="w-4 h-4 mr-1" />
+          {currentQuestionIndex === questions.length - 1 ? (
+            <Button
+              className="bg-red-600 hover:bg-red-700 text-white"
+              onClick={handleEndSession}
+            >
               End Block
             </Button>
-          </div>
+          ) : (
+            <Button onClick={handleNextQuestion}>Next</Button>
+          )}
         </div>
       </div>
 
