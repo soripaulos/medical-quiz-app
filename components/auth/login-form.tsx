@@ -144,11 +144,11 @@ export function LoginForm() {
 
           <TabsContent value="login">
             <Card>
-              <CardHeader>
-                <CardTitle>Sign In</CardTitle>
-                <CardDescription>Enter your credentials to access your account</CardDescription>
+              <CardHeader className="space-y-1 text-center">
+                <CardTitle className="text-2xl font-bold tracking-tight">Welcome Back</CardTitle>
+                <CardDescription>Enter your email to sign in to MedPrep ET</CardDescription>
               </CardHeader>
-              <CardContent>
+              <CardContent className="grid gap-4">
                 <form onSubmit={handleLogin} className="space-y-4">
                   <div>
                     <Label htmlFor="login-email">Email</Label>

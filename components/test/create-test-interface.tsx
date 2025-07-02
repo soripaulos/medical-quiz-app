@@ -244,7 +244,7 @@ export function CreateTestInterface() {
       const data: any = isJson ? await res.json() : { ok: false }
 
       if (!res.ok || !isJson) {
-        // Log the raw error page/text so it’s visible in the console.
+        // Log the raw error page/text so it's visible in the console.
         const raw = isJson ? JSON.stringify(data) : await res.text()
         console.error("Create-session API error:", raw)
         throw new Error(data?.message || "Server error – check console")

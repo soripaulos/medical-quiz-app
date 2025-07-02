@@ -2,9 +2,9 @@ import type { MetadataRoute } from "next"
 
 export default function manifest(): MetadataRoute.Manifest {
   return {
-    name: "Medical Quiz App",
-    short_name: "MedQuiz",
-    description: "A comprehensive medical quiz application for USMLE preparation",
+    name: "MedPrep ET",
+    short_name: "MedPrep ET",
+    description: "Your comprehensive resource for medical exam preparation.",
     start_url: "/",
     display: "standalone",
     background_color: "#ffffff",
