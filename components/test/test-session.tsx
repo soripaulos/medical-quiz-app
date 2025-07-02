@@ -19,8 +19,23 @@ export function TestSession({ sessionId }: TestSessionProps) {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
 
+  // Effect to load from local storage first, then fetch
   useEffect(() => {
-    fetchSessionData()
+    const cachedSession = localStorage.getItem(`session_${sessionId}`)
+    if (cachedSession) {
+      try {
+        const data = JSON.parse(cachedSession)
+        setSession(data.session)
+        setQuestions(data.questions)
+        setUserAnswers(data.userAnswers || [])
+        setUserProgress(data.userProgress || [])
+        setLoading(false) // Render from cache immediately
+      } catch (e) {
+        console.error("Failed to parse cached session", e)
+        localStorage.removeItem(`session_${sessionId}`) // Clear bad data
+      }
+    }
+    fetchSessionData() // Always fetch fresh data
   }, [sessionId])
 
   const fetchSessionData = async () => {
@@ -48,6 +63,9 @@ export function TestSession({ sessionId }: TestSessionProps) {
         setQuestions(sessionData.questions)
         setUserAnswers(sessionData.userAnswers || [])
         setUserProgress(sessionData.userProgress || [])
+
+        // Cache the fetched data
+        localStorage.setItem(`session_${sessionId}`, JSON.stringify(sessionData))
       } else {
         throw new Error("Session not found or invalid response format")
       }
@@ -191,25 +209,13 @@ export function TestSession({ sessionId }: TestSessionProps) {
       if (!response.ok) {
         throw new Error("Failed to end session")
       }
+      // Clear cache on successful end
+      localStorage.removeItem(`session_${sessionId}`)
 
       // Redirect to results page
       window.location.href = `/test/${sessionId}/results`
     } catch (error) {
       console.error("Error ending session:", error)
-    }
-  }
-
-  const handleQuestionChange = async (questionId: string, index: number) => {
-    if (!session) return
-
-    try {
-      await fetch(`/api/sessions/${session.id}`, {
-        method: "PUT",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ current_question_index: index }),
-      })
-    } catch (error) {
-      console.error("Error updating session:", error)
     }
   }
 
@@ -270,7 +276,6 @@ export function TestSession({ sessionId }: TestSessionProps) {
       onSaveNote={handleSaveNote}
       onPauseSession={handlePauseSession}
       onEndSession={handleEndSession}
-      onQuestionChange={handleQuestionChange}
     />
   )
 }

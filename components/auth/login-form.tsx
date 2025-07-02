@@ -29,17 +29,6 @@ export function LoginForm() {
 
   const { signIn, signUp } = useAuth()
 
-  const handleOAuthLogin = async (provider: "google" | "github") => {
-    setLoading(true)
-    const supabase = createClient()
-    await supabase.auth.signInWithOAuth({
-      provider,
-      options: {
-        redirectTo: `${window.location.origin}/auth/callback`,
-      },
-    })
-  }
-
   const handleEmailAction = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault()
     setLoading(true)
@@ -83,7 +72,7 @@ export function LoginForm() {
 
   return (
     <div className="flex items-center justify-center min-h-screen bg-background">
-      <Card className="mx-auto max-w-sm">
+      <Card className="mx-auto max-w-md">
         <CardHeader className="text-center">
           <CardTitle className="text-2xl font-bold">
             {isSignUp ? "Create an Account" : "Welcome to MedPrep ET"}
@@ -134,19 +123,6 @@ export function LoginForm() {
               {loading ? <LoadingSpinner /> : isSignUp ? "Sign Up" : "Sign In"}
             </Button>
           </form>
-          <div className="my-4 flex items-center">
-            <div className="flex-grow border-t border-gray-300" />
-            <span className="mx-2 text-xs text-gray-500">OR</span>
-            <div className="flex-grow border-t border-gray-300" />
-          </div>
-          <div className="grid grid-cols-2 gap-2">
-            <Button variant="outline" onClick={() => handleOAuthLogin("google")} disabled={loading}>
-              Google
-            </Button>
-            <Button variant="outline" onClick={() => handleOAuthLogin("github")} disabled={loading}>
-              GitHub
-            </Button>
-          </div>
           <div className="mt-4 text-center text-sm">
             {isSignUp ? (
               <>

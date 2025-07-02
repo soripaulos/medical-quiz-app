@@ -466,25 +466,25 @@ export function EnhancedCreateTestInterface({ userProfile }: EnhancedCreateTestI
                   <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                     {/* Filters Panel */}
                     <div className="lg:col-span-2">
-                      <Card>
-                        <CardHeader>
-                          <div className="flex items-center justify-between">
-                            <CardTitle className="flex items-center gap-2">
-                              <Filter className="w-5 h-5" />
+                      <Card className="shadow-lg">
+                        <CardHeader className="bg-blue-600 text-primary-foreground p-4 rounded-t-lg">
+                          <CardTitle className="flex items-center justify-between">
+                            <div className="flex items-center">
+                              <Filter className="w-5 h-5 mr-2" />
                               Question Filters
-                              <Badge variant="secondary" className="ml-2">
-                                {loading ? "Loading..." : `${questionCount} questions`}
-                              </Badge>
-                            </CardTitle>
+                            </div>
+                            <Badge variant="secondary">{questionCount} questions</Badge>
+                          </CardTitle>
+                        </CardHeader>
+                        <CardContent className="p-6">
+                          <div className="flex justify-between items-center mb-4">
+                            <p className="text-sm text-gray-500">
+                              Leave sections unchecked to include all items from that category
+                            </p>
                             <Button variant="outline" size="sm" onClick={clearAllFilters}>
                               Clear All
                             </Button>
                           </div>
-                          <p className="text-sm text-gray-600">
-                            Leave sections unchecked to include all items from that category
-                          </p>
-                        </CardHeader>
-                        <CardContent className="space-y-6">
                           {/* Specialties */}
                           <div>
                             <div className="flex items-center justify-between mb-3">
@@ -731,14 +731,14 @@ export function EnhancedCreateTestInterface({ userProfile }: EnhancedCreateTestI
 
                     {/* Test Settings Panel */}
                     <div className="space-y-6">
-                      <Card>
-                        <CardHeader>
-                          <CardTitle className="flex items-center gap-2">
-                            <Settings className="w-5 h-5" />
+                      <Card className="shadow-lg sticky top-24">
+                        <CardHeader className="bg-blue-600 text-primary-foreground p-4 rounded-t-lg">
+                          <CardTitle className="flex items-center">
+                            <Settings className="w-5 h-5 mr-2" />
                             Test Configuration
                           </CardTitle>
                         </CardHeader>
-                        <CardContent className="space-y-4">
+                        <CardContent className="p-6 space-y-6">
                           <div>
                             <Label htmlFor="sessionName">Test Name</Label>
                             <Input
