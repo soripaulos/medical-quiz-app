@@ -6,20 +6,16 @@ import { FullPageSpinner } from '@/components/ui/loading-spinner'
 
 export const dynamic = 'force-dynamic'
 
-async function HomePage() {
+export default async function Page() {
   const session = await verifySession()
 
   if (!session) {
-    return <LoginForm />
+    return (
+      <Suspense fallback={<FullPageSpinner />}>
+        <LoginForm />
+      </Suspense>
+    )
   }
 
   return <EnhancedCreateTestInterface userProfile={session.profile} />
-}
-
-export default function Page() {
-  return (
-    <Suspense fallback={<FullPageSpinner />}>
-      <HomePage />
-    </Suspense>
-  )
 }
