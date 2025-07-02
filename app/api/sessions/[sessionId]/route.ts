@@ -61,3 +61,39 @@ export async function GET(req: Request, context: { params: Promise<{ sessionId: 
     return NextResponse.json({ ok: false, message: String(err) }, { status: 400 })
   }
 }
+
+export async function PUT(
+  req: Request,
+  { params }: { params: { sessionId: string } }
+) {
+  try {
+    const supabase = await createClient()
+    const { sessionId } = params
+    const body = await req.json()
+    const { current_question_index } = body
+
+    if (typeof current_question_index !== "number") {
+      return new Response("Invalid input", { status: 400 })
+    }
+
+    const { data, error } = await supabase
+      .from("user_sessions")
+      .update({
+        current_question_index: current_question_index,
+        updated_at: new Date().toISOString(),
+      })
+      .eq("id", sessionId)
+      .select()
+
+    if (error) throw error
+
+    return new Response(JSON.stringify(data), {
+      headers: { "Content-Type": "application/json" },
+    })
+  } catch (error: any) {
+    return new Response(JSON.stringify({ error: error.message }), {
+      status: 500,
+      headers: { "Content-Type": "application/json" },
+    })
+  }
+}

@@ -199,6 +199,20 @@ export function TestSession({ sessionId }: TestSessionProps) {
     }
   }
 
+  const handleQuestionChange = async (questionId: string, index: number) => {
+    if (!session) return
+
+    try {
+      await fetch(`/api/sessions/${session.id}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ current_question_index: index }),
+      })
+    } catch (error) {
+      console.error("Error updating session:", error)
+    }
+  }
+
   if (loading) {
     return (
       <div className="flex items-center justify-center h-screen">
@@ -256,6 +270,7 @@ export function TestSession({ sessionId }: TestSessionProps) {
       onSaveNote={handleSaveNote}
       onPauseSession={handlePauseSession}
       onEndSession={handleEndSession}
+      onQuestionChange={handleQuestionChange}
     />
   )
 }
