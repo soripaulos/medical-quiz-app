@@ -3,177 +3,169 @@
 import { useState } from "react"
 import { Dialog, DialogContent } from "@/components/ui/dialog"
 import { Button } from "@/components/ui/button"
-import { X } from "lucide-react"
 
 interface CalculatorModalProps {
   open: boolean
-  onClose: () => void
+  onOpenChange: (open: boolean) => void
 }
 
-export function CalculatorModal({ open, onClose }: CalculatorModalProps) {
-  const [expression, setExpression] = useState("")
-  const [display, setDisplay] = useState("0")
-  const [isRadians, setIsRadians] = useState(true)
+export function CalculatorModal({ open, onOpenChange }: CalculatorModalProps) {
+  const [input, setInput] = useState("0")
+  const [operator, setOperator] = useState<string | null>(null)
+  const [prevValue, setPrevValue] = useState<string | null>(null)
 
-  const handleButtonClick = (value: string) => {
-    if (display === "Error") {
-      setDisplay("0")
-      setExpression("")
+  const handleNumber = (num: string) => {
+    if (input === "0" && num !== ".") {
+      setInput(num)
+    } else if (input.includes(".") && num === ".") {
+      return
+    } else {
+      setInput(input + num)
     }
+  }
 
-    switch (value) {
-      case "=":
-        try {
-          // This is a simple and unsafe eval. For a real app, use a proper math parser library.
-          // eslint-disable-next-line no-eval
-          const result = eval(
-            expression
-              .replace(/%/g, "/100")
-              .replace(/π/g, "Math.PI")
-              .replace(/e/g, "Math.E")
-              .replace(/√/g, "Math.sqrt")
-              .replace(/sin/g, "Math.sin")
-              .replace(/cos/g, "Math.cos")
-              .replace(/tan/g, "Math.tan")
-              .replace(/log/g, "Math.log10")
-              .replace(/ln/g, "Math.log")
-              .replace(/\^/g, "**")
-          )
-          const finalResult = Number(result.toFixed(10))
-          setDisplay(finalResult.toString())
-          setExpression(finalResult.toString())
-        } catch (error) {
-          setDisplay("Error")
-          setExpression("")
-        }
+  const handleOperator = (op: string) => {
+    if (prevValue) {
+      handleEquals()
+    }
+    setPrevValue(input)
+    setInput("0")
+    setOperator(op)
+  }
+
+  const handleEquals = () => {
+    if (!operator || prevValue === null) return
+
+    const current = parseFloat(input)
+    const previous = parseFloat(prevValue)
+    let result
+
+    switch (operator) {
+      case "+":
+        result = previous + current
         break
-      case "C":
-        setExpression("")
-        setDisplay("0")
+      case "-":
+        result = previous - current
         break
-      case "Del":
-        if (expression.length > 0) {
-          const newExpression = expression.slice(0, -1)
-          setExpression(newExpression)
-          setDisplay(newExpression || "0")
-        }
+      case "×":
+        result = previous * current
         break
-      case "Rad":
-      case "Deg":
-        setIsRadians(!isRadians)
-        break
-      case "x²":
-        setExpression((prev) => `(${prev})^2`)
-        setDisplay((prev) => `(${prev})²`)
-        break
-      case "1/x":
-        setExpression((prev) => `1/(${prev})`)
-        setDisplay((prev) => `1/(${prev})`)
-        break
-      case "n!":
-        try {
-          const num = parseInt(expression)
-          if (num < 0) {
-            setDisplay("Error")
-            setExpression("")
-            return
-          }
-          let result = 1
-          for (let i = 2; i <= num; i++) {
-            result *= i
-          }
-          setDisplay(result.toString())
-          setExpression(result.toString())
-        } catch (error) {
-          setDisplay("Error")
-          setExpression("")
-        }
+      case "÷":
+        result = previous / current
         break
       default:
-        // Check if the default case is a function (like 'sin', 'cos', etc.)
-        const functions = ["sin", "cos", "tan", "log", "ln", "√"]
-        if (functions.includes(value)) {
-          setExpression((prev) => `${value}(${prev})`)
-          setDisplay((prev) => `${value}(${prev})`)
-        } else {
-          // It's a number or operator
-          if (expression === "0" && value !== ".") {
-            setExpression(value)
-            setDisplay(value)
-          } else {
-            setExpression((prev) => prev + value)
-            setDisplay((prev) => (prev === "0" ? value : prev + value))
-          }
-        }
+        return
+    }
+    setInput(result.toString())
+    setOperator(null)
+    setPrevValue(null)
+  }
+
+  const handleClear = () => {
+    setInput("0")
+    setOperator(null)
+    setPrevValue(null)
+  }
+
+  const handleFunction = (func: string) => {
+    const value = parseFloat(input)
+    let result
+
+    switch (func) {
+      case "sin":
+        result = Math.sin((value * Math.PI) / 180) // Assuming degree input
         break
+      case "cos":
+        result = Math.cos((value * Math.PI) / 180) // Assuming degree input
+        break
+      case "tan":
+        result = Math.tan((value * Math.PI) / 180) // Assuming degree input
+        break
+      case "log":
+        result = Math.log10(value)
+        break
+      case "ln":
+        result = Math.log(value)
+        break
+      case "√":
+        result = Math.sqrt(value)
+        break
+      case "x²":
+        result = Math.pow(value, 2)
+        break
+      case "%":
+        result = value / 100
+        break
+      case "+/-":
+        result = value * -1
+        break
+      default:
+        return
+    }
+    setInput(result.toString())
+  }
+
+  const handleButtonClick = (btn: string) => {
+    if (/[0-9.]/.test(btn)) {
+      handleNumber(btn)
+    } else if (["+", "-", "×", "÷"].includes(btn)) {
+      handleOperator(btn)
+    } else if (btn === "=") {
+      handleEquals()
+    } else if (btn === "C") {
+      handleClear()
+    } else if (btn === "DEL") {
+      setInput(input.slice(0, -1) || "0")
+    } else {
+      handleFunction(btn)
     }
   }
 
   const buttons = [
-    { label: isRadians ? "Rad" : "Deg", value: isRadians ? "Rad" : "Deg" },
-    { label: "√", value: "√" },
-    { label: "x²", value: "x²" },
-    { label: "^", value: "^" },
-    { label: "sin", value: "sin" },
-    { label: "cos", value: "cos" },
-    { label: "tan", value: "tan" },
-    { label: "log", value: "log" },
-    { label: "ln", value: "ln" },
-    { label: "(", value: "(" },
-    { label: ")", value: ")" },
-    { label: "1/x", value: "1/x" },
-    { label: "e", value: "e" },
-    { label: "π", value: "π" },
-    { label: "n!", value: "n!" },
-    { label: "÷", value: "/" },
-    { label: "7", value: "7" },
-    { label: "8", value: "8" },
-    { label: "9", value: "9" },
-    { label: "×", value: "*" },
-    { label: "4", value: "4" },
-    { label: "5", value: "5" },
-    { label: "6", value: "6" },
-    { label: "-", value: "-" },
-    { label: "1", value: "1" },
-    { label: "2", value: "2" },
-    { label: "3", value: "3" },
-    { label: "+", value: "+" },
-    { label: "0", value: "0" },
-    { label: ".", value: "." },
-    { label: "=", value: "=", className: "bg-primary" },
-    { label: "Del", value: "Del" },
-  ]
+    "sin", "cos", "tan", "log", "C",
+    "ln", "√", "x²", "%", "DEL",
+    "7", "8", "9", "÷", "+/-",
+    "4", "5", "6", "×", "(",
+    "1", "2", "3", "-", ")",
+    "0", ".", "=", "+",
+  ];
 
   return (
-    <Dialog open={open} onOpenChange={(isOpen) => !isOpen && onClose()}>
-      <DialogContent className="max-w-md p-2 bg-background border rounded-lg shadow-xl">
-        <div className="flex justify-between items-center p-2 border-b">
-          <h2 className="text-lg font-semibold">Calculator</h2>
-          <Button variant="ghost" size="icon" onClick={onClose}>
-            <X className="h-4 w-4" />
-          </Button>
-        </div>
-        <div className="p-4 space-y-4">
-          <div className="bg-muted text-muted-foreground rounded-md p-4 h-24 flex flex-col justify-end items-end">
-            <div className="text-sm break-all opacity-70">{expression}</div>
-            <div className="text-4xl font-mono break-all">{display}</div>
-          </div>
-          <div className="grid grid-cols-4 gap-2">
-            {buttons.map(({ label, value, className }) => (
-              <Button
-                key={value}
-                onClick={() => handleButtonClick(value)}
-                className={`h-14 text-xl ${className || ""}`}
-                variant={isNaN(Number(value)) && value !== "." ? "secondary" : "outline"}
-              >
-                {label}
-              </Button>
-            ))}
-          </div>
-          <div className="grid grid-cols-1">
-            <Button onClick={() => handleButtonClick("C")} className="h-14 text-xl" variant="destructive">
-              Clear All
-            </Button>
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="max-w-sm p-0 border-0">
+        <div className="bg-background rounded-lg shadow-lg">
+          <div className="p-4">
+            <div className="bg-muted text-muted-foreground rounded-md p-4 h-20 flex flex-col justify-end items-end mb-4">
+              <div className="text-3xl font-mono break-all text-right w-full">
+                {operator && prevValue ? `${prevValue} ${operator}` : ''}
+              </div>
+              <div className="text-5xl font-mono break-all text-right w-full">{input}</div>
+            </div>
+            <div className="grid grid-cols-5 gap-2">
+              {buttons.map((btn) => {
+                const isOperator = ["÷", "×", "-", "+", "="].includes(btn)
+                const isFn = ["sin", "cos", "tan", "log", "ln", "√", "x²", "%", "+/-"].includes(btn)
+                const isClear = ["C", "DEL"].includes(btn)
+                
+                let className = ""
+                if (isOperator) className = "bg-primary text-primary-foreground hover:bg-primary/90"
+                if (isClear) className = "bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                if (isFn) className = "bg-secondary text-secondary-foreground hover:bg-secondary/80"
+                if (btn === "0") className += " col-span-2"
+
+
+                return (
+                  <Button
+                    key={btn}
+                    onClick={() => handleButtonClick(btn)}
+                    className={`h-14 text-xl ${className}`}
+                    variant={isOperator || isClear || isFn ? "default" : "outline"}
+                  >
+                    {btn}
+                  </Button>
+                )
+              })}
+            </div>
           </div>
         </div>
       </DialogContent>

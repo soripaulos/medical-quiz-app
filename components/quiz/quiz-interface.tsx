@@ -24,20 +24,6 @@ import {
 } from "@/components/ui/alert-dialog"
 import { useTheme } from "next-themes"
 
-// Custom hook for debouncing
-function useDebounce(value: any, delay: number) {
-  const [debouncedValue, setDebouncedValue] = useState(value)
-  useEffect(() => {
-    const handler = setTimeout(() => {
-      setDebouncedValue(value)
-    }, delay)
-    return () => {
-      clearTimeout(handler)
-    }
-  }, [value, delay])
-  return debouncedValue
-}
-
 interface QuizInterfaceProps {
   session: UserSession
   questions: Question[]
@@ -78,53 +64,6 @@ export function QuizInterface({
 
   const router = useRouter()
   const { theme, setTheme } = useTheme()
-
-  const debouncedState = useDebounce(
-    {
-      currentQuestionIndex,
-      selectedAnswers,
-      showExplanations,
-      timeRemaining,
-      localProgress,
-      userNotes,
-    },
-    500
-  )
-
-  // Load state from localStorage on initial render
-  useEffect(() => {
-    const cachedData = localStorage.getItem(`session_${session.id}`)
-    if (cachedData) {
-      try {
-        const data = JSON.parse(cachedData)
-        if (data.quizState) {
-          setCurrentQuestionIndex(data.quizState.currentQuestionIndex ?? session.current_question_index)
-          setSelectedAnswers(data.quizState.selectedAnswers ?? {})
-          setShowExplanations(data.quizState.showExplanations ?? {})
-          setTimeRemaining(data.quizState.timeRemaining ?? session.time_remaining)
-          setLocalProgress(data.quizState.localProgress ?? userProgress)
-          setUserNotes(data.quizState.userNotes ?? [])
-        }
-      } catch (e) {
-        console.error("Failed to parse cached quiz state", e)
-      }
-    }
-  }, [session.id]) // Only run once per session
-
-  // Save state to localStorage on change
-  useEffect(() => {
-    const cachedData = localStorage.getItem(`session_${session.id}`)
-    let dataToSave = {}
-    if (cachedData) {
-      try {
-        dataToSave = JSON.parse(cachedData)
-      } catch (e) {
-        // ignore parsing error, will overwrite with fresh state
-      }
-    }
-    const updatedData = { ...dataToSave, quizState: debouncedState }
-    localStorage.setItem(`session_${session.id}`, JSON.stringify(updatedData))
-  }, [debouncedState, session.id])
 
   const currentQuestion = questions[currentQuestionIndex]
   const currentAnswer = userAnswers.find((a) => a.question_id === currentQuestion?.id)
@@ -344,63 +283,63 @@ export function QuizInterface({
   }
 
   return (
-    <div className="flex flex-col h-screen bg-muted/40">
-      <header className="sticky top-0 z-10 bg-blue-600 dark:bg-gray-800 text-primary-foreground shadow-md">
-        <div className="container mx-auto px-4">
-          <div className="flex justify-between items-center py-2">
-            <div className="flex items-center space-x-2 md:space-x-4">
-              <Sheet open={sidebarOpen} onOpenChange={setSidebarOpen}>
-                <SheetTrigger asChild>
-                  <Button variant="secondary" size="icon" className="md:hidden">
-                    <Menu className="h-5 w-5" />
-                  </Button>
-                </SheetTrigger>
-                <SheetContent side="left" className="w-full sm:w-80">
-                  <QuestionSidebar
-                    questions={questions}
-                    currentIndex={currentQuestionIndex}
-                    onQuestionSelect={handleQuestionSelect}
-                    userAnswers={userAnswers}
-                    userProgress={localProgress}
-                  />
-                </SheetContent>
-              </Sheet>
-              <span className="font-semibold text-lg whitespace-nowrap hidden md:block">
-                Item {currentQuestionIndex + 1} of {questions.length}
-              </span>
-            </div>
-            {session.time_limit && (
-              <Badge variant="secondary" className="text-lg">
-                {formatTime(timeRemaining)}
-              </Badge>
-            )}
+    <div className="flex flex-col h-screen bg-background text-foreground">
+      {/* Header */}
+      <header className="flex items-center justify-between p-2 border-b dark:bg-card bg-primary text-primary-foreground">
+        <div className="flex items-center gap-2">
+          <Sheet open={sidebarOpen} onOpenChange={setSidebarOpen}>
+            <SheetTrigger asChild>
+              <Button variant="ghost" size="icon">
+                <Menu className="h-6 w-6" />
+              </Button>
+            </SheetTrigger>
+            <SheetContent side="left" className="w-full sm:w-80">
+              <QuestionSidebar
+                questions={questions}
+                currentIndex={currentQuestionIndex}
+                onQuestionSelect={handleQuestionSelect}
+                userAnswers={userAnswers}
+                userProgress={localProgress}
+              />
+            </SheetContent>
+          </Sheet>
+          <div className="text-sm font-medium">
+            Item{" "}
+            <span className="font-bold">
+              {currentQuestionIndex + 1} of {questions.length}
+            </span>
           </div>
+        </div>
 
-          <div className="flex items-center space-x-1 md:space-x-2">
-            <Button variant="secondary" size="icon" onClick={() => setShowCalculator(true)}>
-              <Calculator className="h-5 w-5" />
-            </Button>
-            <Button variant="secondary" size="icon" onClick={() => setShowLabValues(true)}>
-              <Beaker className="h-5 w-5" />
-            </Button>
-            <Button
-              variant={currentProgress?.is_flagged ? "destructive" : "secondary"}
-              size="icon"
-              onClick={handleFlagQuestion}
-            >
-              <Flag className="h-5 w-5" />
-            </Button>
-            <Button variant="secondary" size="icon" onClick={() => setShowNotes(!showNotes)}>
-              <StickyNote className="h-5 w-5" />
-            </Button>
-            <Button variant="secondary" size="icon" onClick={toggleDarkMode}>
-              {theme === "dark" ? <Sun className="h-5 w-5" /> : <Moon className="h-5 w-5" />}
-            </Button>
-          </div>
+        <div className="flex items-center gap-1 sm:gap-2 flex-wrap justify-end">
+          <Button variant="ghost" size="icon" onClick={handleFlagQuestion}>
+            <Flag
+              className={`h-5 w-5 ${currentProgress?.is_flagged ? "text-yellow-500 fill-current" : ""}`}
+            />
+            <span className="sr-only">Flag</span>
+          </Button>
+          <Button variant="ghost" size="icon" onClick={() => setShowLabValues(true)}>
+            <Beaker className="h-5 w-5" />
+            <span className="sr-only">Lab Values</span>
+          </Button>
+          <Button variant="ghost" size="icon" onClick={() => setShowNotes(!showNotes)}>
+            <StickyNote className="h-5 w-5" />
+            <span className="sr-only">Notes</span>
+          </Button>
+          <Button variant="ghost" size="icon" onClick={toggleDarkMode}>
+            <Sun className="h-5 w-5 rotate-0 scale-100 transition-all dark:-rotate-90 dark:scale-0" />
+            <Moon className="absolute h-5 w-5 rotate-90 scale-0 transition-all dark:rotate-0 dark:scale-100" />
+            <span className="sr-only">Toggle theme</span>
+          </Button>
+          <Button variant="ghost" size="icon" onClick={() => setShowCalculator(true)}>
+            <Calculator className="h-5 w-5" />
+            <span className="sr-only">Calculator</span>
+          </Button>
         </div>
       </header>
 
-      <main className="flex-1 flex overflow-hidden">
+      {/* Main Content */}
+      <main className="flex-1 overflow-y-auto p-4 md:p-6">
         <div className="max-w-4xl mx-auto space-y-6">
           {/* Question */}
           <Card>
@@ -470,31 +409,22 @@ export function QuizInterface({
         </div>
       </main>
 
-      <footer className="bg-blue-600 dark:bg-gray-800 border-t-0 text-primary-foreground p-2">
-        <div className="container mx-auto">
-          <div className="flex justify-between items-center">
-            <Button
-              variant="secondary"
-              onClick={handlePreviousQuestion}
-              disabled={currentQuestionIndex === 0}
-            >
-              <ChevronLeft className="h-4 w-4 mr-1" />
-              Previous
-            </Button>
-            <div className="hidden md:flex items-center space-x-2">
-              <Button variant="secondary" onClick={() => setShowSubmitPrompt(true)}>
-                End Block
-              </Button>
-            </div>
-            <Button
-              variant="secondary"
-              onClick={handleNextQuestion}
-              disabled={currentQuestionIndex === questions.length - 1}
-            >
-              Next
-              <ChevronRight className="h-4 w-4 ml-1" />
-            </Button>
-          </div>
+      {/* Footer */}
+      <footer className="flex items-center justify-between p-2 border-t dark:bg-card bg-primary text-primary-foreground">
+        <Button variant="ghost" onClick={handlePreviousQuestion} disabled={currentQuestionIndex === 0}>
+          <ChevronLeft className="h-5 w-5 mr-1" />
+          Previous
+        </Button>
+        <Button variant="ghost" onClick={handleNextQuestion} disabled={currentQuestionIndex === questions.length - 1}>
+          Next
+          <ChevronRight className="h-5 w-5 ml-1" />
+        </Button>
+        <div className="flex items-center gap-4">
+          {session.time_limit && <span className="text-sm">block time remaining: {formatTime(timeRemaining)}</span>}
+          <Button variant="destructive" size="sm" onClick={() => setShowSubmitPrompt(true)}>
+            <Square className="w-4 h-4 mr-1" />
+            End Block
+          </Button>
         </div>
       </footer>
 
@@ -512,8 +442,8 @@ export function QuizInterface({
       </AlertDialog>
 
       {/* Modals */}
-      {showLabValues && <LabValuesModal open={showLabValues} onOpenChange={setShowLabValues} />}
-      {showCalculator && <CalculatorModal open={showCalculator} onClose={() => setShowCalculator(false)} />}
+      <LabValuesModal open={showLabValues} onOpenChange={setShowLabValues} />
+      <CalculatorModal open={showCalculator} onOpenChange={setShowCalculator} />
 
       {/* Notes Panel (Drawer for mobile, sidebar for desktop) */}
       <Sheet open={showNotes} onOpenChange={setShowNotes}>
@@ -531,12 +461,11 @@ export function QuizInterface({
 }
 
 const formatTime = (seconds: number) => {
-  if (seconds <= 0) return "00:00"
-  const h = Math.floor(seconds / 3600)
-  const m = Math.floor((seconds % 3600) / 60)
-  const s = seconds % 60
-  if (h > 0) {
-    return `${h.toString().padStart(2, "0")}:${m.toString().padStart(2, "0")}:${s.toString().padStart(2, "0")}`
+  const hours = Math.floor(seconds / 3600)
+  const minutes = Math.floor((seconds % 3600) / 60)
+  const secs = Math.floor(seconds % 60)
+  if (hours > 0) {
+    return `${hours}:${minutes.toString().padStart(2, "0")}:${secs.toString().padStart(2, "0")}`
   }
-  return `${m.toString().padStart(2, "0")}:${s.toString().padStart(2, "0")}`
+  return `${minutes}:${secs.toString().padStart(2, "0")}`
 }
