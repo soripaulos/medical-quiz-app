@@ -7,6 +7,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { createClient } from "@/lib/supabase/client"
 import type { LabValue } from "@/lib/types"
+import { ScrollArea } from "@/components/ui/scroll-area"
 
 interface LabValuesModalProps {
   open: boolean
@@ -66,21 +67,20 @@ export function LabValuesModal({ open, onOpenChange }: LabValuesModalProps) {
                   <h3 className="text-lg font-semibold mb-4 text-center">{category}</h3>
                   <Table>
                     <TableHeader>
-                      <TableRow className="bg-gray-100">
-                        <TableHead className="font-semibold">Test</TableHead>
-                        <TableHead className="font-semibold">Reference Range</TableHead>
+                      <TableRow>
+                        <TableHead className="w-[150px]">Test Name</TableHead>
+                        <TableHead>Reference Range</TableHead>
+                        <TableHead>Units</TableHead>
                       </TableRow>
                     </TableHeader>
                     <TableBody>
                       {labValues
                         .filter((lv) => lv.category === category)
-                        .map((labValue) => (
-                          <TableRow key={labValue.id}>
-                            <TableCell className="font-medium">{labValue.test_name}</TableCell>
-                            <TableCell>
-                              {labValue.reference_range}
-                              {labValue.units && ` ${labValue.units}`}
-                            </TableCell>
+                        .map((value) => (
+                          <TableRow key={value.id}>
+                            <TableCell className="font-medium">{value.test_name}</TableCell>
+                            <TableCell>{value.reference_range}</TableCell>
+                            <TableCell>{value.units}</TableCell>
                           </TableRow>
                         ))}
                     </TableBody>

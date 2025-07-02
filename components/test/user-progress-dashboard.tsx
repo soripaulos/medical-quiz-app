@@ -21,6 +21,13 @@ import {
 } from "recharts"
 import { Trophy, Target, Clock, BookOpen, Eye, FileText } from "lucide-react"
 import Link from "next/link"
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table"
 
 interface UserStats {
   totalSessions: number
@@ -243,13 +250,15 @@ export function UserProgressDashboard() {
         </div>
 
         <Tabs defaultValue="overview" className="space-y-6">
-          <TabsList className="grid w-full grid-cols-5">
-            <TabsTrigger value="overview">Overview</TabsTrigger>
-            <TabsTrigger value="history">Test History</TabsTrigger>
-            <TabsTrigger value="performance">Performance</TabsTrigger>
-            <TabsTrigger value="progress">Progress</TabsTrigger>
-            <TabsTrigger value="notes">Notes</TabsTrigger>
-          </TabsList>
+          <div className="overflow-x-auto pb-2">
+            <TabsList className="grid w-full grid-cols-5 min-w-[600px] md:min-w-0">
+              <TabsTrigger value="overview">Overview</TabsTrigger>
+              <TabsTrigger value="history">Test History</TabsTrigger>
+              <TabsTrigger value="performance">Performance</TabsTrigger>
+              <TabsTrigger value="progress">Progress</TabsTrigger>
+              <TabsTrigger value="notes">Notes</TabsTrigger>
+            </TabsList>
+          </div>
 
           <TabsContent value="overview" className="space-y-6">
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
@@ -327,49 +336,45 @@ export function UserProgressDashboard() {
               </CardHeader>
               <CardContent>
                 <div className="overflow-x-auto">
-                  <table className="w-full">
-                    <thead>
-                      <tr className="border-b">
-                        <th className="text-left p-2">Test Name</th>
-                        <th className="text-left p-2">Type</th>
-                        <th className="text-left p-2">Date</th>
-                        <th className="text-left p-2">Score</th>
-                        <th className="text-left p-2">Questions</th>
-                        <th className="text-left p-2">Time</th>
-                        <th className="text-left p-2">Actions</th>
-                      </tr>
-                    </thead>
-                    <tbody>
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead>Test Name</TableHead>
+                        <TableHead>Type</TableHead>
+                        <TableHead>Date</TableHead>
+                        <TableHead>Score</TableHead>
+                        <TableHead>Questions</TableHead>
+                        <TableHead>Time</TableHead>
+                        <TableHead>Actions</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
                       {sessionHistory.map((session) => (
-                        <tr key={session.id} className="border-b hover:bg-gray-50">
-                          <td className="p-2 font-medium">{session.name}</td>
-                          <td className="p-2">
+                        <TableRow key={session.id}>
+                          <TableCell className="font-medium">{session.name}</TableCell>
+                          <TableCell>
                             <Badge variant="outline">{session.type}</Badge>
-                          </td>
-                          <td className="p-2 text-sm text-gray-600">{new Date(session.date).toLocaleDateString()}</td>
-                          <td className="p-2">
-                            <span className={`font-bold ${getScoreColor(session.score)}`}>
-                              {session.score.toFixed(1)}%
-                            </span>
-                          </td>
-                          <td className="p-2">
+                          </TableCell>
+                          <TableCell>{new Date(session.date).toLocaleDateString()}</TableCell>
+                          <TableCell className={getScoreColor(session.score)}>
+                            {session.score.toFixed(1)}%
+                          </TableCell>
+                          <TableCell>
                             {session.correctAnswers}/{session.totalQuestions}
-                          </td>
-                          <td className="p-2">{session.timeSpent}m</td>
-                          <td className="p-2">
-                            {session.isCompleted && (
+                          </TableCell>
+                          <TableCell>{formatTime(session.timeSpent)}</TableCell>
+                          <TableCell>
+                            <Button asChild variant="outline" size="sm">
                               <Link href={`/test/${session.id}/results`}>
-                                <Button variant="ghost" size="sm">
-                                  <Eye className="w-4 h-4 mr-1" />
-                                  View
-                                </Button>
+                                <Eye className="mr-2 h-4 w-4" />
+                                View
                               </Link>
-                            )}
-                          </td>
-                        </tr>
+                            </Button>
+                          </TableCell>
+                        </TableRow>
                       ))}
-                    </tbody>
-                  </table>
+                    </TableBody>
+                  </Table>
                 </div>
               </CardContent>
             </Card>

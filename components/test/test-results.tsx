@@ -8,9 +8,20 @@ import { Progress } from "@/components/ui/progress"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Separator } from "@/components/ui/separator"
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell } from "recharts"
-import { Trophy, Target, Clock, CheckCircle, XCircle, Flag, RotateCcw, Home, Eye, Brain } from "lucide-react"
+import { Trophy, Target, Clock, CheckCircle, XCircle, Flag, RotateCcw, Home, Eye, Brain, Check, X, Calendar, HelpCircle, Repeat, AlertCircle } from "lucide-react"
 import Link from "next/link"
 import type { Question, UserSession, UserAnswer, UserQuestionProgress } from "@/lib/types"
+import { useAuth } from "@/hooks/use-auth"
+import { FullPageSpinner } from "@/components/ui/loading-spinner"
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table"
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
 
 interface TestResultsProps {
   sessionId: string
@@ -59,6 +70,7 @@ export function TestResults({ sessionId }: TestResultsProps) {
   const [results, setResults] = useState<ResultsData | null>(null)
   const [loading, setLoading] = useState(true)
   const [selectedQuestion, setSelectedQuestion] = useState<string | null>(null)
+  const { user } = useAuth()
 
   useEffect(() => {
     fetchResults()
@@ -108,26 +120,22 @@ export function TestResults({ sessionId }: TestResultsProps) {
   }
 
   if (loading) {
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-gray-50">
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto"></div>
-          <p className="mt-4 text-gray-600">Calculating your results...</p>
-        </div>
-      </div>
-    )
+    return <FullPageSpinner />
   }
 
   if (!results) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gray-50">
-        <div className="text-center space-y-4">
-          <h2 className="text-2xl font-bold text-gray-900">Results Not Found</h2>
-          <p className="text-gray-600">Unable to load test results.</p>
-          <Link href="/">
-            <Button>Return Home</Button>
-          </Link>
-        </div>
+      <div className="min-h-screen flex items-center justify-center bg-background">
+        <Alert className="max-w-md">
+          <HelpCircle className="h-4 w-4" />
+          <AlertTitle>No Results Found</AlertTitle>
+          <AlertDescription>
+            The test session could not be found or results are not available.{" "}
+            <Link href="/" className="underline">
+              Go back home
+            </Link>
+          </AlertDescription>
+        </Alert>
       </div>
     )
   }
@@ -143,7 +151,7 @@ export function TestResults({ sessionId }: TestResultsProps) {
   ]
 
   return (
-    <div className="min-h-screen bg-gray-50 p-6">
+    <div className="min-h-screen bg-background p-2 sm:p-4 md:p-6">
       <div className="max-w-7xl mx-auto space-y-6">
         {/* Header */}
         <div className="text-center space-y-4">
@@ -523,18 +531,18 @@ export function TestResults({ sessionId }: TestResultsProps) {
 
         {/* Action Buttons */}
         <div className="flex flex-wrap items-center justify-center gap-4 pt-6">
-          <Link href="/create-test">
-            <Button variant="outline">
-              <RotateCcw className="w-4 h-4 mr-2" />
-              Take Another Test
-            </Button>
-          </Link>
-          <Link href="/">
-            <Button>
-              <Home className="w-4 h-4 mr-2" />
-              Return Home
-            </Button>
-          </Link>
+          <Button variant="outline" asChild>
+            <Link href={`/test/${results.session.id}`}>
+              <Repeat className="mr-2 h-4 w-4" />
+              Retake Test
+            </Link>
+          </Button>
+          <Button variant="outline" asChild>
+            <Link href="/">
+              <Home className="mr-2 h-4 w-4" />
+              Back to Home
+            </Link>
+          </Button>
         </div>
       </div>
     </div>

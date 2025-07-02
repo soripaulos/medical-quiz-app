@@ -260,13 +260,32 @@ export function CreateTestInterface() {
     }
   }
 
+  if (!user) {
+    return (
+      <div className="flex items-center justify-center h-full p-8 text-center bg-background">
+        <div className="max-w-md">
+          <div className="flex items-center justify-center mb-6">
+            <img src="/placeholder.svg" alt="App Logo" className="h-12 w-12" />
+          </div>
+          <h1 className="text-3xl font-bold text-gray-900">MedPrep ET</h1>
+          <p className="text-base text-gray-600">
+            Please sign in to create a test session.
+          </p>
+          <Link href="/signin">
+            <Button className="mt-4">Sign In</Button>
+          </Link>
+        </div>
+      </div>
+    )
+  }
+
   return (
-    <div className="min-h-screen bg-gray-50 p-6">
+    <div className="min-h-screen bg-background p-6">
       <div className="max-w-7xl mx-auto">
         {/* Header */}
         <div className="flex items-center justify-between mb-6">
           <div className="flex items-center gap-4">
-            <h1 className="text-3xl font-bold text-gray-900">Medical Quiz App</h1>
+            <h1 className="text-3xl font-bold text-gray-900">MedPrep ET</h1>
             <Badge variant="outline" className="text-sm">
               Create Test Session
             </Badge>

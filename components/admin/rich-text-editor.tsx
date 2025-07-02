@@ -41,7 +41,7 @@ export function RichTextEditor({ content, onChange, placeholder }: RichTextEdito
   return (
     <div className="space-y-2">
       {/* Toolbar */}
-      <div className="flex items-center gap-2 p-2 border rounded-t-lg bg-gray-50">
+      <div className="flex items-center gap-2 p-2 border rounded-t-lg bg-muted">
         <Button type="button" variant="ghost" size="sm" onClick={() => insertText("**", "**")} title="Bold">
           <Bold className="w-4 h-4" />
         </Button>
@@ -72,7 +72,7 @@ export function RichTextEditor({ content, onChange, placeholder }: RichTextEdito
 
       {/* Link Dialog */}
       {showLinkDialog && (
-        <div className="p-4 border rounded-lg bg-gray-50 space-y-3">
+        <div className="p-4 border rounded-lg bg-muted space-y-3">
           <div>
             <label className="block text-sm font-medium mb-1">Link Text</label>
             <input

@@ -22,6 +22,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog"
+import { useTheme } from "next-themes"
 
 interface QuizInterfaceProps {
   session: UserSession
@@ -57,12 +58,12 @@ export function QuizInterface({
   const [sidebarOpen, setSidebarOpen] = useState(false)
   const [timeRemaining, setTimeRemaining] = useState(session.time_remaining || 0)
   const [noteText, setNoteText] = useState("")
-  const [isDarkMode, setIsDarkMode] = useState(false)
   const [showSubmitPrompt, setShowSubmitPrompt] = useState(false)
   const [localProgress, setLocalProgress] = useState<UserQuestionProgress[]>(userProgress)
   const [userNotes, setUserNotes] = useState<UserNote[]>([])
 
   const router = useRouter()
+  const { theme, setTheme } = useTheme()
 
   const currentQuestion = questions[currentQuestionIndex]
   const currentAnswer = userAnswers.find((a) => a.question_id === currentQuestion?.id)
@@ -96,8 +97,7 @@ export function QuizInterface({
   }, [currentQuestion, userNotes])
 
   const toggleDarkMode = () => {
-    setIsDarkMode(!isDarkMode)
-    document.documentElement.classList.toggle("dark")
+    setTheme(theme === "dark" ? "light" : "dark")
   }
 
   const handleAnswerSelect = (choiceLetter: string) => {
@@ -208,35 +208,17 @@ export function QuizInterface({
   const getChoiceStyle = (choice: any, isSelected: boolean) => {
     // Before explanation is shown
     if (!showCurrentExplanation) {
-      if (isDarkMode) {
-        return isSelected
-          ? "border-blue-500 bg-blue-500/20" // Selected answer in dark mode
-          : "border-gray-700 hover:border-gray-500"
-      }
-      return isSelected
-        ? "border-blue-500 bg-blue-50" // Selected answer in light mode
-        : "border-gray-200 hover:border-gray-300"
+      return isSelected ? "border-primary bg-primary/20" : "border-border hover:border-muted-foreground"
     }
 
     // After explanation is shown
-    if (isDarkMode) {
-      if (choice.is_correct) {
-        return "border-green-500 bg-green-500/20" // Correct answer in dark mode
-      }
-      if (isSelected && !choice.is_correct) {
-        return "border-red-500 bg-red-500/20" // Incorrect answer in dark mode
-      }
-      return "border-gray-700" // Default for other choices in dark mode
-    }
-
-    // Light mode (existing logic)
     if (choice.is_correct) {
-      return "border-green-500 bg-green-50"
+      return "border-green-500 bg-green-500/10 text-green-700 dark:text-green-400"
     }
     if (isSelected && !choice.is_correct) {
-      return "border-red-500 bg-red-50"
+      return "border-red-500 bg-red-500/10 text-red-700 dark:text-red-400"
     }
-    return "border-gray-200 bg-gray-50"
+    return "border-border bg-card"
   }
 
   const handleEndSession = () => {
@@ -301,212 +283,138 @@ export function QuizInterface({
   }
 
   return (
-    <div className={`flex h-screen ${isDarkMode ? "bg-gray-900" : "bg-gray-50"}`}>
-      <div className="flex-1 flex flex-col">
-        {/* Header */}
-        <div
-          className={`${isDarkMode ? "bg-gray-800" : "bg-blue-600"} text-white p-4 flex items-center justify-between`}
-        >
-          <div className="flex items-center gap-4">
-            <Sheet open={sidebarOpen} onOpenChange={setSidebarOpen}>
-              <SheetTrigger asChild>
-                <Button variant="ghost" size="sm" className="text-white hover:bg-blue-700">
-                  <Menu className="w-4 h-4" />
-                </Button>
-              </SheetTrigger>
-              <SheetContent side="left" className="w-32 p-0">
-                <QuestionSidebar
-                  questions={questions}
-                  currentIndex={currentQuestionIndex}
-                  userAnswers={userAnswers}
-                  userProgress={localProgress}
-                  onQuestionSelect={handleQuestionSelect}
-                />
-              </SheetContent>
-            </Sheet>
-            <span className="font-medium">
-              Item {currentQuestionIndex + 1} of {questions.length}
+    <div className="flex flex-col h-screen font-sans">
+      {/* Header */}
+      <header className="flex items-center justify-between p-2 border-b bg-card text-card-foreground shadow-sm">
+        <div className="flex items-center gap-2">
+          <Sheet open={sidebarOpen} onOpenChange={setSidebarOpen}>
+            <SheetTrigger asChild>
+              <Button variant="ghost" size="icon">
+                <Menu className="h-6 w-6" />
+              </Button>
+            </SheetTrigger>
+            <SheetContent side="left" className="w-full sm:w-80">
+              <QuestionSidebar
+                questions={questions}
+                currentIndex={currentQuestionIndex}
+                onQuestionSelect={handleQuestionSelect}
+                userAnswers={userAnswers}
+                userProgress={localProgress}
+              />
+            </SheetContent>
+          </Sheet>
+          <div className="text-sm font-medium">
+            Item{" "}
+            <span className="font-bold">
+              {currentQuestionIndex + 1} of {questions.length}
             </span>
-            <span className="text-blue-200">Question Id: {currentQuestion.id.slice(0, 8)}</span>
-          </div>
-
-          <div className="flex items-center gap-1">
-            <Button
-              variant="ghost"
-              size="sm"
-              className="text-white hover:bg-blue-700 flex flex-col items-center px-2 py-1 h-auto"
-              onClick={handleFlagQuestion}
-            >
-              <Flag className={`w-3 h-3 ${currentProgress?.is_flagged ? "fill-red-500 text-red-500" : "text-white"}`} />
-              <span className="text-xs mt-1">{currentProgress?.is_flagged ? "Unflag" : "Flag"}</span>
-            </Button>
-            <Button
-              variant="ghost"
-              size="sm"
-              className="text-white hover:bg-blue-700 flex flex-col items-center px-2 py-1 h-auto"
-              onClick={() => setShowLabValues(true)}
-            >
-              <Beaker className="w-3 h-3" />
-              <span className="text-xs mt-1">Lab values</span>
-            </Button>
-            <Button
-              variant="ghost"
-              size="sm"
-              className="text-white hover:bg-blue-700 flex flex-col items-center px-2 py-1 h-auto relative"
-              onClick={() => setShowNotes(!showNotes)}
-            >
-              <StickyNote className="w-3 h-3" />
-              <span className="text-xs mt-1">Notes</span>
-              {currentNote?.note_text && (
-                <div className="absolute -top-1 -right-1 w-3 h-3 bg-green-400 rounded-full border-2 border-blue-600" />
-              )}
-            </Button>
-            <Button
-              variant="ghost"
-              size="sm"
-              className="text-white hover:bg-blue-700 flex flex-col items-center px-2 py-1 h-auto"
-              onClick={toggleDarkMode}
-            >
-              {isDarkMode ? (
-                <>
-                  <Sun className="w-3 h-3" />
-                  <span className="text-xs mt-1">Light</span>
-                </>
-              ) : (
-                <>
-                  <Moon className="w-3 h-3" />
-                  <span className="text-xs mt-1">Night</span>
-                </>
-              )}
-            </Button>
-            <Button
-              variant="ghost"
-              size="sm"
-              className="text-white hover:bg-blue-700 flex flex-col items-center px-2 py-1 h-auto"
-              onClick={() => setShowCalculator(true)}
-            >
-              <Calculator className="w-3 h-3" />
-              <span className="text-xs mt-1">calculator</span>
-            </Button>
           </div>
         </div>
 
-        <div className="flex-1 flex">
-          {/* Main Content */}
-          <div className="flex-1 p-6 overflow-auto">
-            <div className="max-w-4xl mx-auto space-y-6">
-              {/* Question */}
-              <Card className={isDarkMode ? "bg-gray-800 border-gray-700" : ""}>
-                <CardContent className="p-6">
-                  <div className="prose max-w-none">
-                    <p className={`text-lg leading-relaxed mb-4 ${isDarkMode ? "text-gray-100" : ""}`}>
-                      {currentQuestion.question_text}
-                    </p>
-                    {currentQuestion.question_image_url && (
-                      <img
-                        src={currentQuestion.question_image_url || "/placeholder.svg"}
-                        alt="Question image"
-                        className="max-w-full h-auto rounded-lg"
-                      />
-                    )}
-                  </div>
-                </CardContent>
-              </Card>
+        <div className="flex items-center gap-1 sm:gap-2 flex-wrap justify-end">
+          <Button variant="ghost" size="icon" onClick={handleFlagQuestion}>
+            <Flag
+              className={`h-5 w-5 ${currentProgress?.is_flagged ? "text-yellow-500 fill-current" : ""}`}
+            />
+            <span className="sr-only">Flag</span>
+          </Button>
+          <Button variant="ghost" size="icon" onClick={() => setShowLabValues(true)}>
+            <Beaker className="h-5 w-5" />
+            <span className="sr-only">Lab Values</span>
+          </Button>
+          <Button variant="ghost" size="icon" onClick={() => setShowNotes(!showNotes)}>
+            <StickyNote className="h-5 w-5" />
+            <span className="sr-only">Notes</span>
+          </Button>
+          <Button variant="ghost" size="icon" onClick={toggleDarkMode}>
+            {theme === "dark" ? (
+              <Sun className="h-5 w-5" />
+            ) : (
+              <Moon className="h-5 w-5" />
+            )}
+            <span className="sr-only">Toggle Theme</span>
+          </Button>
+          <Button variant="ghost" size="icon" onClick={() => setShowCalculator(true)}>
+            <Calculator className="h-5 w-5" />
+            <span className="sr-only">Calculator</span>
+          </Button>
+        </div>
+      </header>
 
-              {/* Answer Choices */}
-              <div className="space-y-3">
-                {answerChoices.map((choice) => {
-                  const isSelected = currentSelectedAnswer === choice.letter
-                  return (
-                    <Card
-                      key={choice.letter}
-                      className={`cursor-pointer transition-all ${getChoiceStyle(choice, isSelected)}`}
-                      onClick={() => !showCurrentExplanation && handleAnswerSelect(choice.letter)}
-                    >
-                      <CardContent className="p-4">
-                        <div className="flex items-start gap-3">
-                          <div className="flex-shrink-0 w-6 h-6 rounded-full border-2 border-current flex items-center justify-center text-sm font-medium">
-                            {choice.letter}
-                          </div>
-                          <div className="flex-1">
-                            <p className={`text-sm ${isDarkMode ? "text-gray-100" : ""}`}>{choice.text}</p>
-                          </div>
-                          {showCurrentExplanation && choice.is_correct && (
-                            <Badge
-                              variant="secondary"
-                              className={
-                                isDarkMode
-                                  ? "bg-green-500/20 text-green-300 border-green-500/30"
-                                  : "bg-green-100 text-green-800"
-                              }
-                            >
-                              Correct
-                            </Badge>
-                          )}
-                          {showCurrentExplanation && isSelected && !choice.is_correct && (
-                            <Badge
-                              variant="secondary"
-                              className={
-                                isDarkMode ? "bg-red-500/20 text-red-300 border-red-500/30" : "bg-red-100 text-red-800"
-                              }
-                            >
-                              Incorrect
-                            </Badge>
-                          )}
-                        </div>
-                      </CardContent>
-                    </Card>
-                  )
-                })}
-              </div>
-
-              {/* Explanation */}
-              {showCurrentExplanation && (
-                <Card className={isDarkMode ? "bg-gray-800 border-gray-700" : ""}>
-                  <CardContent className="p-6">
-                    <h3 className="text-lg font-semibold mb-4 text-blue-600">Explanation</h3>
-                    <div className="prose max-w-none">
-                      <p className={`mb-4 ${isDarkMode ? "text-gray-100" : ""}`}>{currentQuestion.explanation}</p>
-                      {currentQuestion.explanation_image_url && (
-                        <img
-                          src={currentQuestion.explanation_image_url || "/placeholder.svg"}
-                          alt="Explanation image"
-                          className="max-w-full h-auto rounded-lg mb-4"
-                        />
-                      )}
-                      {currentQuestion.sources && (
-                        <div className={`mt-4 p-4 rounded-lg ${isDarkMode ? "bg-gray-700" : "bg-gray-50"}`}>
-                          <h4 className={`font-medium mb-2 ${isDarkMode ? "text-gray-100" : ""}`}>Sources:</h4>
-                          <p className={`text-sm ${isDarkMode ? "text-gray-300" : "text-gray-600"}`}>
-                            {currentQuestion.sources}
-                          </p>
-                        </div>
-                      )}
-                    </div>
-                  </CardContent>
-                </Card>
+      {/* Main Content */}
+      <main className="flex-1 overflow-y-auto p-4 md:p-6">
+        <div className="max-w-4xl mx-auto space-y-6">
+          {/* Question */}
+          <Card>
+            <CardContent className="p-6">
+              <p className="text-lg leading-relaxed">{currentQuestion.question_text}</p>
+              {currentQuestion.question_image_url && (
+                <img
+                  src={currentQuestion.question_image_url || "/placeholder.svg"}
+                  alt="Question image"
+                  className="max-w-full h-auto rounded-lg"
+                />
               )}
-            </div>
+            </CardContent>
+          </Card>
+
+          {/* Answer Choices */}
+          <div className="space-y-3">
+            {answerChoices.map((choice) => {
+              const isSelected = currentSelectedAnswer === choice.letter
+              return (
+                <Card
+                  key={choice.letter}
+                  onClick={() => !showCurrentExplanation && handleAnswerSelect(choice.letter)}
+                  className={`p-4 rounded-lg border-2 transition-all cursor-pointer ${getChoiceStyle(
+                    choice,
+                    isSelected,
+                  )}`}
+                >
+                  <div className="flex items-center">
+                    <Badge
+                      variant="outline"
+                      className="mr-4 text-base font-bold w-8 h-8 flex items-center justify-center"
+                    >
+                      {choice.letter}
+                    </Badge>
+                    <p>{choice.text}</p>
+                  </div>
+                </Card>
+              )
+            })}
           </div>
 
-          {/* Notes Panel */}
-          {showNotes && (
-            <div className={`w-80 border-l p-4 ${isDarkMode ? "bg-gray-800 border-gray-700" : "bg-white"}`}>
-              <NotesPanel
-                questionId={currentQuestion.id}
-                noteText={noteText}
-                onNoteChange={setNoteText}
-                onSaveNote={handleSaveNote}
-                isDarkMode={isDarkMode}
-              />
-            </div>
+          {/* Explanation */}
+          {showCurrentExplanation && currentQuestion && (
+            <Card>
+              <CardContent className="p-6">
+                <h3 className="font-bold text-lg mb-2">Explanation</h3>
+                <div className="prose dark:prose-invert max-w-none">
+                  <p>{currentQuestion.explanation}</p>
+                  {currentQuestion.explanation_image_url && (
+                    <img
+                      src={currentQuestion.explanation_image_url}
+                      alt="Explanation"
+                      className="mt-4 rounded-lg max-w-full h-auto"
+                    />
+                  )}
+                </div>
+                {currentQuestion.sources && (
+                  <div className="mt-4 pt-4 border-t">
+                    <h4 className="font-semibold text-sm">Sources:</h4>
+                    <p className="text-sm text-muted-foreground italic">{currentQuestion.sources}</p>
+                  </div>
+                )}
+              </CardContent>
+            </Card>
           )}
         </div>
+      </main>
 
-        {/* Footer */}
-        <div
-          className={`${isDarkMode ? "bg-gray-800" : "bg-blue-600"} text-white p-4 flex items-center justify-between`}
-        >
+      {/* Footer */}
+      <div className="p-4 border-t bg-card">
+        <div className="max-w-4xl mx-auto flex justify-between items-center">
           <div className="flex items-center gap-4">
             <Button
               variant="ghost"
@@ -556,6 +464,18 @@ export function QuizInterface({
       {/* Modals */}
       <LabValuesModal open={showLabValues} onOpenChange={setShowLabValues} />
       <CalculatorModal open={showCalculator} onOpenChange={setShowCalculator} />
+
+      {/* Notes Panel (Drawer for mobile, sidebar for desktop) */}
+      <Sheet open={showNotes} onOpenChange={setShowNotes}>
+        <SheetContent className="w-full sm:max-w-md">
+          <NotesPanel
+            questionId={currentQuestion.id}
+            noteText={noteText}
+            onNoteChange={setNoteText}
+            onSaveNote={handleSaveNote}
+          />
+        </SheetContent>
+      </Sheet>
     </div>
   )
 }
@@ -563,6 +483,9 @@ export function QuizInterface({
 const formatTime = (seconds: number) => {
   const hours = Math.floor(seconds / 3600)
   const minutes = Math.floor((seconds % 3600) / 60)
-  const secs = seconds % 60
-  return `${hours.toString().padStart(2, "0")}:${minutes.toString().padStart(2, "0")}:${secs.toString().padStart(2, "0")}`
+  const secs = Math.floor(seconds % 60)
+  if (hours > 0) {
+    return `${hours}:${minutes.toString().padStart(2, "0")}:${secs.toString().padStart(2, "0")}`
+  }
+  return `${minutes}:${secs.toString().padStart(2, "0")}`
 }

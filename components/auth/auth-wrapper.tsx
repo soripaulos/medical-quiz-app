@@ -24,7 +24,11 @@ export function AuthWrapper({ children, requireAdmin = false }: AuthWrapperProps
   }, [loading, user, router])
 
   if (loading || !user) {
-    return <LoadingSpinner /> // Show spinner while loading or redirecting
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-background">
+        <p>Loading...</p>
+      </div>
+    )
   }
 
   // At this point, user is authenticated

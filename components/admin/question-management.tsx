@@ -94,15 +94,20 @@ export function QuestionManagement() {
     }
   }
 
-  const getDifficultyBadge = (difficulty: number) => {
-    const colors = {
-      1: "bg-green-100 text-green-800",
-      2: "bg-blue-100 text-blue-800",
-      3: "bg-yellow-100 text-yellow-800",
-      4: "bg-orange-100 text-orange-800",
-      5: "bg-red-100 text-red-800",
+  const difficultyColors = {
+    1: "bg-green-100 text-green-800",
+    2: "bg-blue-100 text-blue-800",
+    3: "bg-yellow-100 text-yellow-800",
+    4: "bg-orange-100 text-orange-800",
+    5: "bg-red-100 text-red-800",
+  }
+
+  const getDifficultyBadge = (difficulty: number | null | undefined) => {
+    if (difficulty === null || difficulty === undefined) {
+      return <Badge variant="secondary">N/A</Badge>
     }
-    return colors[difficulty as keyof typeof colors] || "bg-gray-100 text-gray-800"
+    const colors = difficultyColors[difficulty as keyof typeof difficultyColors] || "bg-secondary text-secondary-foreground"
+    return <Badge className={`${colors} hover:${colors}`}>{`Level ${difficulty}`}</Badge>
   }
 
   const formatDate = (dateString: string) => {
@@ -119,7 +124,7 @@ export function QuestionManagement() {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50 p-6">
+    <div className="min-h-screen bg-background p-6">
       <div className="max-w-7xl mx-auto space-y-6">
         {/* Header */}
         <div className="flex items-center justify-between">
@@ -263,7 +268,7 @@ export function QuestionManagement() {
                     </TableCell>
                     <TableCell>
                       {question.difficulty && (
-                        <Badge className={getDifficultyBadge(question.difficulty)}>{question.difficulty}</Badge>
+                        getDifficultyBadge(question.difficulty)
                       )}
                     </TableCell>
                     <TableCell>{question.year || "N/A"}</TableCell>

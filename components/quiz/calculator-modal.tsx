@@ -117,38 +117,31 @@ export function CalculatorModal({ open, onOpenChange }: CalculatorModalProps) {
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-md bg-gray-900 text-white border-0">
-        <div className="space-y-4">
-          {/* Display */}
-          <div className="bg-black p-4 rounded text-right text-2xl font-mono">{display}</div>
-
-          {/* Buttons */}
-          <div className="grid grid-cols-5 gap-1">
-            {buttons.flat().map((btn, index) => (
-              <Button
-                key={index}
-                variant="outline"
-                className={`h-12 text-sm font-medium ${
-                  /\d|\./.test(btn)
-                    ? "bg-gray-600 hover:bg-gray-500 text-white border-gray-500"
-                    : "bg-blue-600 hover:bg-blue-500 text-white border-blue-500"
-                }`}
-                onClick={() => handleButtonClick(btn)}
-              >
-                {btn}
-              </Button>
-            ))}
+      <DialogContent className="max-w-xs p-0 border-0">
+        <div className="p-6">
+          <div className="bg-muted text-muted-foreground rounded-md p-4 h-24 flex flex-col justify-end items-end mb-4">
+            <div className="text-4xl font-mono break-all">{display}</div>
           </div>
+          <div className="grid grid-cols-4 gap-2">
+            {buttons.map((btn) => {
+              const isOperator = ["/", "*", "-", "+"].includes(btn)
+              const isEquals = btn === "="
+              const isClear = btn === "AC"
+              const isZero = btn === "0"
 
-          {/* Close button */}
-          <div className="flex justify-end">
-            <Button
-              variant="outline"
-              onClick={() => onOpenChange(false)}
-              className="bg-gray-600 hover:bg-gray-500 text-white border-gray-500"
-            >
-              Close
-            </Button>
+              return (
+                <Button
+                  key={btn}
+                  onClick={() => handleButtonClick(btn)}
+                  className={`h-16 text-2xl ${isZero ? "col-span-2" : ""} ${
+                    isOperator || isEquals ? "bg-primary text-primary-foreground hover:bg-primary/90" : ""
+                  } ${isClear ? "bg-destructive text-destructive-foreground hover:bg-destructive/90" : ""}`}
+                  variant={isOperator || isEquals || isClear ? "default" : "secondary"}
+                >
+                  {btn}
+                </Button>
+              )
+            })}
           </div>
         </div>
       </DialogContent>
