@@ -33,7 +33,7 @@ interface QuizInterfaceProps {
   onFlagQuestion: (questionId: string) => void
   onSaveNote: (questionId: string, note: string) => void
   onPauseSession: () => void
-  onEndSession: () => void
+  onEndSession: () => Promise<void>
   onCreateTest?: () => void
 }
 
@@ -221,8 +221,8 @@ export function QuizInterface({
     return "border-border bg-card"
   }
 
-  const handleEndSession = () => {
-    onEndSession()
+  const handleEndSession = async () => {
+    await onEndSession()
     router.push(`/test/${session.id}/results`)
   }
 
@@ -232,7 +232,8 @@ export function QuizInterface({
       const timer = setInterval(() => {
         setTimeRemaining((prev) => {
           if (prev <= 1) {
-            onEndSession()
+            clearInterval(timer)
+            handleEndSession()
             return 0
           }
           return prev - 1
@@ -240,7 +241,8 @@ export function QuizInterface({
       }, 1000)
       return () => clearInterval(timer)
     }
-  }, [timeRemaining, session.time_limit, onEndSession])
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [session.time_limit, timeRemaining])
 
   const answeredQuestionIds = new Set([...userAnswers.map((a) => a.question_id), ...Object.keys(selectedAnswers)])
   const allQuestionsAnswered = questions.length > 0 && answeredQuestionIds.size >= questions.length

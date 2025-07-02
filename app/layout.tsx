@@ -11,6 +11,15 @@ export const metadata: Metadata = {
   title: "MedPrep ET",
   description: "Your comprehensive resource for medical exam preparation.",
   generator: "v0.dev",
+  icons: {
+    icon: "/app-icon.png",
+    shortcut: "/app-icon.png",
+    apple: "/app-icon.png",
+  },
+  viewport: {
+    width: 'device-width',
+    initialScale: 1,
+  },
 }
 
 // Check if we have environment variables available

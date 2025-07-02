@@ -7,16 +7,16 @@ export default function manifest(): MetadataRoute.Manifest {
     description: "Your comprehensive resource for medical exam preparation.",
     start_url: "/",
     display: "standalone",
-    background_color: "#ffffff",
-    theme_color: "#4f46e5",
+    background_color: "#fff",
+    theme_color: "#fff",
     icons: [
       {
-        src: "/placeholder-logo.png",
+        src: "/app-icon.png",
         sizes: "192x192",
         type: "image/png",
       },
       {
-        src: "/placeholder-logo.png",
+        src: "/app-icon.png",
         sizes: "512x512",
         type: "image/png",
       },

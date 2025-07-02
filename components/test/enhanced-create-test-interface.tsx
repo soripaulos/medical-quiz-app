@@ -454,7 +454,7 @@ export function EnhancedCreateTestInterface({ userProfile }: EnhancedCreateTestI
           </div>
         </div>
       </header>
-      <main className="container mx-auto p-4 md:p-6 lg:p-8">
+      <main className="w-full p-4 md:p-6 lg:p-8">
         <Tabs defaultValue="custom" className="space-y-6">
           <TabsList className="grid w-full grid-cols-2">
             <TabsTrigger value="custom">Create Test</TabsTrigger>
@@ -464,28 +464,30 @@ export function EnhancedCreateTestInterface({ userProfile }: EnhancedCreateTestI
           {userProfile ? (
             <>
               <TabsContent value="custom" className="space-y-6">
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                  {/* Filters Panel */}
-                  <div className="lg:col-span-2">
-                    <Card>
-                      <CardHeader className="dark:bg-card bg-primary text-primary-foreground">
-                        <div className="flex items-center justify-between">
-                          <CardTitle className="flex items-center gap-2">
-                            <Filter className="w-5 h-5" />
-                            Question Filters
-                            <Badge variant="secondary" className="ml-2">
-                              {loading ? "Loading..." : `${questionCount} questions`}
+                <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
+                  {/* Left Column: Question Filters */}
+                  <Card className="lg:col-span-2">
+                    <CardHeader className="dark:bg-card bg-primary text-primary-foreground">
+                      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2">
+                        <div className="flex items-center gap-3">
+                          <Filter className="h-6 w-6" />
+                          <div className="flex items-center gap-3">
+                            <CardTitle>Question Filters</CardTitle>
+                            <Badge
+                              variant="outline"
+                              className="bg-transparent text-primary-foreground border-primary-foreground/50"
+                            >
+                              {questionCount} questions
                             </Badge>
-                          </CardTitle>
-                          <Button variant="outline" size="sm" onClick={clearAllFilters}>
-                            Clear All
-                          </Button>
+                          </div>
                         </div>
-                        <p className="text-sm text-gray-600">
-                          Leave sections unchecked to include all items from that category
-                        </p>
-                      </CardHeader>
-                      <CardContent className="space-y-6">
+                        <Button variant="ghost" size="sm" onClick={clearAllFilters}>
+                          Clear All
+                        </Button>
+                      </div>
+                    </CardHeader>
+                    <CardContent className="p-6">
+                      <div className="grid gap-8">
                         {/* Specialties */}
                         <div>
                           <div className="flex items-center justify-between mb-3">
@@ -726,9 +728,9 @@ export function EnhancedCreateTestInterface({ userProfile }: EnhancedCreateTestI
                             ))}
                           </div>
                         </div>
-                      </CardContent>
-                    </Card>
-                  </div>
+                      </div>
+                    </CardContent>
+                  </Card>
 
                   {/* Test Settings Panel */}
                   <div className="space-y-6">
