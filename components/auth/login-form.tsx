@@ -2,8 +2,7 @@
 
 import type React from "react"
 
-import { useState, useEffect } from "react"
-import { useTheme } from "next-themes"
+import { useState } from "react"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -14,13 +13,6 @@ import { useAuth } from "@/hooks/use-auth"
 import { Eye, EyeOff, Loader2, CheckCircle, AlertCircle } from "lucide-react"
 
 export function LoginForm() {
-  const { setTheme } = useTheme()
-
-  // Force light theme on this page
-  useEffect(() => {
-    setTheme("light")
-  }, [setTheme])
-
   const [showPassword, setShowPassword] = useState(false)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState("")

@@ -1,19 +1,5 @@
-import { verifySession, redirectToDashboard } from "@/lib/auth"
-import { LoginForm } from "@/components/auth/login-form"
+import { redirect } from 'next/navigation'
 
-export default async function LoginPage() {
-  const session = await verifySession()
-  
-  if (session) {
-    redirectToDashboard()
-    return null
-  }
-
-  return (
-    <div className="min-h-screen flex items-center justify-center bg-background">
-      <div className="w-full max-w-md">
-        <LoginForm />
-      </div>
-    </div>
-  )
+export default function LoginPage() {
+  redirect('/')
 } 

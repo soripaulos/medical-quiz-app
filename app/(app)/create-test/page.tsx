@@ -1,12 +1,12 @@
-import { verifySession } from "@/lib/auth"
+import { verifySession, redirectToLogin } from "@/lib/auth"
 import { EnhancedCreateTestInterface } from "@/components/test/enhanced-create-test-interface"
-import { LoginForm } from "@/components/auth/login-form"
 
-export default async function HomePage() {
+export default async function CreateTestPage() {
   const session = await verifySession()
-
+  
   if (!session) {
-    return <LoginForm />
+    redirectToLogin()
+    return null
   }
 
   return <EnhancedCreateTestInterface userProfile={session.profile} />
