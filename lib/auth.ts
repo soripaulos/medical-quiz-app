@@ -11,6 +11,7 @@ export interface UserProfile {
   role: "student" | "admin"
   created_at: string
   updated_at: string
+  active_session_id?: string | null
 }
 
 export interface AuthSession {

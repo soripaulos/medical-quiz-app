@@ -16,7 +16,7 @@ export default async function CreateTestPage() {
 
   let activeSession: UserSession | null = null
   if (session.profile.active_session_id) {
-    const supabase = createClient()
+    const supabase = await createClient()
     const { data } = await supabase
       .from("user_sessions")
       .select("*")

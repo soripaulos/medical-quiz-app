@@ -15,7 +15,7 @@ export async function GET() {
       return NextResponse.json({ activeSession: null })
     }
 
-    const supabase = createClient()
+    const supabase = await createClient()
 
     const { data: activeSession, error } = await supabase
       .from("user_sessions")

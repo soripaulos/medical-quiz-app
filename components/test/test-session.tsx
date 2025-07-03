@@ -3,7 +3,7 @@
 import { useEffect } from "react"
 import { AlertCircle } from "lucide-react"
 import { QuizInterface } from "@/components/quiz/quiz-interface"
-import { getAnswerChoices } from "@/lib/utils"
+import { getAnswerChoices } from "@/lib/types"
 import { Button } from "@/components/ui/button"
 import { useSessionStore } from "@/stores/use-session-store"
 

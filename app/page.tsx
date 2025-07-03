@@ -1,21 +1,35 @@
-import { Suspense } from 'react'
 import { verifySession } from "@/lib/auth"
-import { LoginForm } from "@/components/auth/login-form"
 import { EnhancedCreateTestInterface } from "@/components/test/enhanced-create-test-interface"
-import { FullPageSpinner } from '@/components/ui/loading-spinner'
+import { redirect } from "next/navigation"
+import { createClient } from "@/lib/supabase/server"
+import { UserSession } from "@/lib/types"
 
-export const dynamic = 'force-dynamic'
+export const dynamic = "force-dynamic"
 
-export default async function Page() {
+export default async function HomePage() {
   const session = await verifySession()
 
   if (!session) {
-    return (
-      <Suspense fallback={<FullPageSpinner />}>
-        <LoginForm />
-      </Suspense>
-    )
+    // Redirect to a dedicated login page if not authenticated
+    redirect("/login")
   }
 
-  return <EnhancedCreateTestInterface userProfile={session.profile} />
+  let activeSession: UserSession | null = null
+  if (session.profile.active_session_id) {
+    const supabase = await createClient()
+    const { data } = await supabase
+      .from("user_sessions")
+      .select("*")
+      .eq("id", session.profile.active_session_id)
+      .eq("is_active", true)
+      .single()
+    activeSession = data
+  }
+
+  return (
+    <EnhancedCreateTestInterface
+      userProfile={session.profile}
+      activeSession={activeSession}
+    />
+  )
 }
