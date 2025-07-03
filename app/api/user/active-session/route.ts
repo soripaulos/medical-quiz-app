@@ -2,39 +2,65 @@ import { NextResponse } from "next/server"
 import { createClient } from "@/lib/supabase/server"
 import { verifySession } from "@/lib/auth"
 
-export const dynamic = 'force-dynamic'
-
 export async function GET() {
   try {
-    const sessionInfo = await verifySession()
-    if (!sessionInfo) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
-    }
-
-    if (!sessionInfo.profile.active_session_id) {
-      return NextResponse.json({ activeSession: null })
+    // Authenticate user
+    const session = await verifySession()
+    
+    if (!session) {
+      return NextResponse.json(
+        { ok: false, message: "Unauthorized" },
+        { status: 401 }
+      )
     }
 
     const supabase = await createClient()
 
-    const { data: activeSession, error } = await supabase
-      .from("user_sessions")
-      .select("*")
-      .eq("id", sessionInfo.profile.active_session_id)
-      .eq("is_active", true)
+    // Get user's active session ID from their profile
+    const { data: profile, error: profileError } = await supabase
+      .from("profiles")
+      .select("active_session_id")
+      .eq("id", session.user.id)
       .single()
 
-    if (error) {
-      // This can happen if the active_session_id is stale (e.g., session was deleted)
-      // We can handle this gracefully by returning null.
-      console.warn("Could not fetch active session:", error.message)
+    if (profileError) {
+      console.error("Error fetching user profile:", profileError)
+      return NextResponse.json(
+        { ok: false, message: "Failed to fetch user profile" },
+        { status: 500 }
+      )
+    }
+
+    // If no active session, return null
+    if (!profile.active_session_id) {
+      return NextResponse.json({ activeSession: null })
+    }
+
+    // Fetch the active session details
+    const { data: activeSession, error: sessionError } = await supabase
+      .from("user_sessions")
+      .select("*")
+      .eq("id", profile.active_session_id)
+      .eq("is_active", true) // Only return if session is still active
+      .single()
+
+    if (sessionError) {
+      // Session might have been deleted or completed
+      // Clear the active_session_id from profile
+      await supabase
+        .from("profiles")
+        .update({ active_session_id: null })
+        .eq("id", session.user.id)
+      
       return NextResponse.json({ activeSession: null })
     }
 
     return NextResponse.json({ activeSession })
-
-  } catch (error) {
-    console.error("Error fetching active session:", error)
-    return NextResponse.json({ error: "Internal server error" }, { status: 500 })
+  } catch (err) {
+    console.error("Error fetching active session:", err)
+    return NextResponse.json(
+      { ok: false, message: "Internal server error" },
+      { status: 500 }
+    )
   }
 } 

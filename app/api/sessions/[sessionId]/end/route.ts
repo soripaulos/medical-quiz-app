@@ -56,6 +56,17 @@ export async function POST(req: Request, context: { params: Promise<{ sessionId:
       return NextResponse.json({ error: "Failed to update session" }, { status: 500 })
     }
 
+    // Clear the active_session_id from user's profile since session is now completed
+    const { error: profileError } = await supabase
+      .from("profiles")
+      .update({ active_session_id: null })
+      .eq("id", session.user_id)
+
+    if (profileError) {
+      console.error("Error clearing active session:", profileError)
+      // Don't fail the request - the session was ended successfully
+    }
+
     return NextResponse.json({
       success: true,
       metrics: {

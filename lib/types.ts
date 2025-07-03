@@ -1,3 +1,13 @@
+export interface Profile {
+  id: string
+  email: string
+  full_name?: string
+  role: 'student' | 'admin'
+  active_session_id?: string
+  created_at: string
+  updated_at: string
+}
+
 export interface Question {
   id: string
   question_text: string
@@ -87,14 +97,6 @@ export interface LabValue {
   test_name: string
   reference_range: string
   units?: string
-}
-
-export interface UserProfile {
-  id: string
-  email: string
-  full_name: string
-  role: "student" | "admin"
-  active_session_id?: string | null
 }
 
 export interface QuestionFilters {

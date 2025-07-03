@@ -35,13 +35,12 @@ import {
 import Link from "next/link"
 import { useRouter } from "next/navigation"
 import { useAuth } from "@/hooks/use-auth"
-import type { Question, QuestionFilters, UserSession } from "@/lib/types"
+import type { Question, QuestionFilters } from "@/lib/types"
 import type { UserProfile } from "@/lib/auth"
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
 import { UserProgressDashboard } from "./user-progress-dashboard"
 import { LoadingSpinner } from "@/components/ui/loading-spinner"
 import { useToast } from "@/components/ui/use-toast"
-import { ActiveSessionCard } from "./active-session-card"
 
 // Helper: safely parse JSON, logs non-JSON text responses for easier debugging
 /**
@@ -89,10 +88,9 @@ interface TestPreset {
 
 interface EnhancedCreateTestInterfaceProps {
   userProfile: UserProfile
-  activeSession: UserSession | null
 }
 
-export function EnhancedCreateTestInterface({ userProfile, activeSession }: EnhancedCreateTestInterfaceProps) {
+export function EnhancedCreateTestInterface({ userProfile }: EnhancedCreateTestInterfaceProps) {
   const { user, signOut } = useAuth()
   const { theme, setTheme } = useTheme()
   const router = useRouter()
@@ -457,7 +455,6 @@ export function EnhancedCreateTestInterface({ userProfile, activeSession }: Enha
         </div>
       </header>
       <main className="w-full p-4 md:p-6 lg:p-8">
-        {activeSession && <ActiveSessionCard session={activeSession} />}
         <Tabs defaultValue="custom" className="space-y-6">
           <TabsList className="grid w-full grid-cols-2">
             <TabsTrigger value="custom">Create Test</TabsTrigger>

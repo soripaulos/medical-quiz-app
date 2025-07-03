@@ -1,17 +1,18 @@
 "use client"
 
-import { useEffect } from "react"
-import { AlertCircle } from "lucide-react"
 import { QuizInterface } from "@/components/quiz/quiz-interface"
+import type { Question, UserSession, UserAnswer, UserQuestionProgress } from "@/lib/types"
 import { getAnswerChoices } from "@/lib/types"
+import { AlertCircle } from "lucide-react"
 import { Button } from "@/components/ui/button"
-import { useSessionStore } from "@/stores/use-session-store"
+import { useSession } from "@/hooks/use-session-store"
 
 interface TestSessionProps {
   sessionId: string
 }
 
 export function TestSession({ sessionId }: TestSessionProps) {
+  // Use our new session store instead of local state
   const {
     session,
     questions,
@@ -19,16 +20,9 @@ export function TestSession({ sessionId }: TestSessionProps) {
     userProgress,
     loading,
     error,
-    fetchSessionData,
-    initializeRealtime,
-  } = useSessionStore()
-
-  useEffect(() => {
-    fetchSessionData(sessionId)
-
-    const cleanup = initializeRealtime(sessionId)
-    return cleanup
-  }, [sessionId, fetchSessionData, initializeRealtime])
+    updateAnswer,
+    updateProgress
+  } = useSession(sessionId)
 
   const handleAnswerSelect = async (questionId: string, choiceLetter: string) => {
     if (!session) return
@@ -36,10 +30,21 @@ export function TestSession({ sessionId }: TestSessionProps) {
     const question = questions.find((q) => q.id === questionId)
     const isCorrect = question?.correct_answer === choiceLetter
 
-    // The store will be updated via real-time subscription,
-    // but we send the update to the server here.
+    // Create the answer object
+    const newAnswer: UserAnswer = {
+      id: `answer-${questionId}-${choiceLetter}`,
+      question_id: questionId,
+      selected_choice_letter: choiceLetter,
+      is_correct: isCorrect,
+      answered_at: new Date().toISOString(),
+    }
+
+    // Optimistically update the store
+    updateAnswer(questionId, newAnswer)
+
+    // Save answer to database
     try {
-      await fetch("/api/answers/save", {
+      const response = await fetch("/api/answers/save", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -50,16 +55,39 @@ export function TestSession({ sessionId }: TestSessionProps) {
           isCorrect,
         }),
       })
+
+      if (!response.ok) {
+        throw new Error("Failed to save answer")
+      }
     } catch (error) {
       console.error("Error saving answer:", error)
+      // TODO: Revert optimistic update on error
     }
   }
 
   const handleFlagQuestion = async (questionId: string) => {
     if (!session) return
 
+    // Find existing progress or create new one
+    const existingProgress = userProgress.find((p) => p.question_id === questionId)
+    const newProgress: UserQuestionProgress = existingProgress
+      ? { ...existingProgress, is_flagged: !existingProgress.is_flagged }
+      : {
+          id: `progress-${questionId}`,
+          user_id: session.user_id,
+          question_id: questionId,
+          times_attempted: 0,
+          times_correct: 0,
+          is_flagged: true,
+          created_at: new Date().toISOString(),
+          updated_at: new Date().toISOString(),
+        }
+
+    // Optimistically update the store
+    updateProgress(questionId, newProgress)
+
     try {
-      await fetch("/api/progress/flag", {
+      const response = await fetch("/api/progress/flag", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -67,8 +95,13 @@ export function TestSession({ sessionId }: TestSessionProps) {
           questionId,
         }),
       })
+
+      if (!response.ok) {
+        throw new Error("Failed to flag question")
+      }
     } catch (error) {
       console.error("Error flagging question:", error)
+      // TODO: Revert optimistic update on error
     }
   }
 
@@ -76,7 +109,7 @@ export function TestSession({ sessionId }: TestSessionProps) {
     if (!session) return
 
     try {
-      await fetch("/api/notes/save", {
+      const response = await fetch("/api/notes/save", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -85,6 +118,10 @@ export function TestSession({ sessionId }: TestSessionProps) {
           noteText: note,
         }),
       })
+
+      if (!response.ok) {
+        throw new Error("Failed to save note")
+      }
     } catch (error) {
       console.error("Error saving note:", error)
     }
@@ -94,9 +131,13 @@ export function TestSession({ sessionId }: TestSessionProps) {
     if (!session) return
 
     try {
-      await fetch(`/api/sessions/${sessionId}/pause`, {
+      const response = await fetch(`/api/sessions/${sessionId}/pause`, {
         method: "POST",
       })
+
+      if (!response.ok) {
+        throw new Error("Failed to pause session")
+      }
     } catch (error) {
       console.error("Error pausing session:", error)
     }
@@ -106,9 +147,15 @@ export function TestSession({ sessionId }: TestSessionProps) {
     if (!session) return
 
     try {
-      await fetch(`/api/sessions/${sessionId}/end`, {
+      const response = await fetch(`/api/sessions/${sessionId}/end`, {
         method: "POST",
       })
+
+      if (!response.ok) {
+        throw new Error("Failed to end session")
+      }
+
+      // Redirect to results page
       window.location.href = `/test/${sessionId}/results`
     } catch (error) {
       console.error("Error ending session:", error)
