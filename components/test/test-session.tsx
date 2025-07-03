@@ -1,63 +1,34 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useEffect } from "react"
+import { AlertCircle } from "lucide-react"
 import { QuizInterface } from "@/components/quiz/quiz-interface"
-import type { Question, UserSession, UserAnswer, UserQuestionProgress } from "@/lib/types"
-import { getAnswerChoices } from "@/lib/types"
-import { AlertCircle } from "lucide-react" // Import AlertCircle
-import { Button } from "@/components/ui/button" // Import Button
+import { getAnswerChoices } from "@/lib/utils"
+import { Button } from "@/components/ui/button"
+import { useSessionStore } from "@/stores/use-session-store"
 
 interface TestSessionProps {
   sessionId: string
 }
 
 export function TestSession({ sessionId }: TestSessionProps) {
-  const [session, setSession] = useState<UserSession | null>(null)
-  const [questions, setQuestions] = useState<Question[]>([])
-  const [userAnswers, setUserAnswers] = useState<UserAnswer[]>([])
-  const [userProgress, setUserProgress] = useState<UserQuestionProgress[]>([])
-  const [loading, setLoading] = useState(true)
-  const [error, setError] = useState<string | null>(null)
+  const {
+    session,
+    questions,
+    userAnswers,
+    userProgress,
+    loading,
+    error,
+    fetchSessionData,
+    initializeRealtime,
+  } = useSessionStore()
 
   useEffect(() => {
-    fetchSessionData()
-  }, [sessionId])
+    fetchSessionData(sessionId)
 
-  const fetchSessionData = async () => {
-    try {
-      setError(null)
-
-      const sessionResponse = await fetch(`/api/sessions/${sessionId}`)
-
-      // Check if response is OK and contains JSON
-      if (!sessionResponse.ok) {
-        const errorText = await sessionResponse.text()
-        throw new Error(`Failed to fetch session: ${errorText}`)
-      }
-
-      const contentType = sessionResponse.headers.get("content-type")
-      if (!contentType || !contentType.includes("application/json")) {
-        const responseText = await sessionResponse.text()
-        throw new Error(`Expected JSON response, got: ${responseText}`)
-      }
-
-      const sessionData = await sessionResponse.json()
-
-      if (sessionData.session) {
-        setSession(sessionData.session)
-        setQuestions(sessionData.questions)
-        setUserAnswers(sessionData.userAnswers || [])
-        setUserProgress(sessionData.userProgress || [])
-      } else {
-        throw new Error("Session not found or invalid response format")
-      }
-    } catch (err: any) {
-      console.error("Error fetching session data:", err)
-      setError(err.message || "Failed to load session data")
-    } finally {
-      setLoading(false)
-    }
-  }
+    const cleanup = initializeRealtime(sessionId)
+    return cleanup
+  }, [sessionId, fetchSessionData, initializeRealtime])
 
   const handleAnswerSelect = async (questionId: string, choiceLetter: string) => {
     if (!session) return
@@ -65,9 +36,10 @@ export function TestSession({ sessionId }: TestSessionProps) {
     const question = questions.find((q) => q.id === questionId)
     const isCorrect = question?.correct_answer === choiceLetter
 
-    // Save answer to database
+    // The store will be updated via real-time subscription,
+    // but we send the update to the server here.
     try {
-      const response = await fetch("/api/answers/save", {
+      await fetch("/api/answers/save", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -78,22 +50,6 @@ export function TestSession({ sessionId }: TestSessionProps) {
           isCorrect,
         }),
       })
-
-      if (!response.ok) {
-        throw new Error("Failed to save answer")
-      }
-
-      // Update local state
-      setUserAnswers((prev) => [
-        ...prev.filter((a) => a.question_id !== questionId),
-        {
-          id: `answer-${questionId}-${choiceLetter}`,
-          question_id: questionId,
-          selected_choice_letter: choiceLetter,
-          is_correct: isCorrect,
-          answered_at: new Date().toISOString(),
-        },
-      ])
     } catch (error) {
       console.error("Error saving answer:", error)
     }
@@ -103,39 +59,13 @@ export function TestSession({ sessionId }: TestSessionProps) {
     if (!session) return
 
     try {
-      const response = await fetch("/api/progress/flag", {
+      await fetch("/api/progress/flag", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           userId: session.user_id,
           questionId,
         }),
-      })
-
-      if (!response.ok) {
-        throw new Error("Failed to flag question")
-      }
-
-      // Update local state
-      setUserProgress((prev) => {
-        const existing = prev.find((p) => p.question_id === questionId)
-        if (existing) {
-          return prev.map((p) => (p.question_id === questionId ? { ...p, is_flagged: !p.is_flagged } : p))
-        } else {
-          return [
-            ...prev,
-            {
-              id: `progress-${questionId}`,
-              user_id: session.user_id,
-              question_id: questionId,
-              times_attempted: 0,
-              times_correct: 0,
-              is_flagged: true,
-              created_at: new Date().toISOString(),
-              updated_at: new Date().toISOString(),
-            },
-          ]
-        }
       })
     } catch (error) {
       console.error("Error flagging question:", error)
@@ -146,7 +76,7 @@ export function TestSession({ sessionId }: TestSessionProps) {
     if (!session) return
 
     try {
-      const response = await fetch("/api/notes/save", {
+      await fetch("/api/notes/save", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -155,10 +85,6 @@ export function TestSession({ sessionId }: TestSessionProps) {
           noteText: note,
         }),
       })
-
-      if (!response.ok) {
-        throw new Error("Failed to save note")
-      }
     } catch (error) {
       console.error("Error saving note:", error)
     }
@@ -168,13 +94,9 @@ export function TestSession({ sessionId }: TestSessionProps) {
     if (!session) return
 
     try {
-      const response = await fetch(`/api/sessions/${sessionId}/pause`, {
+      await fetch(`/api/sessions/${sessionId}/pause`, {
         method: "POST",
       })
-
-      if (!response.ok) {
-        throw new Error("Failed to pause session")
-      }
     } catch (error) {
       console.error("Error pausing session:", error)
     }
@@ -184,15 +106,9 @@ export function TestSession({ sessionId }: TestSessionProps) {
     if (!session) return
 
     try {
-      const response = await fetch(`/api/sessions/${sessionId}/end`, {
+      await fetch(`/api/sessions/${sessionId}/end`, {
         method: "POST",
       })
-
-      if (!response.ok) {
-        throw new Error("Failed to end session")
-      }
-
-      // Redirect to results page
       window.location.href = `/test/${sessionId}/results`
     } catch (error) {
       console.error("Error ending session:", error)

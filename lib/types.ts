@@ -89,6 +89,14 @@ export interface LabValue {
   units?: string
 }
 
+export interface UserProfile {
+  id: string
+  email: string
+  full_name: string
+  role: "student" | "admin"
+  active_session_id?: string | null
+}
+
 export interface QuestionFilters {
   specialties: string[]
   years: number[]

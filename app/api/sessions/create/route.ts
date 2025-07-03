@@ -55,8 +55,20 @@ export async function POST(req: Request) {
 
     if (questionsError) throw questionsError
 
-    return NextResponse.json({ session: userSession })
-  } catch (err) {
+    // Set this new session as the user's active session
+    const { error: profileError } = await supabase
+      .from("profiles")
+      .update({ active_session_id: userSession.id })
+      .eq("id", session.user.id)
+
+    if (profileError) {
+      // Log this error, but don't fail the whole request because the session was still created.
+      // The user can still navigate to it manually.
+      console.error("Failed to set active session for user:", profileError)
+    }
+
+    return NextResponse.json({ ok: true, session: userSession })
+  } catch (err: any) {
     console.error("Error creating session:", err)
     return NextResponse.json(
       {
