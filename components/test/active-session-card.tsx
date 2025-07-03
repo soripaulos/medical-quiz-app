@@ -17,6 +17,7 @@ import {
 } from 'lucide-react'
 import Link from 'next/link'
 import type { UserSession } from '@/lib/types'
+import { createClient } from '@/lib/supabase/client'
 
 export function ActiveSessionCard() {
   const [activeSession, setActiveSession] = useState<UserSession | null>(null)
@@ -26,6 +27,32 @@ export function ActiveSessionCard() {
   useEffect(() => {
     fetchActiveSession()
   }, [])
+
+  useEffect(() => {
+    if (!activeSession) return
+
+    const supabase = createClient()
+    const channel = supabase
+      .channel(`active-session-card-${activeSession.id}`)
+      .on(
+        'postgres_changes',
+        {
+          event: 'UPDATE',
+          schema: 'public',
+          table: 'user_sessions',
+          filter: `id=eq.${activeSession.id}`,
+        },
+        (payload: { new: UserSession }) => {
+          console.log('Active session updated, refetching...', payload)
+          setActiveSession(prevSession => ({ ...prevSession, ...payload.new }))
+        }
+      )
+      .subscribe()
+
+    return () => {
+      supabase.removeChannel(channel)
+    }
+  }, [activeSession?.id])
 
   const fetchActiveSession = async () => {
     try {

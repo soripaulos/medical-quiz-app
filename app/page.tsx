@@ -19,8 +19,8 @@ export default async function Page() {
   }
 
   return (
-    <div className="space-y-6">
-      <div className="max-w-4xl mx-auto px-4 py-6">
+    <div className="space-y-8">
+      <div className="max-w-3xl mx-auto px-4 pt-8">
         <ActiveSessionCard />
       </div>
       <EnhancedCreateTestInterface userProfile={session.profile} />

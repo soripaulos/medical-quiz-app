@@ -51,7 +51,16 @@ export function QuizInterface({
 }: QuizInterfaceProps) {
   const [currentQuestionIndex, setCurrentQuestionIndex] = useState(session.current_question_index)
   const [selectedAnswers, setSelectedAnswers] = useState<Record<string, string>>({})
-  const [showExplanations, setShowExplanations] = useState<Record<string, boolean>>({})
+  const [showExplanations, setShowExplanations] = useState<Record<string, boolean>>(() => {
+    // For practice mode, automatically show explanations for already answered questions
+    if (session.session_type === 'practice') {
+      return userAnswers.reduce((acc, answer) => {
+        acc[answer.question_id] = true
+        return acc
+      }, {} as Record<string, boolean>)
+    }
+    return {}
+  })
   const [showLabValues, setShowLabValues] = useState(false)
   const [showCalculator, setShowCalculator] = useState(false)
   const [showNotes, setShowNotes] = useState(false)

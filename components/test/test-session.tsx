@@ -224,6 +224,7 @@ export function TestSession({ sessionId }: TestSessionProps) {
 
   return (
     <QuizInterface
+      key={session.id}
       session={session}
       questions={questionsWithChoices}
       userAnswers={userAnswers}
