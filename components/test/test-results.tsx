@@ -79,10 +79,19 @@ export function TestResults({ sessionId }: TestResultsProps) {
   const fetchResults = async () => {
     try {
       const response = await fetch(`/api/sessions/${sessionId}/results`)
+      
+      if (!response.ok) {
+        throw new Error(`Failed to fetch results: ${response.status}`)
+      }
+      
       const data = await response.json()
 
       if (data.results) {
         setResults(data.results)
+      } else if (data.error) {
+        console.error("Results API error:", data.error)
+      } else {
+        console.error("Unexpected response format:", data)
       }
     } catch (error) {
       console.error("Error fetching results:", error)

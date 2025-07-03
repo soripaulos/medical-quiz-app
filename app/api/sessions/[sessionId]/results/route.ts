@@ -1,10 +1,21 @@
 import { NextResponse } from "next/server"
 import { createClient } from "@/lib/supabase/server"
+import { verifySession } from "@/lib/auth"
 
 export const dynamic = "force-dynamic"
 
 export async function GET(_req: Request, context: { params: Promise<{ sessionId: string }> }) {
   try {
+    // Authenticate user first
+    const userSession = await verifySession()
+    
+    if (!userSession) {
+      return NextResponse.json(
+        { error: "Unauthorized" },
+        { status: 401 }
+      )
+    }
+
     const supabase = await createClient()
     const { sessionId } = await context.params
 

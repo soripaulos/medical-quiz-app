@@ -6,12 +6,15 @@ import { getAnswerChoices } from "@/lib/types"
 import { AlertCircle } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { useSession } from "@/hooks/use-session-store"
+import { useRouter } from "next/navigation"
 
 interface TestSessionProps {
   sessionId: string
 }
 
 export function TestSession({ sessionId }: TestSessionProps) {
+  const router = useRouter()
+  
   // Use our new session store instead of local state
   const {
     session,
@@ -155,10 +158,13 @@ export function TestSession({ sessionId }: TestSessionProps) {
         throw new Error("Failed to end session")
       }
 
-      // Redirect to results page
-      window.location.href = `/test/${sessionId}/results`
+      // Use Next.js router for navigation to preserve client-side state
+      router.push(`/test/${sessionId}/results`)
     } catch (error) {
       console.error("Error ending session:", error)
+      // Show error but still try to navigate to results
+      alert("Error ending session, but navigating to results anyway")
+      router.push(`/test/${sessionId}/results`)
     }
   }
 
@@ -193,10 +199,18 @@ export function TestSession({ sessionId }: TestSessionProps) {
   if (!session || !questions.length) {
     return (
       <div className="flex items-center justify-center h-screen">
-        <div className="text-center">
+        <div className="text-center max-w-md">
           <AlertCircle className="w-12 h-12 text-yellow-600 mx-auto mb-4" />
           <h2 className="text-xl font-semibold text-gray-900 mb-2">Session Not Found</h2>
-          <p className="text-gray-600">The test session could not be found or contains no questions.</p>
+          <p className="text-gray-600 mb-4">The test session could not be found or contains no questions.</p>
+          <div className="space-y-2">
+            <Button onClick={() => window.location.reload()} className="w-full">
+              Retry Loading Session
+            </Button>
+            <Button onClick={() => router.push('/')} variant="outline" className="w-full">
+              Go to Home
+            </Button>
+          </div>
         </div>
       </div>
     )

@@ -48,9 +48,17 @@ export const useSessionStore = create<SessionState>((set, get) => ({
     try {
       const response = await fetch(`/api/sessions/${sessionId}`)
       
+      if (response.status === 401) {
+        throw new Error("You need to be logged in to access this session")
+      }
+      
+      if (response.status === 404) {
+        throw new Error("Session not found. It may have been deleted or doesn't exist.")
+      }
+      
       if (!response.ok) {
         const errorText = await response.text()
-        throw new Error(`Failed to fetch session: ${errorText}`)
+        throw new Error(`Failed to fetch session (${response.status}): ${errorText}`)
       }
 
       const contentType = response.headers.get("content-type")
@@ -60,6 +68,10 @@ export const useSessionStore = create<SessionState>((set, get) => ({
       }
 
       const data = await response.json()
+
+      if (data.ok === false) {
+        throw new Error(data.message || "Session not found")
+      }
 
       if (data.session) {
         set({
@@ -232,6 +244,7 @@ export const useSession = (sessionId?: string) => {
   // Auto-load session when sessionId changes
   React.useEffect(() => {
     if (sessionId && sessionId !== store.session?.id) {
+      console.log(`Loading session: ${sessionId}`)
       store.loadSession(sessionId)
     }
   }, [sessionId, store.session?.id])
@@ -239,10 +252,12 @@ export const useSession = (sessionId?: string) => {
   // Set up real-time subscription when session is loaded
   React.useEffect(() => {
     if (sessionId && store.session && !store.loading) {
+      console.log(`Setting up real-time for session: ${sessionId}`)
       store.subscribeToSession(sessionId)
     }
     
     return () => {
+      // Only unsubscribe, don't clear session data
       store.unsubscribeFromSession()
     }
   }, [sessionId, store.session?.id, store.loading])
