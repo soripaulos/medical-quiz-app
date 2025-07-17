@@ -11,6 +11,7 @@ interface QuestionSidebarProps {
   userAnswers: UserAnswer[]
   userProgress: UserQuestionProgress[]
   onQuestionSelect: (index: number) => void
+  sessionType?: 'practice' | 'exam'
 }
 
 export function QuestionSidebar({
@@ -19,7 +20,10 @@ export function QuestionSidebar({
   userAnswers,
   userProgress,
   onQuestionSelect,
+  sessionType = 'practice'
 }: QuestionSidebarProps) {
+  const isExamMode = sessionType === 'exam'
+  
   return (
     <div className="h-full bg-background">
       <div className="p-4">
@@ -33,6 +37,16 @@ export function QuestionSidebar({
             const isCurrent = index === currentIndex
 
             const getStatusIndicator = () => {
+              // In exam mode, don't show correct/incorrect indicators
+              if (isExamMode) {
+                return answer ? (
+                  <CheckCircle className="h-4 w-4 text-blue-500" />
+                ) : (
+                  <Circle className="h-4 w-4 text-muted-foreground" />
+                )
+              }
+              
+              // In practice mode, show correct/incorrect indicators
               if (answer) {
                 return answer.is_correct ? (
                   <CheckCircle className="h-4 w-4 text-green-500" />
