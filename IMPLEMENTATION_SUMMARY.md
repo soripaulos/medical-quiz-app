@@ -11,6 +11,7 @@ This document summarizes the improvements made to the test session interface in 
 - Added hover effects and cursor pointer for better UX
 - Maintained the View button for desktop while adding row-level navigation
 - Prevented event propagation conflicts between row clicks and button clicks
+- **Fixed**: Uses Next.js router (`router.push()`) instead of `window.location.href` to ensure proper navigation
 
 ### 2. Mobile-Responsive View Column
 **Location**: `components/test/user-progress-dashboard.tsx`
@@ -18,21 +19,16 @@ This document summarizes the improvements made to the test session interface in 
 - Users can now tap anywhere on the row to view results on mobile devices
 - Maintains desktop functionality while optimizing for mobile UX
 
-### 3. Enhanced Test Session Naming
+### 3. Simplified Test Session Naming
 **Locations**: 
 - `components/test/enhanced-create-test-interface.tsx`
 - `components/test/create-test-interface.tsx`
 
 **Improvements**:
-- More contextual naming based on filters and session mode
-- Medical specialty abbreviations (e.g., "CARD" for Cardiology, "GI" for Gastroenterology)
-- Year abbreviations (e.g., "19" for 2019)
-- Exam type integration (e.g., "USMLE", "COMLEX")
-- Difficulty level indicators (e.g., "L3" or "L1-3")
-- Session counter for uniqueness
-- Format examples:
-  - `Exam-COC-19-02` (COC exam from 2019, session 2)
-  - `Practice-CARD-L3-15` (Cardiology practice, level 3, session 15)
+- Simple, clean naming format: `[Mode] Session [Number]`
+- Examples: `Practice Session 01`, `Exam Session 15`
+- Uses session numbers (01-99) instead of timestamps
+- More readable and user-friendly than complex abbreviations
 
 ### 4. Enhanced Notes Panel
 **Locations**:
@@ -74,6 +70,7 @@ This document summarizes the improvements made to the test session interface in 
 - Collapsible sections with chevron indicators
 - Color-coded answer highlighting
 - Improved typography and spacing
+- Proper Next.js navigation using `useRouter()`
 
 ### Mobile Optimization
 - Hidden non-essential columns on small screens
@@ -84,10 +81,11 @@ This document summarizes the improvements made to the test session interface in 
 ## Benefits
 
 1. **Improved Mobile Experience**: Users can easily navigate test results on mobile devices
-2. **Better Test Organization**: Contextual naming makes it easier to identify specific test sessions
+2. **Clean Test Organization**: Simple, readable session names (e.g., "Practice Session 01")
 3. **Enhanced Learning**: Full question details in notes and review sections aid in studying
 4. **Cleaner Interface**: Reduced clutter on mobile while maintaining desktop functionality
 5. **Better Accessibility**: Larger touch targets and clearer visual hierarchy
+6. **Proper Navigation**: Uses Next.js router for seamless client-side navigation
 
 ## Files Modified
 
@@ -109,6 +107,12 @@ This document summarizes the improvements made to the test session interface in 
 - All TypeScript types properly defined
 - Responsive design tested across different screen sizes
 - Maintained backward compatibility with existing functionality
+- Fixed navigation issues to ensure proper routing
+
+## Key Fixes Applied
+1. **Navigation Issue**: Changed from `window.location.href` to `router.push()` for proper Next.js navigation
+2. **Session Naming**: Simplified to clean format (`Practice Session 01`) instead of complex abbreviations
+3. **Mobile UX**: Ensured row clicks work properly on mobile devices
 
 ## Future Enhancements
 - Consider adding keyboard navigation for accessibility

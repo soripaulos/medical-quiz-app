@@ -21,6 +21,7 @@ import {
 } from "recharts"
 import { Trophy, Target, Clock, BookOpen, Eye, FileText, GraduationCap, Timer, BookOpenCheck, ChevronDown, ChevronUp } from "lucide-react"
 import Link from "next/link"
+import { useRouter } from "next/navigation"
 import {
   Table,
   TableBody,
@@ -103,6 +104,7 @@ export function UserProgressDashboard() {
     percentageAttempted: 0,
   })
   const [loading, setLoading] = useState(true)
+  const router = useRouter()
 
   useEffect(() => {
     fetchAllData()
@@ -380,7 +382,7 @@ export function UserProgressDashboard() {
                         <TableRow 
                           key={session.id}
                           className="cursor-pointer hover:bg-muted/50"
-                          onClick={() => window.location.href = `/test/${session.id}/results`}
+                          onClick={() => router.push(`/test/${session.id}/results`)}
                         >
                           <TableCell className="font-medium text-xs sm:text-sm">
                             <div className="truncate max-w-[120px] sm:max-w-none">
