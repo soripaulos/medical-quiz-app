@@ -63,6 +63,11 @@ interface ResultsData {
     difficulty: number
     specialty: string
     isFlagged: boolean
+    choices?: { letter: string; text: string }[]
+    userAnswerText?: string
+    correctAnswerText?: string
+    explanation?: string
+    sources?: string
   }[]
 }
 
@@ -462,17 +467,74 @@ export function TestResults({ sessionId }: TestResultsProps) {
 
                       {selectedQuestion === q.questionId && (
                         <div className="mt-4 p-4 bg-background rounded-md border">
-                          <div className="grid grid-cols-2 gap-4 text-sm">
+                          <div className="space-y-4">
+                            {/* Full Question Text */}
                             <div>
-                              <span className="font-medium">Your Answer: </span>
-                              <span className={q.userAnswer ? "" : "text-gray-500"}>
-                                {q.userAnswer || "Not Answered"}
-                              </span>
+                              <h4 className="font-medium text-sm mb-2">Question:</h4>
+                              <p className="text-sm text-muted-foreground">{q.questionText}</p>
                             </div>
-                            <div>
-                              <span className="font-medium">Correct Answer: </span>
-                              <span className="text-green-600">{q.correctAnswer}</span>
+                            
+                            {/* Answer Choices */}
+                            {q.choices && q.choices.length > 0 && (
+                              <div>
+                                <h4 className="font-medium text-sm mb-2">Answer Choices:</h4>
+                                <div className="space-y-2">
+                                  {q.choices.map((choice) => (
+                                    <div 
+                                      key={choice.letter} 
+                                      className={`p-2 rounded text-sm border ${
+                                        choice.letter === q.correctAnswer 
+                                          ? 'bg-green-50 border-green-200' 
+                                          : choice.letter === q.userAnswer 
+                                            ? 'bg-red-50 border-red-200' 
+                                            : 'bg-gray-50 border-gray-200'
+                                      }`}
+                                    >
+                                      <span className="font-medium">{choice.letter}. </span>
+                                      <span>{choice.text}</span>
+                                      {choice.letter === q.correctAnswer && (
+                                        <span className="ml-2 text-green-600 font-medium">(Correct)</span>
+                                      )}
+                                      {choice.letter === q.userAnswer && choice.letter !== q.correctAnswer && (
+                                        <span className="ml-2 text-red-600 font-medium">(Your Answer)</span>
+                                      )}
+                                    </div>
+                                  ))}
+                                </div>
+                              </div>
+                            )}
+                            
+                            {/* Answer Summary */}
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm border-t pt-4">
+                              <div>
+                                <span className="font-medium">Your Answer: </span>
+                                <span className={q.userAnswer ? "" : "text-gray-500"}>
+                                  {q.userAnswerText ? `${q.userAnswer}. ${q.userAnswerText}` : "Not Answered"}
+                                </span>
+                              </div>
+                              <div>
+                                <span className="font-medium">Correct Answer: </span>
+                                <span className="text-green-600">
+                                  {q.correctAnswerText ? `${q.correctAnswer}. ${q.correctAnswerText}` : q.correctAnswer}
+                                </span>
+                              </div>
                             </div>
+
+                            {/* Explanation */}
+                            {q.explanation && (
+                              <div className="border-t pt-4">
+                                <h4 className="font-medium text-sm mb-2">Explanation:</h4>
+                                <p className="text-sm text-muted-foreground">{q.explanation}</p>
+                              </div>
+                            )}
+
+                            {/* Sources */}
+                            {q.sources && (
+                              <div className="border-t pt-4">
+                                <h4 className="font-medium text-sm mb-2">Sources:</h4>
+                                <p className="text-sm text-muted-foreground">{q.sources}</p>
+                              </div>
+                            )}
                           </div>
                         </div>
                       )}

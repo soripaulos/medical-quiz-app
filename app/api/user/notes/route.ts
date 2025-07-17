@@ -23,6 +23,15 @@ export async function GET() {
         questions (
           id,
           question_text,
+          choice_a,
+          choice_b,
+          choice_c,
+          choice_d,
+          choice_e,
+          choice_f,
+          correct_answer,
+          explanation,
+          sources,
           specialties (
             name
           )
@@ -38,15 +47,34 @@ export async function GET() {
 
     // Format notes for display
     const formattedNotes =
-      notes?.map((note: any) => ({
-        id: note.id,
-        noteText: note.note_text,
-        questionId: note.questions?.id,
-        questionText: note.questions?.question_text?.substring(0, 100) + "...",
-        specialty: note.questions?.specialties?.name || "Unknown",
-        createdAt: note.created_at,
-        updatedAt: note.updated_at,
-      })) || []
+      notes?.map((note: any) => {
+        const question = note.questions
+        const choices = []
+        
+        if (question) {
+          if (question.choice_a) choices.push({ letter: "A", text: question.choice_a })
+          if (question.choice_b) choices.push({ letter: "B", text: question.choice_b })
+          if (question.choice_c) choices.push({ letter: "C", text: question.choice_c })
+          if (question.choice_d) choices.push({ letter: "D", text: question.choice_d })
+          if (question.choice_e) choices.push({ letter: "E", text: question.choice_e })
+          if (question.choice_f) choices.push({ letter: "F", text: question.choice_f })
+        }
+
+        return {
+          id: note.id,
+          noteText: note.note_text,
+          questionId: question?.id,
+          questionText: question?.question_text,
+          questionPreview: question?.question_text?.substring(0, 100) + "...",
+          choices,
+          correctAnswer: question?.correct_answer,
+          explanation: question?.explanation,
+          sources: question?.sources,
+          specialty: question?.specialties?.name || "Unknown",
+          createdAt: note.created_at,
+          updatedAt: note.updated_at,
+        }
+      }) || []
 
     return NextResponse.json({ notes: formattedNotes })
   } catch (error) {

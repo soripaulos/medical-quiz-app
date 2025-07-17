@@ -69,21 +69,82 @@ export function CreateTestInterface() {
       hour12: false,
     })
 
-    let name = `${sessionMode === "practice" ? "Practice" : "Exam"} ${timeStr}`
-
-    // Add specialty if only one is selected
+    // Start with session mode
+    let name = sessionMode === "practice" ? "Practice" : "Exam"
+    
+    // Add specialty abbreviation if only one is selected
     if (filters.specialties.length === 1) {
       const specialty = filters.specialties[0]
-      const shortName = specialty
-        .split(" ")
-        .map((word) => word.charAt(0))
-        .join("")
-      name = `${shortName} ${name}`
+      let shortName = ""
+      
+      // Create meaningful abbreviations for common specialties
+      if (specialty.toLowerCase().includes("cardiology")) {
+        shortName = "CARD"
+      } else if (specialty.toLowerCase().includes("pulmonology")) {
+        shortName = "PULM"
+      } else if (specialty.toLowerCase().includes("nephrology")) {
+        shortName = "NEPH"
+      } else if (specialty.toLowerCase().includes("gastroenterology")) {
+        shortName = "GI"
+      } else if (specialty.toLowerCase().includes("endocrinology")) {
+        shortName = "ENDO"
+      } else if (specialty.toLowerCase().includes("hematology")) {
+        shortName = "HEME"
+      } else if (specialty.toLowerCase().includes("oncology")) {
+        shortName = "ONC"
+      } else if (specialty.toLowerCase().includes("neurology")) {
+        shortName = "NEURO"
+      } else if (specialty.toLowerCase().includes("psychiatry")) {
+        shortName = "PSYCH"
+      } else if (specialty.toLowerCase().includes("infectious")) {
+        shortName = "ID"
+      } else if (specialty.toLowerCase().includes("rheumatology")) {
+        shortName = "RHEUM"
+      } else if (specialty.toLowerCase().includes("emergency")) {
+        shortName = "EM"
+      } else if (specialty.toLowerCase().includes("internal")) {
+        shortName = "IM"
+      } else if (specialty.toLowerCase().includes("surgery")) {
+        shortName = "SURG"
+      } else if (specialty.toLowerCase().includes("pediatrics")) {
+        shortName = "PEDS"
+      } else if (specialty.toLowerCase().includes("obstetrics") || specialty.toLowerCase().includes("gynecology")) {
+        shortName = "OBGYN"
+      } else if (specialty.toLowerCase().includes("dermatology")) {
+        shortName = "DERM"
+      } else if (specialty.toLowerCase().includes("radiology")) {
+        shortName = "RAD"
+      } else if (specialty.toLowerCase().includes("pathology")) {
+        shortName = "PATH"
+      } else if (specialty.toLowerCase().includes("anesthesiology")) {
+        shortName = "ANES"
+      } else if (specialty.toLowerCase().includes("ophthalmology")) {
+        shortName = "OPHTHO"
+      } else if (specialty.toLowerCase().includes("otolaryngology")) {
+        shortName = "ENT"
+      } else if (specialty.toLowerCase().includes("urology")) {
+        shortName = "URO"
+      } else if (specialty.toLowerCase().includes("orthopedics")) {
+        shortName = "ORTHO"
+      } else if (specialty.toLowerCase().includes("coc")) {
+        shortName = "COC"
+      } else {
+        // Fallback: use first letters of words
+        shortName = specialty
+          .split(" ")
+          .map((word) => word.charAt(0))
+          .join("")
+          .toUpperCase()
+          .substring(0, 4)
+      }
+      
+      name = `${name}-${shortName}`
     }
 
     // Add year if only one is selected
     if (filters.years.length === 1) {
-      name = `${filters.years[0]} ${name}`
+      const year = filters.years[0].toString()
+      name = `${name}-${year.slice(-2)}`
     }
 
     // Add difficulty range if specific difficulties selected
@@ -91,11 +152,15 @@ export function CreateTestInterface() {
       const minDiff = Math.min(...filters.difficulties)
       const maxDiff = Math.max(...filters.difficulties)
       if (minDiff === maxDiff) {
-        name = `L${minDiff} ${name}`
+        name = `${name}-L${minDiff}`
       } else {
-        name = `L${minDiff}-${maxDiff} ${name}`
+        name = `${name}-L${minDiff}-${maxDiff}`
       }
     }
+
+    // Add session counter if multiple sessions might be created
+    const sessionCount = Math.floor(Math.random() * 99) + 1
+    name = `${name}-${sessionCount.toString().padStart(2, '0')}`
 
     setSessionName(name)
   }
