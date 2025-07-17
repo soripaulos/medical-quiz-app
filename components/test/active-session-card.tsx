@@ -22,26 +22,16 @@ interface ActiveSessionCardProps {
   compact?: boolean
 }
 
-interface SessionStats {
-  correctAnswers: number
-  incorrectAnswers: number
-  totalAnswered: number
-  timeSpent: number
-}
-
 export function ActiveSessionCard({ compact = false }: ActiveSessionCardProps) {
   const [activeSession, setActiveSession] = useState<UserSession | null>(null)
-  const [sessionStats, setSessionStats] = useState<SessionStats>({
+  const [sessionMetrics, setSessionMetrics] = useState({
     correctAnswers: 0,
     incorrectAnswers: 0,
     totalAnswered: 0,
-    timeSpent: 0
   })
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
-  const [timeSpent, setTimeSpent] = useState(0)
   const pollIntervalRef = useRef<NodeJS.Timeout | null>(null)
-  const timeUpdateRef = useRef<NodeJS.Timeout | null>(null)
 
   useEffect(() => {
     fetchActiveSession()
@@ -53,40 +43,8 @@ export function ActiveSessionCard({ compact = false }: ActiveSessionCardProps) {
       if (pollIntervalRef.current) {
         clearInterval(pollIntervalRef.current)
       }
-      if (timeUpdateRef.current) {
-        clearInterval(timeUpdateRef.current)
-      }
     }
   }, [])
-
-  // Update time spent counter for active sessions using activity tracking
-  useEffect(() => {
-    if (activeSession && !activeSession.is_paused) {
-      const fetchActiveTime = async () => {
-        try {
-          const response = await fetch(`/api/sessions/${activeSession.id}/active-time`)
-          if (response.ok) {
-            const data = await response.json()
-            setTimeSpent(data.activeTime || 0)
-          }
-        } catch (error) {
-          console.error("Error fetching active time:", error)
-        }
-      }
-      
-      fetchActiveTime() // Initial update
-      timeUpdateRef.current = setInterval(fetchActiveTime, 1000) // Update every second
-    } else if (timeUpdateRef.current) {
-      clearInterval(timeUpdateRef.current)
-      timeUpdateRef.current = null
-    }
-
-    return () => {
-      if (timeUpdateRef.current) {
-        clearInterval(timeUpdateRef.current)
-      }
-    }
-  }, [activeSession, activeSession?.is_paused])
 
   const fetchActiveSession = async () => {
     try {
@@ -125,19 +83,10 @@ export function ActiveSessionCard({ compact = false }: ActiveSessionCardProps) {
         const incorrectAnswers = userAnswers.filter((a: any) => !a.is_correct).length
         const totalAnswered = userAnswers.length
         
-        // Get active time from the new activity tracking system
-        const activeTimeResponse = await fetch(`/api/sessions/${sessionId}/active-time`)
-        let timeSpent = 0
-        if (activeTimeResponse.ok) {
-          const activeTimeData = await activeTimeResponse.json()
-          timeSpent = activeTimeData.activeTime || 0
-        }
-        
-        setSessionStats({
+        setSessionMetrics({
           correctAnswers,
           incorrectAnswers,
           totalAnswered,
-          timeSpent
         })
         
         // Update session with calculated stats
@@ -162,16 +111,6 @@ export function ActiveSessionCard({ compact = false }: ActiveSessionCardProps) {
       return `${hours}:${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`
     }
     return `${minutes}:${seconds.toString().padStart(2, '0')}`
-  }
-
-  const formatTimeSpent = (seconds: number) => {
-    const hours = Math.floor(seconds / 3600)
-    const minutes = Math.floor((seconds % 3600) / 60)
-    
-    if (hours > 0) {
-      return `${hours}h ${minutes}m`
-    }
-    return `${minutes}m`
   }
 
   const getSessionTypeColor = (type: string) => {
@@ -274,19 +213,16 @@ export function ActiveSessionCard({ compact = false }: ActiveSessionCardProps) {
 
         {/* Stats Grid */}
         <div className="grid grid-cols-2 gap-3">
-          {/* Time Information */}
+          {/* Time Display */}
           <div className="space-y-1">
-            {activeSession.time_remaining ? (
+            {isExamMode ? (
               <>
                 <div className="flex items-center space-x-2">
-                  <Clock className={`h-4 w-4 ${
-                    timeStatus === 'critical' ? 'text-red-500' :
-                    timeStatus === 'warning' ? 'text-yellow-500' : 'text-blue-500'
-                  }`} />
-                  <span className="text-sm font-medium text-gray-700 dark:text-gray-300">Time Left</span>
+                  <Clock className="h-4 w-4 text-gray-500 dark:text-gray-400" />
+                  <span className="text-sm font-medium text-gray-700 dark:text-gray-300">Time Remaining</span>
                 </div>
                 <p className={`text-base font-bold ${
-                  timeStatus === 'critical' ? 'text-red-600 dark:text-red-400' :
+                  timeStatus === 'critical' ? 'text-red-600 dark:text-red-400' : 
                   timeStatus === 'warning' ? 'text-yellow-600 dark:text-yellow-400' : 'text-blue-600 dark:text-blue-400'
                 }`}>
                   {formatTimeRemaining(activeSession.time_remaining)}
@@ -296,10 +232,10 @@ export function ActiveSessionCard({ compact = false }: ActiveSessionCardProps) {
               <>
                 <div className="flex items-center space-x-2">
                   <Calendar className="h-4 w-4 text-gray-500 dark:text-gray-400" />
-                  <span className="text-sm font-medium text-gray-700 dark:text-gray-300">Time Spent</span>
+                  <span className="text-sm font-medium text-gray-700 dark:text-gray-300">Practice Mode</span>
                 </div>
                 <p className="text-base font-bold text-gray-600 dark:text-gray-400">
-                  {formatTimeSpent(timeSpent)}
+                  No time limit
                 </p>
               </>
             )}
@@ -315,11 +251,11 @@ export function ActiveSessionCard({ compact = false }: ActiveSessionCardProps) {
               <div className="flex items-center space-x-3">
                 <div className="flex items-center space-x-1">
                   <CheckCircle2 className="h-4 w-4 text-green-500" />
-                  <span className="text-sm font-bold text-green-600 dark:text-green-400">{sessionStats.correctAnswers}</span>
+                  <span className="text-sm font-bold text-green-600 dark:text-green-400">{sessionMetrics.correctAnswers}</span>
                 </div>
                 <div className="flex items-center space-x-1">
                   <AlertCircle className="h-4 w-4 text-red-500" />
-                  <span className="text-sm font-bold text-red-600 dark:text-red-400">{sessionStats.incorrectAnswers}</span>
+                  <span className="text-sm font-bold text-red-600 dark:text-red-400">{sessionMetrics.incorrectAnswers}</span>
                 </div>
               </div>
             </div>
@@ -333,7 +269,7 @@ export function ActiveSessionCard({ compact = false }: ActiveSessionCardProps) {
                 <span className="text-sm font-medium text-gray-700 dark:text-gray-300">Answered</span>
               </div>
               <div className="flex items-center space-x-1">
-                <span className="text-base font-bold text-gray-600 dark:text-gray-400">{sessionStats.totalAnswered}</span>
+                <span className="text-base font-bold text-gray-600 dark:text-gray-400">{sessionMetrics.totalAnswered}</span>
                 <span className="text-sm text-gray-500 dark:text-gray-400">questions</span>
               </div>
             </div>
