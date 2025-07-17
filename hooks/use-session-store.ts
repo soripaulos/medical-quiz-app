@@ -25,6 +25,7 @@ interface SessionState {
   updateAnswer: (questionId: string, answer: UserAnswer) => void
   updateProgress: (questionId: string, progress: UserQuestionProgress) => void
   refreshSessionData: (sessionId: string) => Promise<void>
+  updateSessionStats: (sessionId: string, correctAnswers: number, incorrectAnswers: number, currentQuestionIndex: number) => Promise<void>
   
   // Real-time subscription (Phase 3)
   subscribeToSession: (sessionId: string) => void
@@ -129,6 +130,9 @@ export const useSessionStore = create<SessionState>((set, get) => ({
         userAnswers: updatedAnswers,
         session: updatedSession
       })
+      
+      // Update session in database for real-time tracking
+      get().updateSessionStats(session.id, correctAnswers, incorrectAnswers, currentQuestionIndex)
     } else {
       set({ userAnswers: updatedAnswers })
     }
@@ -147,6 +151,23 @@ export const useSessionStore = create<SessionState>((set, get) => ({
   refreshSessionData: async (sessionId: string) => {
     const { loadSession } = get()
     await loadSession(sessionId)
+  },
+
+  // Update session stats in database
+  updateSessionStats: async (sessionId: string, correctAnswers: number, incorrectAnswers: number, currentQuestionIndex: number) => {
+    try {
+      await fetch(`/api/sessions/${sessionId}/update-stats`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          correct_answers: correctAnswers,
+          incorrect_answers: incorrectAnswers,
+          current_question_index: currentQuestionIndex
+        })
+      })
+    } catch (error) {
+      console.error('Error updating session stats:', error)
+    }
   },
 
   // Real-time subscription (Phase 3)

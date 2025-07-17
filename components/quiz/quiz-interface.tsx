@@ -302,6 +302,7 @@ export function QuizInterface({
                 onQuestionSelect={handleQuestionSelect}
                 userAnswers={userAnswers}
                 userProgress={localProgress}
+                sessionType={session.session_type}
               />
             </SheetContent>
           </Sheet>

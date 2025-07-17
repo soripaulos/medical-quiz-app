@@ -22,8 +22,21 @@ interface ActiveSessionCardProps {
   compact?: boolean
 }
 
+interface SessionStats {
+  correctAnswers: number
+  incorrectAnswers: number
+  totalAnswered: number
+  timeSpent: number
+}
+
 export function ActiveSessionCard({ compact = false }: ActiveSessionCardProps) {
   const [activeSession, setActiveSession] = useState<UserSession | null>(null)
+  const [sessionStats, setSessionStats] = useState<SessionStats>({
+    correctAnswers: 0,
+    incorrectAnswers: 0,
+    totalAnswered: 0,
+    timeSpent: 0
+  })
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [timeSpent, setTimeSpent] = useState(0)
@@ -78,6 +91,11 @@ export function ActiveSessionCard({ compact = false }: ActiveSessionCardProps) {
       if (response.ok) {
         const data = await response.json()
         setActiveSession(data.activeSession)
+        
+        // Fetch session stats if there's an active session
+        if (data.activeSession) {
+          await fetchSessionStats(data.activeSession.id)
+        }
       } else if (response.status !== 401) {
         throw new Error('Failed to fetch active session')
       }
@@ -86,6 +104,44 @@ export function ActiveSessionCard({ compact = false }: ActiveSessionCardProps) {
       setError('Failed to load active session')
     } finally {
       setLoading(false)
+    }
+  }
+
+  const fetchSessionStats = async (sessionId: string) => {
+    try {
+      // Fetch session data including answers for statistics
+      const response = await fetch(`/api/sessions/${sessionId}`)
+      if (response.ok) {
+        const data = await response.json()
+        const { session, userAnswers } = data
+        
+        // Calculate stats from user answers
+        const correctAnswers = userAnswers.filter((a: any) => a.is_correct).length
+        const incorrectAnswers = userAnswers.filter((a: any) => !a.is_correct).length
+        const totalAnswered = userAnswers.length
+        
+        // Calculate time spent
+        const startTime = new Date(session.created_at).getTime()
+        const currentTime = Date.now()
+        const timeSpent = Math.floor((currentTime - startTime) / 1000)
+        
+        setSessionStats({
+          correctAnswers,
+          incorrectAnswers,
+          totalAnswered,
+          timeSpent
+        })
+        
+        // Update session with calculated stats
+        setActiveSession(prev => prev ? {
+          ...prev,
+          correct_answers: correctAnswers,
+          incorrect_answers: incorrectAnswers,
+          current_question_index: Math.max(1, totalAnswered)
+        } : null)
+      }
+    } catch (error) {
+      console.error('Error fetching session stats:', error)
     }
   }
 
@@ -112,8 +168,8 @@ export function ActiveSessionCard({ compact = false }: ActiveSessionCardProps) {
 
   const getSessionTypeColor = (type: string) => {
     return type === 'exam' 
-      ? 'bg-red-100 text-red-800 border-red-200' 
-      : 'bg-blue-100 text-blue-800 border-blue-200'
+      ? 'bg-red-100 text-red-800 border-red-200 dark:bg-red-900/20 dark:text-red-400 dark:border-red-800' 
+      : 'bg-blue-100 text-blue-800 border-blue-200 dark:bg-blue-900/20 dark:text-blue-400 dark:border-blue-800'
   }
 
   const getProgressPercentage = () => {
@@ -133,15 +189,15 @@ export function ActiveSessionCard({ compact = false }: ActiveSessionCardProps) {
 
   if (loading) {
     return (
-      <Card className="w-full animate-pulse">
+      <Card className="w-full animate-pulse dark:bg-card">
         <CardHeader className="pb-2">
-          <div className="h-5 bg-gray-200 rounded w-1/2"></div>
+          <div className="h-5 bg-gray-200 dark:bg-gray-700 rounded w-1/2"></div>
         </CardHeader>
         <CardContent className="pb-4">
           <div className="space-y-2">
-            <div className="h-3 bg-gray-200 rounded w-1/3"></div>
-            <div className="h-2 bg-gray-200 rounded w-full"></div>
-            <div className="h-8 bg-gray-200 rounded w-full"></div>
+            <div className="h-3 bg-gray-200 dark:bg-gray-700 rounded w-1/3"></div>
+            <div className="h-2 bg-gray-200 dark:bg-gray-700 rounded w-full"></div>
+            <div className="h-8 bg-gray-200 dark:bg-gray-700 rounded w-full"></div>
           </div>
         </CardContent>
       </Card>
@@ -150,9 +206,9 @@ export function ActiveSessionCard({ compact = false }: ActiveSessionCardProps) {
 
   if (error) {
     return (
-      <Card className="w-full border-red-200 bg-red-50">
+      <Card className="w-full border-red-200 bg-red-50 dark:border-red-800 dark:bg-red-900/20">
         <CardContent className="pt-4">
-          <div className="flex items-center space-x-2 text-red-600">
+          <div className="flex items-center space-x-2 text-red-600 dark:text-red-400">
             <AlertCircle className="h-4 w-4" />
             <span className="text-xs">{error}</span>
           </div>
@@ -163,10 +219,10 @@ export function ActiveSessionCard({ compact = false }: ActiveSessionCardProps) {
 
   if (!activeSession) {
     return (
-      <Card className="w-full border-dashed border-gray-300">
+      <Card className="w-full border-dashed border-gray-300 dark:border-gray-600 dark:bg-card">
         <CardContent className="pt-4">
-          <div className="text-center text-gray-500">
-            <BookOpen className="h-8 w-8 mx-auto mb-2 text-gray-400" />
+          <div className="text-center text-gray-500 dark:text-gray-400">
+            <BookOpen className="h-8 w-8 mx-auto mb-2 text-gray-400 dark:text-gray-500" />
             <p className="text-xs">No active test session</p>
           </div>
         </CardContent>
@@ -176,17 +232,18 @@ export function ActiveSessionCard({ compact = false }: ActiveSessionCardProps) {
 
   const timeStatus = getTimeStatus()
   const progressPercentage = getProgressPercentage()
+  const isExamMode = activeSession.session_type === 'exam'
 
   return (
-    <Card className="w-full border-l-4 border-l-blue-500 bg-gradient-to-br from-blue-50 via-white to-indigo-50">
+    <Card className="w-full border-l-4 border-l-blue-500 bg-gradient-to-br from-blue-50 via-white to-indigo-50 dark:from-blue-950/20 dark:via-background dark:to-indigo-950/20 dark:bg-card">
       <CardHeader className="pb-3">
         <div className="flex items-start justify-between">
           <div className="space-y-1">
-            <CardTitle className="text-lg font-bold text-gray-900 flex items-center space-x-2">
-              <Brain className="h-5 w-5 text-blue-600" />
+            <CardTitle className="text-lg font-bold text-gray-900 dark:text-gray-100 flex items-center space-x-2">
+              <Brain className="h-5 w-5 text-blue-600 dark:text-blue-400" />
               <span>Continue Your Test</span>
             </CardTitle>
-            <p className="text-sm text-gray-600 font-medium">{activeSession.session_name}</p>
+            <p className="text-sm text-gray-600 dark:text-gray-300 font-medium">{activeSession.session_name}</p>
           </div>
           <Badge className={`${getSessionTypeColor(activeSession.session_type)} font-semibold px-2 py-1 text-xs`}>
             {activeSession.session_type.charAt(0).toUpperCase() + activeSession.session_type.slice(1)} Mode
@@ -198,13 +255,13 @@ export function ActiveSessionCard({ compact = false }: ActiveSessionCardProps) {
         {/* Progress Section */}
         <div className="space-y-2">
           <div className="flex justify-between items-center">
-            <span className="text-sm font-medium text-gray-700">Progress</span>
-            <span className="text-sm text-gray-600">
+            <span className="text-sm font-medium text-gray-700 dark:text-gray-300">Progress</span>
+            <span className="text-sm text-gray-600 dark:text-gray-400">
               {activeSession.current_question_index} of {activeSession.total_questions} questions
             </span>
           </div>
           <Progress value={progressPercentage} className="h-2" />
-          <p className="text-xs text-gray-500">{progressPercentage}% completed</p>
+          <p className="text-xs text-gray-500 dark:text-gray-400">{progressPercentage}% completed</p>
         </div>
 
         {/* Stats Grid */}
@@ -218,11 +275,11 @@ export function ActiveSessionCard({ compact = false }: ActiveSessionCardProps) {
                     timeStatus === 'critical' ? 'text-red-500' :
                     timeStatus === 'warning' ? 'text-yellow-500' : 'text-blue-500'
                   }`} />
-                  <span className="text-sm font-medium text-gray-700">Time Left</span>
+                  <span className="text-sm font-medium text-gray-700 dark:text-gray-300">Time Left</span>
                 </div>
                 <p className={`text-base font-bold ${
-                  timeStatus === 'critical' ? 'text-red-600' :
-                  timeStatus === 'warning' ? 'text-yellow-600' : 'text-blue-600'
+                  timeStatus === 'critical' ? 'text-red-600 dark:text-red-400' :
+                  timeStatus === 'warning' ? 'text-yellow-600 dark:text-yellow-400' : 'text-blue-600 dark:text-blue-400'
                 }`}>
                   {formatTimeRemaining(activeSession.time_remaining)}
                 </p>
@@ -230,52 +287,68 @@ export function ActiveSessionCard({ compact = false }: ActiveSessionCardProps) {
             ) : (
               <>
                 <div className="flex items-center space-x-2">
-                  <Calendar className="h-4 w-4 text-gray-500" />
-                  <span className="text-sm font-medium text-gray-700">Time Spent</span>
+                  <Calendar className="h-4 w-4 text-gray-500 dark:text-gray-400" />
+                  <span className="text-sm font-medium text-gray-700 dark:text-gray-300">Time Spent</span>
                 </div>
-                <p className="text-base font-bold text-gray-600">
+                <p className="text-base font-bold text-gray-600 dark:text-gray-400">
                   {formatTimeSpent(timeSpent)}
                 </p>
               </>
             )}
           </div>
 
-          {/* Performance */}
-          <div className="space-y-1">
-            <div className="flex items-center space-x-2">
-              <Target className="h-4 w-4 text-green-500" />
-              <span className="text-sm font-medium text-gray-700">Performance</span>
+          {/* Performance - Only show for practice mode */}
+          {!isExamMode && (
+            <div className="space-y-1">
+              <div className="flex items-center space-x-2">
+                <Target className="h-4 w-4 text-green-500" />
+                <span className="text-sm font-medium text-gray-700 dark:text-gray-300">Performance</span>
+              </div>
+              <div className="flex items-center space-x-3">
+                <div className="flex items-center space-x-1">
+                  <CheckCircle2 className="h-4 w-4 text-green-500" />
+                  <span className="text-sm font-bold text-green-600 dark:text-green-400">{sessionStats.correctAnswers}</span>
+                </div>
+                <div className="flex items-center space-x-1">
+                  <AlertCircle className="h-4 w-4 text-red-500" />
+                  <span className="text-sm font-bold text-red-600 dark:text-red-400">{sessionStats.incorrectAnswers}</span>
+                </div>
+              </div>
             </div>
-            <div className="flex items-center space-x-3">
-              <div className="flex items-center space-x-1">
-                <CheckCircle2 className="h-4 w-4 text-green-500" />
-                <span className="text-sm font-bold text-green-600">{activeSession.correct_answers || 0}</span>
+          )}
+          
+          {/* For exam mode, show a placeholder or different stat */}
+          {isExamMode && (
+            <div className="space-y-1">
+              <div className="flex items-center space-x-2">
+                <Target className="h-4 w-4 text-gray-500 dark:text-gray-400" />
+                <span className="text-sm font-medium text-gray-700 dark:text-gray-300">Answered</span>
               </div>
               <div className="flex items-center space-x-1">
-                <AlertCircle className="h-4 w-4 text-red-500" />
-                <span className="text-sm font-bold text-red-600">{activeSession.incorrect_answers || 0}</span>
+                <span className="text-base font-bold text-gray-600 dark:text-gray-400">{sessionStats.totalAnswered}</span>
+                <span className="text-sm text-gray-500 dark:text-gray-400">questions</span>
               </div>
             </div>
-          </div>
+          )}
         </div>
 
         {/* Action Button */}
         <Link href={`/test/${activeSession.id}`} className="block">
-          <Button className="w-full bg-blue-600 hover:bg-blue-700 text-white font-semibold py-2 rounded-lg transition-all duration-200">
+          <Button className="w-full bg-blue-600 hover:bg-blue-700 dark:bg-blue-500 dark:hover:bg-blue-600 text-white font-semibold py-2 rounded-lg transition-all duration-200">
             <Play className="h-4 w-4 mr-2" />
             Resume Test Session
           </Button>
         </Link>
 
         {/* Quick Stats */}
-        <div className="pt-2 border-t border-gray-200">
-          <div className="flex justify-between text-xs text-gray-500">
+        <div className="pt-2 border-t border-gray-200 dark:border-gray-700">
+          <div className="flex justify-between text-xs text-gray-500 dark:text-gray-400">
             <span>Started: {new Date(activeSession.created_at).toLocaleDateString()}</span>
             <span>
               {activeSession.is_paused ? (
-                <Badge variant="outline" className="text-yellow-600 border-yellow-600">Paused</Badge>
+                <Badge variant="outline" className="text-yellow-600 border-yellow-600 dark:text-yellow-400 dark:border-yellow-400">Paused</Badge>
               ) : (
-                <Badge variant="outline" className="text-green-600 border-green-600">Active</Badge>
+                <Badge variant="outline" className="text-green-600 border-green-600 dark:text-green-400 dark:border-green-400">Active</Badge>
               )}
             </span>
           </div>
