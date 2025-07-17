@@ -25,26 +25,21 @@ export async function POST(req: Request, context: { params: Promise<{ sessionId:
     const totalAnswered = correctAnswers + incorrectAnswers
     const unansweredQuestions = Math.max(0, session.total_questions - totalAnswered)
 
-    // Calculate time spent
-    let totalTimeSpent = 0
-    if (session.time_limit && session.time_remaining !== null) {
-      // Timed session: time_limit (minutes) * 60 - time_remaining (seconds)
-      totalTimeSpent = session.time_limit * 60 - session.time_remaining
-    } else {
-      // Untimed session: calculate elapsed time from creation to now
-      const startTime = new Date(session.created_at).getTime()
-      const endTime = new Date().getTime()
-      totalTimeSpent = Math.floor((endTime - startTime) / 1000)
+    // End session activity tracking using the database function
+    const { data: finalActiveTime, error: endError } = await supabase.rpc('end_session_activity', {
+      session_id: sessionId
+    })
+
+    if (endError) {
+      console.error("Error ending session activity:", endError)
+      return NextResponse.json({ error: "Failed to end session" }, { status: 500 })
     }
 
-    // Update session with completion data and metrics
+    // Update session with completion metrics
     const { error: updateError } = await supabase
       .from("user_sessions")
       .update({
-        is_active: false,
-        is_paused: false,
-        completed_at: new Date().toISOString(),
-        total_time_spent: totalTimeSpent,
+        total_time_spent: finalActiveTime,
         correct_answers: correctAnswers,
         incorrect_answers: incorrectAnswers,
         unanswered_questions: unansweredQuestions,
@@ -73,7 +68,7 @@ export async function POST(req: Request, context: { params: Promise<{ sessionId:
         correctAnswers,
         incorrectAnswers,
         unansweredQuestions,
-        totalTimeSpent,
+        totalTimeSpent: finalActiveTime,
       },
     })
   } catch (error) {

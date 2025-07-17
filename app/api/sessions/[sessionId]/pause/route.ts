@@ -25,22 +25,20 @@ export async function POST(req: Request, context: { params: Promise<{ sessionId:
     const totalAnswered = correctAnswers + incorrectAnswers
     const unansweredQuestions = Math.max(0, session.total_questions - totalAnswered)
 
-    // Calculate time spent so far
-    let totalTimeSpent = 0
-    if (session.time_limit && session.time_remaining !== null) {
-      totalTimeSpent = session.time_limit * 60 - session.time_remaining
-    } else {
-      const startTime = new Date(session.created_at).getTime()
-      const pauseTime = new Date().getTime()
-      totalTimeSpent = Math.floor((pauseTime - startTime) / 1000)
+    // Pause session activity tracking using the database function
+    const { error: pauseError } = await supabase.rpc('pause_session_activity', {
+      session_id: sessionId
+    })
+
+    if (pauseError) {
+      console.error("Error pausing session activity:", pauseError)
+      return NextResponse.json({ error: "Failed to pause session" }, { status: 500 })
     }
 
-    // Update session to paused state with current metrics
+    // Update session with current metrics
     const { error: updateError } = await supabase
       .from("user_sessions")
       .update({
-        is_paused: true,
-        total_time_spent: totalTimeSpent,
         correct_answers: correctAnswers,
         incorrect_answers: incorrectAnswers,
         unanswered_questions: unansweredQuestions,

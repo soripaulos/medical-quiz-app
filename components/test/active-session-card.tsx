@@ -59,18 +59,23 @@ export function ActiveSessionCard({ compact = false }: ActiveSessionCardProps) {
     }
   }, [])
 
-  // Update time spent counter for active sessions
+  // Update time spent counter for active sessions using activity tracking
   useEffect(() => {
     if (activeSession && !activeSession.is_paused) {
-      const startTime = new Date(activeSession.created_at).getTime()
-      const updateTime = () => {
-        const now = Date.now()
-        const elapsed = Math.floor((now - startTime) / 1000)
-        setTimeSpent(elapsed)
+      const fetchActiveTime = async () => {
+        try {
+          const response = await fetch(`/api/sessions/${activeSession.id}/active-time`)
+          if (response.ok) {
+            const data = await response.json()
+            setTimeSpent(data.activeTime || 0)
+          }
+        } catch (error) {
+          console.error("Error fetching active time:", error)
+        }
       }
       
-      updateTime() // Initial update
-      timeUpdateRef.current = setInterval(updateTime, 1000) // Update every second
+      fetchActiveTime() // Initial update
+      timeUpdateRef.current = setInterval(fetchActiveTime, 1000) // Update every second
     } else if (timeUpdateRef.current) {
       clearInterval(timeUpdateRef.current)
       timeUpdateRef.current = null
@@ -120,10 +125,13 @@ export function ActiveSessionCard({ compact = false }: ActiveSessionCardProps) {
         const incorrectAnswers = userAnswers.filter((a: any) => !a.is_correct).length
         const totalAnswered = userAnswers.length
         
-        // Calculate time spent
-        const startTime = new Date(session.created_at).getTime()
-        const currentTime = Date.now()
-        const timeSpent = Math.floor((currentTime - startTime) / 1000)
+        // Get active time from the new activity tracking system
+        const activeTimeResponse = await fetch(`/api/sessions/${sessionId}/active-time`)
+        let timeSpent = 0
+        if (activeTimeResponse.ok) {
+          const activeTimeData = await activeTimeResponse.json()
+          timeSpent = activeTimeData.activeTime || 0
+        }
         
         setSessionStats({
           correctAnswers,

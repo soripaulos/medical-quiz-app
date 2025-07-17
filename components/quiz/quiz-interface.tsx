@@ -58,6 +58,7 @@ export function QuizInterface({
   const [showNotes, setShowNotes] = useState(false)
   const [sidebarOpen, setSidebarOpen] = useState(false)
   const [timeRemaining, setTimeRemaining] = useState(session.time_remaining || 0)
+  const [activeTime, setActiveTime] = useState(0)
   const [noteText, setNoteText] = useState("")
   const [showSubmitPrompt, setShowSubmitPrompt] = useState(false)
   const [localProgress, setLocalProgress] = useState<UserQuestionProgress[]>(userProgress)
@@ -72,6 +73,37 @@ export function QuizInterface({
   const currentSelectedAnswer = selectedAnswers[currentQuestion?.id] || currentAnswer?.selected_choice_letter
   const showCurrentExplanation = showExplanations[currentQuestion?.id] || false
   const currentNote = userNotes.find((n) => n.question_id === currentQuestion?.id)
+
+  // Start session activity tracking when component mounts
+  useEffect(() => {
+    const startSessionActivity = async () => {
+      try {
+        const response = await fetch(`/api/sessions/${session.id}/start`, {
+          method: "POST",
+        })
+        if (!response.ok) {
+          console.error("Failed to start session activity")
+        }
+      } catch (error) {
+        console.error("Error starting session activity:", error)
+      }
+    }
+    startSessionActivity()
+
+    // Cleanup function to pause session activity when component unmounts
+    return () => {
+      const pauseSessionActivity = async () => {
+        try {
+          await fetch(`/api/sessions/${session.id}/pause`, {
+            method: "POST",
+          })
+        } catch (error) {
+          console.error("Error pausing session activity:", error)
+        }
+      }
+      pauseSessionActivity()
+    }
+  }, [session.id])
 
   // Fetch user notes on component mount
   useEffect(() => {
@@ -227,9 +259,9 @@ export function QuizInterface({
     router.push(`/test/${session.id}/results`)
   }
 
-  // Timer effect
+  // Timer effect for exam mode (countdown)
   useEffect(() => {
-    if (session.time_limit && timeRemaining > 0) {
+    if (session.session_type === "exam" && session.time_limit && timeRemaining > 0) {
       const timer = setInterval(() => {
         setTimeRemaining((prev) => {
           if (prev <= 1) {
@@ -243,7 +275,31 @@ export function QuizInterface({
       return () => clearInterval(timer)
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [session.time_limit, timeRemaining])
+  }, [session.session_type, session.time_limit, timeRemaining])
+
+  // Active time tracking for practice mode (stopwatch)
+  useEffect(() => {
+    if (session.session_type === "practice") {
+      const fetchActiveTime = async () => {
+        try {
+          const response = await fetch(`/api/sessions/${session.id}/active-time`)
+          if (response.ok) {
+            const data = await response.json()
+            setActiveTime(data.activeTime || 0)
+          }
+        } catch (error) {
+          console.error("Error fetching active time:", error)
+        }
+      }
+
+      // Initial fetch
+      fetchActiveTime()
+
+      // Update active time every second
+      const timer = setInterval(fetchActiveTime, 1000)
+      return () => clearInterval(timer)
+    }
+  }, [session.session_type, session.id])
 
   const answeredQuestionIds = new Set([...userAnswers.map((a) => a.question_id), ...Object.keys(selectedAnswers)])
   const allQuestionsAnswered = questions.length > 0 && answeredQuestionIds.size >= questions.length
@@ -424,7 +480,12 @@ export function QuizInterface({
           <ChevronRight className="h-5 w-5 ml-1" />
         </Button>
         <div className="flex items-center gap-4">
-          {session.time_limit && <span className="text-sm">block time remaining: {formatTime(timeRemaining)}</span>}
+          {session.session_type === "exam" && session.time_limit && (
+            <span className="text-sm">Time remaining: {formatTime(timeRemaining)}</span>
+          )}
+          {session.session_type === "practice" && (
+            <span className="text-sm">Time spent: {formatTime(activeTime)}</span>
+          )}
           <Button variant="destructive" size="sm" onClick={() => setShowSubmitPrompt(true)}>
             <Square className="w-4 h-4 mr-1" />
             End Block
