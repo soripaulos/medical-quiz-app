@@ -157,21 +157,23 @@ export function EnhancedCreateTestInterface({ userProfile }: EnhancedCreateTestI
       hour12: false,
     })
 
-    let name = `${sessionMode === "practice" ? "Practice" : "Exam"} ${timeStr}`
-
-    // Add specialty if only one is selected
+    // Start with mode
+    let name = sessionMode === "practice" ? "Practice" : "Exam"
+    
+    // Add specialty abbreviation if only one is selected
     if (filters.specialties.length === 1) {
       const specialty = filters.specialties[0]
       const shortName = specialty
         .split(" ")
         .map((word) => word.charAt(0))
         .join("")
-      name = `${shortName} ${name}`
+      name = `${name}-${shortName}`
     }
 
-    // Add year if only one is selected
+    // Add year if only one is selected (shortened format)
     if (filters.years.length === 1) {
-      name = `${filters.years[0]} ${name}`
+      const year = filters.years[0].toString().slice(-2) // Get last 2 digits
+      name = `${name}-${year}`
     }
 
     // Add difficulty range if specific difficulties selected
@@ -179,10 +181,18 @@ export function EnhancedCreateTestInterface({ userProfile }: EnhancedCreateTestI
       const minDiff = Math.min(...filters.difficulties)
       const maxDiff = Math.max(...filters.difficulties)
       if (minDiff === maxDiff) {
-        name = `L${minDiff} ${name}`
+        name = `${name}-L${minDiff}`
       } else {
-        name = `L${minDiff}-${maxDiff} ${name}`
+        name = `${name}-L${minDiff}-${maxDiff}`
       }
+    }
+
+    // Add session number or time if no specific filters
+    if (filters.specialties.length === 0 && filters.years.length === 0 && filters.difficulties.length === 0) {
+      name = `${name}-${timeStr}`
+    } else {
+      // Add a simple identifier for filtered sessions
+      name = `${name}-S${Math.floor(Math.random() * 100)}`
     }
 
     setSessionName(name)
