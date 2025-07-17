@@ -19,7 +19,7 @@ import {
   Pie,
   Cell,
 } from "recharts"
-import { Trophy, Target, Clock, BookOpen, Eye, FileText, BookOpenCheck, Timer, ChevronDown, ChevronRight } from "lucide-react"
+import { Trophy, Target, Clock, BookOpen, Eye, FileText, GraduationCap, Timer, BookOpenCheck } from "lucide-react"
 import Link from "next/link"
 import {
   Table,
@@ -83,15 +83,6 @@ interface UserNote {
   specialty: string
   createdAt: string
   updatedAt: string
-  questionDetails?: {
-    choice_a?: string
-    choice_b?: string
-    choice_c?: string
-    choice_d?: string
-    choice_e?: string
-    choice_f?: string
-    correct_answer?: string
-  }
 }
 
 export function UserProgressDashboard() {
@@ -106,7 +97,6 @@ export function UserProgressDashboard() {
     percentageAttempted: 0,
   })
   const [loading, setLoading] = useState(true)
-  const [expandedNotes, setExpandedNotes] = useState<Set<string>>(new Set())
 
   useEffect(() => {
     fetchAllData()
@@ -186,28 +176,6 @@ export function UserProgressDashboard() {
   const formatShortDate = (dateString: string) => {
     const date = new Date(dateString)
     return `${date.getDate().toString().padStart(2, '0')}/${(date.getMonth() + 1).toString().padStart(2, '0')}`
-  }
-
-  const toggleNoteExpansion = (noteId: string) => {
-    const newExpanded = new Set(expandedNotes)
-    if (newExpanded.has(noteId)) {
-      newExpanded.delete(noteId)
-    } else {
-      newExpanded.add(noteId)
-    }
-    setExpandedNotes(newExpanded)
-  }
-
-  const getChoiceText = (choice: string, questionDetails: any) => {
-    switch (choice) {
-      case 'A': return questionDetails.choice_a
-      case 'B': return questionDetails.choice_b
-      case 'C': return questionDetails.choice_c
-      case 'D': return questionDetails.choice_d
-      case 'E': return questionDetails.choice_e
-      case 'F': return questionDetails.choice_f
-      default: return choice
-    }
   }
 
   const pieData = stats
@@ -382,25 +350,23 @@ export function UserProgressDashboard() {
                     <TableHeader>
                       <TableRow>
                         <TableHead className="text-xs sm:text-sm">Test Name</TableHead>
+                        <TableHead className="text-xs sm:text-sm w-8">Type</TableHead>
                         <TableHead className="text-xs sm:text-sm w-16">Date</TableHead>
                         <TableHead className="text-xs sm:text-sm w-16">Score</TableHead>
                         <TableHead className="text-xs sm:text-sm w-20">Q's</TableHead>
+                        <TableHead className="text-xs sm:text-sm w-8">View</TableHead>
                       </TableRow>
                     </TableHeader>
                     <TableBody>
                       {sessionHistory.map((session) => (
-                        <TableRow 
-                          key={session.id} 
-                          className="cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors"
-                          onClick={() => window.location.href = `/test/${session.id}/results`}
-                        >
+                        <TableRow key={session.id}>
                           <TableCell className="font-medium text-xs sm:text-sm">
-                            <div className="flex items-center gap-2">
-                              {getSessionTypeIcon(session.type)}
-                              <div className="truncate max-w-[120px] sm:max-w-none">
-                                {session.name}
-                              </div>
+                            <div className="truncate max-w-[120px] sm:max-w-none">
+                              {session.name}
                             </div>
+                          </TableCell>
+                          <TableCell className="text-center">
+                            {getSessionTypeIcon(session.type)}
                           </TableCell>
                           <TableCell className="text-xs sm:text-sm">
                             {formatShortDate(session.date)}
@@ -410,6 +376,13 @@ export function UserProgressDashboard() {
                           </TableCell>
                           <TableCell className="text-xs sm:text-sm">
                             {session.correctAnswers}/{session.totalQuestions}
+                          </TableCell>
+                          <TableCell className="text-center">
+                            <Button asChild variant="ghost" size="sm" className="h-8 w-8 p-0">
+                              <Link href={`/test/${session.id}/results`}>
+                                <Eye className="h-4 w-4" />
+                              </Link>
+                            </Button>
                           </TableCell>
                         </TableRow>
                       ))}
@@ -496,76 +469,8 @@ export function UserProgressDashboard() {
                           <Badge variant="outline">{note.specialty}</Badge>
                           <span className="text-sm text-gray-500">{new Date(note.updatedAt).toLocaleDateString()}</span>
                         </div>
-                        
-                        {/* Question Preview */}
-                        <div 
-                          className="cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-800 p-2 rounded transition-colors"
-                          onClick={() => toggleNoteExpansion(note.id)}
-                        >
-                          <div className="flex items-center justify-between">
-                            <p className="text-sm text-gray-600 flex-1">{note.questionText}</p>
-                            {expandedNotes.has(note.id) ? (
-                              <ChevronDown className="w-4 h-4 text-gray-500" />
-                            ) : (
-                              <ChevronRight className="w-4 h-4 text-gray-500" />
-                            )}
-                          </div>
-                        </div>
-
-                        {/* Expanded Question Details */}
-                        {expandedNotes.has(note.id) && note.questionDetails && (
-                          <div className="mt-3 p-3 bg-gray-50 dark:bg-gray-800 rounded-lg">
-                            <h4 className="font-medium text-sm mb-2">Question Details:</h4>
-                            <div className="space-y-2 text-sm">
-                              {note.questionDetails.choice_a && (
-                                <div className="flex gap-2">
-                                  <span className="font-medium w-4">A:</span>
-                                  <span>{note.questionDetails.choice_a}</span>
-                                </div>
-                              )}
-                              {note.questionDetails.choice_b && (
-                                <div className="flex gap-2">
-                                  <span className="font-medium w-4">B:</span>
-                                  <span>{note.questionDetails.choice_b}</span>
-                                </div>
-                              )}
-                              {note.questionDetails.choice_c && (
-                                <div className="flex gap-2">
-                                  <span className="font-medium w-4">C:</span>
-                                  <span>{note.questionDetails.choice_c}</span>
-                                </div>
-                              )}
-                              {note.questionDetails.choice_d && (
-                                <div className="flex gap-2">
-                                  <span className="font-medium w-4">D:</span>
-                                  <span>{note.questionDetails.choice_d}</span>
-                                </div>
-                              )}
-                              {note.questionDetails.choice_e && (
-                                <div className="flex gap-2">
-                                  <span className="font-medium w-4">E:</span>
-                                  <span>{note.questionDetails.choice_e}</span>
-                                </div>
-                              )}
-                              {note.questionDetails.choice_f && (
-                                <div className="flex gap-2">
-                                  <span className="font-medium w-4">F:</span>
-                                  <span>{note.questionDetails.choice_f}</span>
-                                </div>
-                              )}
-                              {note.questionDetails.correct_answer && (
-                                <div className="mt-2 pt-2 border-t">
-                                  <span className="font-medium text-green-600">Correct Answer: {note.questionDetails.correct_answer}</span>
-                                </div>
-                              )}
-                            </div>
-                          </div>
-                        )}
-
-                        {/* Note Text */}
-                        <div className="mt-3 pt-3 border-t">
-                          <p className="text-gray-900">{note.noteText}</p>
-                        </div>
+                        <p className="text-sm text-gray-600 mb-2">{note.questionText}</p>
+                        <p className="text-gray-900">{note.noteText}</p>
                       </div>
                     ))
                   )}
