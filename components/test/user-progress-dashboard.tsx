@@ -251,13 +251,13 @@ export function UserProgressDashboard() {
         </div>
 
         <Tabs defaultValue="overview" className="space-y-6">
-          <div className="overflow-x-auto pb-2">
-            <TabsList className="grid w-full grid-cols-5 min-w-[600px] md:min-w-0">
-              <TabsTrigger value="overview">Overview</TabsTrigger>
-              <TabsTrigger value="history">Test History</TabsTrigger>
-              <TabsTrigger value="performance">Performance</TabsTrigger>
-              <TabsTrigger value="progress">Progress</TabsTrigger>
-              <TabsTrigger value="notes">Notes</TabsTrigger>
+          <div className="flex flex-col sm:flex-row gap-2 sm:gap-0">
+            <TabsList className="grid w-full grid-cols-2 sm:grid-cols-5 h-auto sm:h-10">
+              <TabsTrigger value="overview" className="text-xs sm:text-sm py-2 sm:py-1">Overview</TabsTrigger>
+              <TabsTrigger value="history" className="text-xs sm:text-sm py-2 sm:py-1">Test History</TabsTrigger>
+              <TabsTrigger value="performance" className="text-xs sm:text-sm py-2 sm:py-1">Performance</TabsTrigger>
+              <TabsTrigger value="progress" className="text-xs sm:text-sm py-2 sm:py-1">Progress</TabsTrigger>
+              <TabsTrigger value="notes" className="text-xs sm:text-sm py-2 sm:py-1">Notes</TabsTrigger>
             </TabsList>
           </div>
 

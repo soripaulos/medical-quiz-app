@@ -412,27 +412,27 @@ export function EnhancedCreateTestInterface({ userProfile }: EnhancedCreateTestI
   return (
     <div className="min-h-screen bg-background text-foreground">
       <header className="sticky top-0 z-40 w-full border-b bg-background">
-        <div className="flex items-center justify-between p-4 border-b">
+        <div className="flex items-center justify-between p-3 sm:p-4 border-b">
           <div className="flex items-center space-x-4">
-            <h1 className="text-xl font-bold">MedPrep ET</h1>
+            <h1 className="text-lg sm:text-xl font-bold">MedPrep ET</h1>
           </div>
-          <div className="flex items-center space-x-4">
+          <div className="flex items-center space-x-2 sm:space-x-4">
             {userProfile?.role === "admin" && (
               <Link href="/admin">
-                <Button variant="outline" size="sm" className="flex items-center gap-2">
+                <Button variant="outline" size="sm" className="flex items-center gap-1 sm:gap-2 px-2 sm:px-3">
                   <Shield className="w-4 h-4" />
-                  Admin Panel
+                  <span className="hidden sm:inline">Admin Panel</span>
                 </Button>
               </Link>
             )}
-            <Button variant="ghost" size="sm" onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')} className="flex items-center gap-2">
+            <Button variant="ghost" size="sm" onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')} className="flex items-center gap-2 p-2">
               {theme === 'dark' ? <Sun className="w-4 h-4" /> : <Moon className="w-4 h-4" />}
             </Button>
             <Popover>
               <PopoverTrigger asChild>
-                <Button variant="outline" className="flex items-center gap-2 bg-transparent">
+                <Button variant="outline" className="flex items-center gap-1 sm:gap-2 bg-transparent px-2 sm:px-3">
                   <User className="w-4 h-4" />
-                  {user?.user_metadata?.full_name || user?.email}
+                  <span className="hidden sm:inline">{user?.user_metadata?.full_name || user?.email}</span>
                 </Button>
               </PopoverTrigger>
               <PopoverContent className="w-64" align="end">
@@ -455,17 +455,17 @@ export function EnhancedCreateTestInterface({ userProfile }: EnhancedCreateTestI
           </div>
         </div>
       </header>
-      <main className="w-full p-4 md:p-6 lg:p-8">
+      <main className="w-full p-2 sm:p-4 md:p-6 lg:p-8">
         <Tabs defaultValue="custom" className="space-y-6">
-          <TabsList className="grid w-full grid-cols-2">
-            <TabsTrigger value="custom">Create Test</TabsTrigger>
-            <TabsTrigger value="progress">My Progress</TabsTrigger>
+          <TabsList className="grid w-full grid-cols-2 h-auto sm:h-10">
+            <TabsTrigger value="custom" className="text-sm py-2 sm:py-1">Create Test</TabsTrigger>
+            <TabsTrigger value="progress" className="text-sm py-2 sm:py-1">My Progress</TabsTrigger>
           </TabsList>
 
           {userProfile ? (
             <>
               <TabsContent value="custom" className="space-y-6">
-                <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
+                <div className="grid gap-4 sm:gap-6 grid-cols-1 lg:grid-cols-3">
                   {/* Left Column: Question Filters */}
                   <Card className="lg:col-span-2">
                     <CardHeader className="dark:bg-card bg-primary text-primary-foreground">
