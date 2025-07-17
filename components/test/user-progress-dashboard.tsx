@@ -20,6 +20,7 @@ import {
   Cell,
 } from "recharts"
 import { Trophy, Target, Clock, BookOpen, Eye, FileText, GraduationCap, Timer, BookOpenCheck, ChevronDown, ChevronUp } from "lucide-react"
+import { SourcesDisplay } from "@/components/ui/sources-display"
 import Link from "next/link"
 import { useRouter } from "next/navigation"
 import {
@@ -562,7 +563,7 @@ export function UserProgressDashboard() {
                               {note.sources && (
                                 <div>
                                   <h4 className="font-medium text-sm mb-2">Sources:</h4>
-                                  <p className="text-sm text-gray-700">{note.sources}</p>
+                                  <SourcesDisplay sources={note.sources} />
                                 </div>
                               )}
                             </div>

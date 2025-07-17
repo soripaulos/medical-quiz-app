@@ -4,6 +4,7 @@ import { useState, useEffect } from "react"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
+import { SourcesDisplay } from "@/components/ui/sources-display"
 import { Progress } from "@/components/ui/progress"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Separator } from "@/components/ui/separator"
@@ -532,7 +533,7 @@ export function TestResults({ sessionId }: TestResultsProps) {
                             {q.sources && (
                               <div className="border-t pt-4">
                                 <h4 className="font-medium text-sm mb-2">Sources:</h4>
-                                <p className="text-sm text-muted-foreground">{q.sources}</p>
+                                <SourcesDisplay sources={q.sources} />
                               </div>
                             )}
                           </div>

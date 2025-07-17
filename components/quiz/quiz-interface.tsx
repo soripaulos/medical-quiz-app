@@ -6,6 +6,7 @@ import { Card, CardContent } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet"
 import { Calculator, Flag, ChevronLeft, ChevronRight, Square, Beaker, StickyNote, Menu, Moon, Sun } from "lucide-react"
+import { SourcesDisplay } from "@/components/ui/sources-display"
 import { QuestionSidebar } from "./question-sidebar"
 import { LabValuesModal } from "./lab-values-modal"
 import { CalculatorModal } from "./calculator-modal"
@@ -402,8 +403,8 @@ export function QuizInterface({
                 </div>
                 {currentQuestion.sources && (
                   <div className="mt-4 pt-4 border-t">
-                    <h4 className="font-semibold text-sm">Sources:</h4>
-                    <p className="text-sm text-muted-foreground italic">{currentQuestion.sources}</p>
+                    <h4 className="font-semibold text-sm mb-2">Sources:</h4>
+                    <SourcesDisplay sources={currentQuestion.sources} />
                   </div>
                 )}
               </CardContent>
