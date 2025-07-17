@@ -25,6 +25,7 @@ interface SessionState {
   updateAnswer: (questionId: string, answer: UserAnswer) => void
   updateProgress: (questionId: string, progress: UserQuestionProgress) => void
   refreshSessionData: (sessionId: string) => Promise<void>
+  updateSessionStats: (sessionId: string, correctAnswers: number, incorrectAnswers: number, currentQuestionIndex: number) => Promise<void>
   
   // Real-time subscription (Phase 3)
   subscribeToSession: (sessionId: string) => void
