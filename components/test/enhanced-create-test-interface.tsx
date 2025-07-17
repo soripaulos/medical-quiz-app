@@ -143,7 +143,7 @@ export function EnhancedCreateTestInterface({ userProfile }: EnhancedCreateTestI
 
   useEffect(() => {
     generateSessionName()
-  }, [filters, sessionMode, sessionName])
+  }, [filters, sessionMode])
 
   const generateSessionName = () => {
     if (sessionName && !sessionName.includes("Session")) {
