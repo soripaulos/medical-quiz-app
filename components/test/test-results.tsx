@@ -422,9 +422,7 @@ export function TestResults({ sessionId }: TestResultsProps) {
                           <p className="truncate text-sm">{q.questionText}</p>
                         </div>
                         <div className="flex items-center gap-3 text-sm text-muted-foreground flex-shrink-0">
-                          <Badge variant="outline">Level {q.difficulty}</Badge>
                           <Badge variant="secondary">{q.specialty}</Badge>
-                          <span>{formatTime(q.timeSpent)}</span>
                         </div>
                       </div>
 
