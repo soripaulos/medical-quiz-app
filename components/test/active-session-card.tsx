@@ -1,6 +1,6 @@
 "use client"
 
-import React, { useState, useEffect } from 'react'
+import React, { useState, useEffect, useRef } from 'react'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
@@ -18,14 +18,57 @@ import {
 import Link from 'next/link'
 import type { UserSession } from '@/lib/types'
 
-export function ActiveSessionCard() {
+interface ActiveSessionCardProps {
+  compact?: boolean
+}
+
+export function ActiveSessionCard({ compact = false }: ActiveSessionCardProps) {
   const [activeSession, setActiveSession] = useState<UserSession | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
+  const [timeSpent, setTimeSpent] = useState(0)
+  const pollIntervalRef = useRef<NodeJS.Timeout | null>(null)
+  const timeUpdateRef = useRef<NodeJS.Timeout | null>(null)
 
   useEffect(() => {
     fetchActiveSession()
+    
+    // Start polling for real-time updates
+    pollIntervalRef.current = setInterval(fetchActiveSession, 5000) // Poll every 5 seconds
+
+    return () => {
+      if (pollIntervalRef.current) {
+        clearInterval(pollIntervalRef.current)
+      }
+      if (timeUpdateRef.current) {
+        clearInterval(timeUpdateRef.current)
+      }
+    }
   }, [])
+
+  // Update time spent counter for active sessions
+  useEffect(() => {
+    if (activeSession && !activeSession.is_paused) {
+      const startTime = new Date(activeSession.created_at).getTime()
+      const updateTime = () => {
+        const now = Date.now()
+        const elapsed = Math.floor((now - startTime) / 1000)
+        setTimeSpent(elapsed)
+      }
+      
+      updateTime() // Initial update
+      timeUpdateRef.current = setInterval(updateTime, 1000) // Update every second
+    } else if (timeUpdateRef.current) {
+      clearInterval(timeUpdateRef.current)
+      timeUpdateRef.current = null
+    }
+
+    return () => {
+      if (timeUpdateRef.current) {
+        clearInterval(timeUpdateRef.current)
+      }
+    }
+  }, [activeSession, activeSession?.is_paused])
 
   const fetchActiveSession = async () => {
     try {
@@ -91,14 +134,14 @@ export function ActiveSessionCard() {
   if (loading) {
     return (
       <Card className="w-full animate-pulse">
-        <CardHeader className="pb-3">
-          <div className="h-6 bg-gray-200 rounded w-1/3"></div>
+        <CardHeader className="pb-2">
+          <div className="h-5 bg-gray-200 rounded w-1/2"></div>
         </CardHeader>
-        <CardContent>
-          <div className="space-y-3">
-            <div className="h-4 bg-gray-200 rounded w-1/2"></div>
+        <CardContent className="pb-4">
+          <div className="space-y-2">
+            <div className="h-3 bg-gray-200 rounded w-1/3"></div>
             <div className="h-2 bg-gray-200 rounded w-full"></div>
-            <div className="h-10 bg-gray-200 rounded w-full"></div>
+            <div className="h-8 bg-gray-200 rounded w-full"></div>
           </div>
         </CardContent>
       </Card>
@@ -108,10 +151,10 @@ export function ActiveSessionCard() {
   if (error) {
     return (
       <Card className="w-full border-red-200 bg-red-50">
-        <CardContent className="pt-6">
+        <CardContent className="pt-4">
           <div className="flex items-center space-x-2 text-red-600">
-            <AlertCircle className="h-5 w-5" />
-            <span className="text-sm">{error}</span>
+            <AlertCircle className="h-4 w-4" />
+            <span className="text-xs">{error}</span>
           </div>
         </CardContent>
       </Card>
@@ -121,11 +164,10 @@ export function ActiveSessionCard() {
   if (!activeSession) {
     return (
       <Card className="w-full border-dashed border-gray-300">
-        <CardContent className="pt-6">
+        <CardContent className="pt-4">
           <div className="text-center text-gray-500">
-            <BookOpen className="h-12 w-12 mx-auto mb-3 text-gray-400" />
-            <p className="text-sm">No active test session</p>
-            <p className="text-xs text-gray-400 mt-1">Start a new test to see it here</p>
+            <BookOpen className="h-8 w-8 mx-auto mb-2 text-gray-400" />
+            <p className="text-xs">No active test session</p>
           </div>
         </CardContent>
       </Card>
@@ -136,17 +178,17 @@ export function ActiveSessionCard() {
   const progressPercentage = getProgressPercentage()
 
   return (
-    <Card className="w-full border-l-4 border-l-blue-500 bg-gradient-to-br from-blue-50 via-white to-indigo-50 shadow-lg hover:shadow-xl transition-all duration-300">
+    <Card className="w-full border-l-4 border-l-blue-500 bg-gradient-to-br from-blue-50 via-white to-indigo-50">
       <CardHeader className="pb-3">
         <div className="flex items-start justify-between">
           <div className="space-y-1">
-            <CardTitle className="text-xl font-bold text-gray-900 flex items-center space-x-2">
-              <Brain className="h-6 w-6 text-blue-600" />
+            <CardTitle className="text-lg font-bold text-gray-900 flex items-center space-x-2">
+              <Brain className="h-5 w-5 text-blue-600" />
               <span>Continue Your Test</span>
             </CardTitle>
-            <p className="text-gray-600 font-medium">{activeSession.session_name}</p>
+            <p className="text-sm text-gray-600 font-medium">{activeSession.session_name}</p>
           </div>
-          <Badge className={`${getSessionTypeColor(activeSession.session_type)} font-semibold px-3 py-1`}>
+          <Badge className={`${getSessionTypeColor(activeSession.session_type)} font-semibold px-2 py-1 text-xs`}>
             {activeSession.session_type.charAt(0).toUpperCase() + activeSession.session_type.slice(1)} Mode
           </Badge>
         </div>
@@ -166,7 +208,7 @@ export function ActiveSessionCard() {
         </div>
 
         {/* Stats Grid */}
-        <div className="grid grid-cols-2 gap-4">
+        <div className="grid grid-cols-2 gap-3">
           {/* Time Information */}
           <div className="space-y-1">
             {activeSession.time_remaining ? (
@@ -176,9 +218,9 @@ export function ActiveSessionCard() {
                     timeStatus === 'critical' ? 'text-red-500' :
                     timeStatus === 'warning' ? 'text-yellow-500' : 'text-blue-500'
                   }`} />
-                  <span className="text-sm font-medium text-gray-700">Time Remaining</span>
+                  <span className="text-sm font-medium text-gray-700">Time Left</span>
                 </div>
-                <p className={`text-lg font-bold ${
+                <p className={`text-base font-bold ${
                   timeStatus === 'critical' ? 'text-red-600' :
                   timeStatus === 'warning' ? 'text-yellow-600' : 'text-blue-600'
                 }`}>
@@ -191,8 +233,8 @@ export function ActiveSessionCard() {
                   <Calendar className="h-4 w-4 text-gray-500" />
                   <span className="text-sm font-medium text-gray-700">Time Spent</span>
                 </div>
-                <p className="text-lg font-bold text-gray-600">
-                  {formatTimeSpent(activeSession.total_time_spent || 0)}
+                <p className="text-base font-bold text-gray-600">
+                  {formatTimeSpent(timeSpent)}
                 </p>
               </>
             )}
@@ -204,7 +246,7 @@ export function ActiveSessionCard() {
               <Target className="h-4 w-4 text-green-500" />
               <span className="text-sm font-medium text-gray-700">Performance</span>
             </div>
-            <div className="flex items-center space-x-2">
+            <div className="flex items-center space-x-3">
               <div className="flex items-center space-x-1">
                 <CheckCircle2 className="h-4 w-4 text-green-500" />
                 <span className="text-sm font-bold text-green-600">{activeSession.correct_answers || 0}</span>
@@ -219,8 +261,8 @@ export function ActiveSessionCard() {
 
         {/* Action Button */}
         <Link href={`/test/${activeSession.id}`} className="block">
-          <Button className="w-full bg-blue-600 hover:bg-blue-700 text-white font-semibold py-3 rounded-lg transition-all duration-200 transform hover:scale-[1.02] active:scale-[0.98]">
-            <Play className="h-5 w-5 mr-2" />
+          <Button className="w-full bg-blue-600 hover:bg-blue-700 text-white font-semibold py-2 rounded-lg transition-all duration-200">
+            <Play className="h-4 w-4 mr-2" />
             Resume Test Session
           </Button>
         </Link>

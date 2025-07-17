@@ -7,7 +7,6 @@ import { Badge } from "@/components/ui/badge"
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet"
 import { Calculator, Flag, ChevronLeft, ChevronRight, Square, Beaker, StickyNote, Menu, Moon, Sun } from "lucide-react"
 import { QuestionSidebar } from "./question-sidebar"
-import { SessionTracking } from "./session-tracking"
 import { LabValuesModal } from "./lab-values-modal"
 import { CalculatorModal } from "./calculator-modal"
 import { NotesPanel } from "./notes-panel"
@@ -65,17 +64,6 @@ export function QuizInterface({
 
   const router = useRouter()
   const { theme, setTheme } = useTheme()
-
-  // Helper function to format time
-  const formatTime = (seconds: number) => {
-    const hours = Math.floor(seconds / 3600)
-    const minutes = Math.floor((seconds % 3600) / 60)
-    const secs = Math.floor(seconds % 60)
-    if (hours > 0) {
-      return `${hours}:${minutes.toString().padStart(2, "0")}:${secs.toString().padStart(2, "0")}`
-    }
-    return `${minutes}:${secs.toString().padStart(2, "0")}`
-  }
 
   const currentQuestion = questions[currentQuestionIndex]
   const currentAnswer = userAnswers.find((a) => a.question_id === currentQuestion?.id)
@@ -297,176 +285,150 @@ export function QuizInterface({
   }
 
   return (
-    <div className="flex h-screen bg-background text-foreground">
-      {/* Left Column - Main Content */}
-      <div className="flex flex-col flex-1">
-        {/* Header */}
-        <header className="flex items-center justify-between p-2 border-b dark:bg-card bg-primary text-primary-foreground">
-          <div className="flex items-center gap-2">
-            <Sheet open={sidebarOpen} onOpenChange={setSidebarOpen}>
-              <SheetTrigger asChild>
-                <Button variant="ghost" size="icon">
-                  <Menu className="h-6 w-6" />
-                </Button>
-              </SheetTrigger>
-              <SheetContent side="left" className="w-full sm:w-80">
-                <QuestionSidebar
-                  questions={questions}
-                  currentIndex={currentQuestionIndex}
-                  onQuestionSelect={handleQuestionSelect}
-                  userAnswers={userAnswers}
-                  userProgress={localProgress}
-                />
-              </SheetContent>
-            </Sheet>
-            <div className="text-sm font-medium">
-              Item{" "}
-              <span className="font-bold">
-                {currentQuestionIndex + 1} of {questions.length}
-              </span>
-            </div>
-          </div>
-
-          <div className="flex items-center gap-1 sm:gap-2 flex-wrap justify-end">
-            <Button variant="ghost" size="icon" onClick={handleFlagQuestion}>
-              <Flag
-                className={`h-5 w-5 ${currentProgress?.is_flagged ? "text-yellow-500 fill-current" : ""}`}
+    <div className="flex flex-col h-screen bg-background text-foreground">
+      {/* Header */}
+      <header className="flex items-center justify-between p-2 border-b dark:bg-card bg-primary text-primary-foreground">
+        <div className="flex items-center gap-2">
+          <Sheet open={sidebarOpen} onOpenChange={setSidebarOpen}>
+            <SheetTrigger asChild>
+              <Button variant="ghost" size="icon">
+                <Menu className="h-6 w-6" />
+              </Button>
+            </SheetTrigger>
+            <SheetContent side="left" className="w-full sm:w-80">
+              <QuestionSidebar
+                questions={questions}
+                currentIndex={currentQuestionIndex}
+                onQuestionSelect={handleQuestionSelect}
+                userAnswers={userAnswers}
+                userProgress={localProgress}
               />
-              <span className="sr-only">Flag</span>
-            </Button>
-            <Button variant="ghost" size="icon" onClick={() => setShowLabValues(true)}>
-              <Beaker className="h-5 w-5" />
-              <span className="sr-only">Lab Values</span>
-            </Button>
-            <Button variant="ghost" size="icon" onClick={() => setShowNotes(!showNotes)}>
-              <StickyNote className="h-5 w-5" />
-              <span className="sr-only">Notes</span>
-            </Button>
-            <Button variant="ghost" size="icon" onClick={toggleDarkMode}>
-              <Sun className="h-5 w-5 rotate-0 scale-100 transition-all dark:-rotate-90 dark:scale-0" />
-              <Moon className="absolute h-5 w-5 rotate-90 scale-0 transition-all dark:rotate-0 dark:scale-100" />
-              <span className="sr-only">Toggle theme</span>
-            </Button>
-            <Button variant="ghost" size="icon" onClick={() => setShowCalculator(true)}>
-              <Calculator className="h-5 w-5" />
-              <span className="sr-only">Calculator</span>
-            </Button>
+            </SheetContent>
+          </Sheet>
+          <div className="text-sm font-medium">
+            Item{" "}
+            <span className="font-bold">
+              {currentQuestionIndex + 1} of {questions.length}
+            </span>
           </div>
-        </header>
+        </div>
 
-        {/* Main Content */}
-        <main className="flex-1 overflow-y-auto p-4 md:p-6">
-          <div className="max-w-4xl mx-auto space-y-6">
-            {/* Question */}
+        <div className="flex items-center gap-1 sm:gap-2 flex-wrap justify-end">
+          <Button variant="ghost" size="icon" onClick={handleFlagQuestion}>
+            <Flag
+              className={`h-5 w-5 ${currentProgress?.is_flagged ? "text-yellow-500 fill-current" : ""}`}
+            />
+            <span className="sr-only">Flag</span>
+          </Button>
+          <Button variant="ghost" size="icon" onClick={() => setShowLabValues(true)}>
+            <Beaker className="h-5 w-5" />
+            <span className="sr-only">Lab Values</span>
+          </Button>
+          <Button variant="ghost" size="icon" onClick={() => setShowNotes(!showNotes)}>
+            <StickyNote className="h-5 w-5" />
+            <span className="sr-only">Notes</span>
+          </Button>
+          <Button variant="ghost" size="icon" onClick={toggleDarkMode}>
+            <Sun className="h-5 w-5 rotate-0 scale-100 transition-all dark:-rotate-90 dark:scale-0" />
+            <Moon className="absolute h-5 w-5 rotate-90 scale-0 transition-all dark:rotate-0 dark:scale-100" />
+            <span className="sr-only">Toggle theme</span>
+          </Button>
+          <Button variant="ghost" size="icon" onClick={() => setShowCalculator(true)}>
+            <Calculator className="h-5 w-5" />
+            <span className="sr-only">Calculator</span>
+          </Button>
+        </div>
+      </header>
+
+      {/* Main Content */}
+      <main className="flex-1 overflow-y-auto p-4 md:p-6">
+        <div className="max-w-4xl mx-auto space-y-6">
+          {/* Question */}
+          <Card>
+            <CardContent className="p-6">
+              <p className="text-lg leading-relaxed">{currentQuestion.question_text}</p>
+              {currentQuestion.question_image_url && (
+                <img
+                  src={currentQuestion.question_image_url || "/placeholder.svg"}
+                  alt="Question image"
+                  className="max-w-full h-auto rounded-lg"
+                />
+              )}
+            </CardContent>
+          </Card>
+
+          {/* Answer Choices */}
+          <div className="space-y-3">
+            {answerChoices.map((choice) => {
+              const isSelected = currentSelectedAnswer === choice.letter
+              return (
+                <Card
+                  key={choice.letter}
+                  onClick={() => !showCurrentExplanation && handleAnswerSelect(choice.letter)}
+                  className={`p-4 rounded-lg border-2 transition-all cursor-pointer ${getChoiceStyle(
+                    choice,
+                    isSelected,
+                  )}`}
+                >
+                  <div className="flex items-center">
+                    <Badge
+                      variant="outline"
+                      className="mr-4 text-base font-bold w-8 h-8 flex items-center justify-center"
+                    >
+                      {choice.letter}
+                    </Badge>
+                    <p>{choice.text}</p>
+                  </div>
+                </Card>
+              )
+            })}
+          </div>
+
+          {/* Explanation */}
+          {showCurrentExplanation && currentQuestion && (
             <Card>
               <CardContent className="p-6">
-                <p className="text-lg leading-relaxed">{currentQuestion.question_text}</p>
-                {currentQuestion.question_image_url && (
-                  <img
-                    src={currentQuestion.question_image_url || "/placeholder.svg"}
-                    alt="Question image"
-                    className="max-w-full h-auto rounded-lg"
-                  />
+                <h3 className="font-bold text-lg mb-2">Explanation</h3>
+                <div className="prose dark:prose-invert max-w-none">
+                  <p>{currentQuestion.explanation}</p>
+                  {currentQuestion.explanation_image_url && (
+                    <img
+                      src={currentQuestion.explanation_image_url}
+                      alt="Explanation"
+                      className="mt-4 rounded-lg max-w-full h-auto"
+                    />
+                  )}
+                </div>
+                {currentQuestion.sources && (
+                  <div className="mt-4 pt-4 border-t">
+                    <h4 className="font-semibold text-sm">Sources:</h4>
+                    <p className="text-sm text-muted-foreground italic">{currentQuestion.sources}</p>
+                  </div>
                 )}
               </CardContent>
             </Card>
-
-            {/* Answer Choices */}
-            <div className="space-y-3">
-              {answerChoices.map((choice) => {
-                const isSelected = currentSelectedAnswer === choice.letter
-                return (
-                  <Card
-                    key={choice.letter}
-                    onClick={() => !showCurrentExplanation && handleAnswerSelect(choice.letter)}
-                    className={`p-4 rounded-lg border-2 transition-all cursor-pointer ${getChoiceStyle(
-                      choice,
-                      isSelected,
-                    )}`}
-                  >
-                    <div className="flex items-center">
-                      <Badge
-                        variant="outline"
-                        className="mr-4 text-base font-bold w-8 h-8 flex items-center justify-center"
-                      >
-                        {choice.letter}
-                      </Badge>
-                      <p>{choice.text}</p>
-                    </div>
-                  </Card>
-                )
-              })}
-            </div>
-
-            {/* Explanation */}
-            {showCurrentExplanation && currentQuestion && (
-              <Card>
-                <CardContent className="p-6">
-                  <h3 className="font-bold text-lg mb-2">Explanation</h3>
-                  <div className="prose dark:prose-invert max-w-none">
-                    <p>{currentQuestion.explanation}</p>
-                    {currentQuestion.explanation_image_url && (
-                      <img
-                        src={currentQuestion.explanation_image_url}
-                        alt="Explanation"
-                        className="mt-4 rounded-lg max-w-full h-auto"
-                      />
-                    )}
-                  </div>
-                  {currentQuestion.sources && (
-                    <div className="mt-4 pt-4 border-t">
-                      <h4 className="font-semibold text-sm">Sources:</h4>
-                      <p className="text-sm text-muted-foreground italic">{currentQuestion.sources}</p>
-                    </div>
-                  )}
-                </CardContent>
-              </Card>
-            )}
-          </div>
-        </main>
-
-        {/* Footer */}
-        <footer className="flex items-center justify-between p-2 border-t dark:bg-card bg-primary text-primary-foreground">
-          <Button variant="ghost" onClick={handlePreviousQuestion} disabled={currentQuestionIndex === 0}>
-            <ChevronLeft className="h-5 w-5 mr-1" />
-            Previous
-          </Button>
-          <Button variant="ghost" onClick={handleNextQuestion} disabled={currentQuestionIndex === questions.length - 1}>
-            Next
-            <ChevronRight className="h-5 w-5 ml-1" />
-          </Button>
-          <div className="flex items-center gap-4">
-            {session.time_limit && <span className="text-sm">block time remaining: {formatTime(timeRemaining)}</span>}
-            <Button variant="destructive" size="sm" onClick={() => setShowSubmitPrompt(true)}>
-              <Square className="w-4 h-4 mr-1" />
-              End Block
-            </Button>
-          </div>
-        </footer>
-      </div>
-
-      {/* Right Column - Session Tracking and Question Sidebar */}
-      <div className="hidden lg:flex flex-col w-80 border-l border-border bg-muted/30">
-        {/* Session Tracking */}
-        <div className="p-4 border-b border-border">
-          <SessionTracking
-            session={session}
-            userAnswers={userAnswers}
-            totalQuestions={questions.length}
-          />
+          )}
         </div>
+      </main>
 
-        {/* Question Sidebar */}
-        <div className="flex-1 overflow-hidden">
-          <QuestionSidebar
-            questions={questions}
-            currentIndex={currentQuestionIndex}
-            onQuestionSelect={handleQuestionSelect}
-            userAnswers={userAnswers}
-            userProgress={localProgress}
-          />
+      {/* Footer */}
+      <footer className="flex items-center justify-between p-2 border-t dark:bg-card bg-primary text-primary-foreground">
+        <Button variant="ghost" onClick={handlePreviousQuestion} disabled={currentQuestionIndex === 0}>
+          <ChevronLeft className="h-5 w-5 mr-1" />
+          Previous
+        </Button>
+        <Button variant="ghost" onClick={handleNextQuestion} disabled={currentQuestionIndex === questions.length - 1}>
+          Next
+          <ChevronRight className="h-5 w-5 ml-1" />
+        </Button>
+        <div className="flex items-center gap-4">
+          {session.time_limit && <span className="text-sm">block time remaining: {formatTime(timeRemaining)}</span>}
+          <Button variant="destructive" size="sm" onClick={() => setShowSubmitPrompt(true)}>
+            <Square className="w-4 h-4 mr-1" />
+            End Block
+          </Button>
         </div>
-      </div>
+      </footer>
 
       <AlertDialog open={showSubmitPrompt} onOpenChange={setShowSubmitPrompt}>
         <AlertDialogContent>
@@ -498,4 +460,14 @@ export function QuizInterface({
       </Sheet>
     </div>
   )
+}
+
+const formatTime = (seconds: number) => {
+  const hours = Math.floor(seconds / 3600)
+  const minutes = Math.floor((seconds % 3600) / 60)
+  const secs = Math.floor(seconds % 60)
+  if (hours > 0) {
+    return `${hours}:${minutes.toString().padStart(2, "0")}:${secs.toString().padStart(2, "0")}`
+  }
+  return `${minutes}:${secs.toString().padStart(2, "0")}`
 }

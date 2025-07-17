@@ -41,6 +41,7 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { UserProgressDashboard } from "./user-progress-dashboard"
 import { LoadingSpinner } from "@/components/ui/loading-spinner"
 import { useToast } from "@/components/ui/use-toast"
+import { ActiveSessionCard } from "./active-session-card"
 
 // Helper: safely parse JSON, logs non-JSON text responses for easier debugging
 /**
@@ -734,6 +735,9 @@ export function EnhancedCreateTestInterface({ userProfile }: EnhancedCreateTestI
 
                   {/* Test Settings Panel */}
                   <div className="space-y-6">
+                    {/* Active Session Card */}
+                    <ActiveSessionCard compact={true} />
+                    
                     <Card>
                       <CardHeader className="dark:bg-card bg-primary text-primary-foreground">
                         <CardTitle className="flex items-center gap-2">

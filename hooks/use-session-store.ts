@@ -108,11 +108,30 @@ export const useSessionStore = create<SessionState>((set, get) => ({
 
   // Update user answer locally (optimistic update)
   updateAnswer: (questionId: string, answer: UserAnswer) => {
-    const { userAnswers } = get()
+    const { userAnswers, session } = get()
     const updatedAnswers = userAnswers.filter(a => a.question_id !== questionId)
     updatedAnswers.push(answer)
     
-    set({ userAnswers: updatedAnswers })
+    // Update session stats
+    if (session) {
+      const correctAnswers = updatedAnswers.filter(a => a.is_correct).length
+      const incorrectAnswers = updatedAnswers.filter(a => !a.is_correct).length
+      const currentQuestionIndex = Math.max(1, updatedAnswers.length)
+      
+      const updatedSession: UserSession = {
+        ...session,
+        correct_answers: correctAnswers,
+        incorrect_answers: incorrectAnswers,
+        current_question_index: currentQuestionIndex
+      }
+      
+      set({ 
+        userAnswers: updatedAnswers,
+        session: updatedSession
+      })
+    } else {
+      set({ userAnswers: updatedAnswers })
+    }
   },
 
   // Update user progress locally (optimistic update)
