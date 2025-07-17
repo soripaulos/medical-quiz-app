@@ -160,16 +160,38 @@ export async function GET(_req: Request, context: { params: Promise<{ sessionId:
       const userAnswer = userAnswers?.find((a) => a.question_id === q.id)
       const progress = userProgress?.find((p) => p.question_id === q.id)
 
+      // Get answer choices
+      const choices = []
+      if (q.choice_a) choices.push({ letter: "A", text: q.choice_a })
+      if (q.choice_b) choices.push({ letter: "B", text: q.choice_b })
+      if (q.choice_c) choices.push({ letter: "C", text: q.choice_c })
+      if (q.choice_d) choices.push({ letter: "D", text: q.choice_d })
+      if (q.choice_e) choices.push({ letter: "E", text: q.choice_e })
+      if (q.choice_f) choices.push({ letter: "F", text: q.choice_f })
+
+      const userAnswerText = userAnswer?.selected_choice_letter 
+        ? choices.find(c => c.letter === userAnswer.selected_choice_letter)?.text || userAnswer.selected_choice_letter
+        : null
+
+      const correctAnswerText = q.correct_answer 
+        ? choices.find(c => c.letter === q.correct_answer)?.text || q.correct_answer
+        : null
+
       return {
         questionId: q.id,
         questionText: q.question_text,
+        choices,
         userAnswer: userAnswer?.selected_choice_letter || null,
+        userAnswerText,
         correctAnswer: q.correct_answer,
+        correctAnswerText,
         isCorrect: userAnswer?.is_correct || false,
         timeSpent: Math.floor((session.total_time_spent || 0) / session.total_questions), // Simple distribution
         difficulty: q.difficulty || 1,
         specialty: q.specialty?.name || "Unknown",
         isFlagged: progress?.is_flagged || false,
+        explanation: q.explanation,
+        sources: q.sources,
       }
     })
 

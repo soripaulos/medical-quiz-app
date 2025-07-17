@@ -19,8 +19,9 @@ import {
   Pie,
   Cell,
 } from "recharts"
-import { Trophy, Target, Clock, BookOpen, Eye, FileText, GraduationCap, Timer, BookOpenCheck } from "lucide-react"
+import { Trophy, Target, Clock, BookOpen, Eye, FileText, GraduationCap, Timer, BookOpenCheck, ChevronDown, ChevronUp } from "lucide-react"
 import Link from "next/link"
+import { useRouter } from "next/navigation"
 import {
   Table,
   TableBody,
@@ -80,6 +81,11 @@ interface UserNote {
   noteText: string
   questionId: string
   questionText: string
+  questionPreview: string
+  choices: { letter: string; text: string }[]
+  correctAnswer: string
+  explanation?: string
+  sources?: string
   specialty: string
   createdAt: string
   updatedAt: string
@@ -91,12 +97,14 @@ export function UserProgressDashboard() {
   const [categoryPerformance, setCategoryPerformance] = useState<CategoryPerformance[]>([])
   const [progressData, setProgressData] = useState<ProgressData[]>([])
   const [userNotes, setUserNotes] = useState<UserNote[]>([])
+  const [expandedNotes, setExpandedNotes] = useState<Set<string>>(new Set())
   const [uniqueQuestions, setUniqueQuestions] = useState({
     uniqueQuestions: 0,
     totalQuestions: 0,
     percentageAttempted: 0,
   })
   const [loading, setLoading] = useState(true)
+  const router = useRouter()
 
   useEffect(() => {
     fetchAllData()
@@ -165,8 +173,20 @@ export function UserProgressDashboard() {
 
   const getScoreColor = (score: number) => {
     if (score >= 80) return "text-green-600"
-    if (score >= 60) return "text-yellow-600"
+    if (score >= 70) return "text-yellow-600"
     return "text-red-600"
+  }
+
+  const toggleNoteExpansion = (noteId: string) => {
+    setExpandedNotes(prev => {
+      const newSet = new Set(prev)
+      if (newSet.has(noteId)) {
+        newSet.delete(noteId)
+      } else {
+        newSet.add(noteId)
+      }
+      return newSet
+    })
   }
 
   const getSessionTypeIcon = (type: string) => {
@@ -354,12 +374,16 @@ export function UserProgressDashboard() {
                         <TableHead className="text-xs sm:text-sm w-16">Date</TableHead>
                         <TableHead className="text-xs sm:text-sm w-16">Score</TableHead>
                         <TableHead className="text-xs sm:text-sm w-20">Q's</TableHead>
-                        <TableHead className="text-xs sm:text-sm w-8">View</TableHead>
+                        <TableHead className="text-xs sm:text-sm w-8 hidden sm:table-cell">View</TableHead>
                       </TableRow>
                     </TableHeader>
                     <TableBody>
                       {sessionHistory.map((session) => (
-                        <TableRow key={session.id}>
+                        <TableRow 
+                          key={session.id}
+                          className="cursor-pointer hover:bg-muted/50"
+                          onClick={() => router.push(`/test/${session.id}/results`)}
+                        >
                           <TableCell className="font-medium text-xs sm:text-sm">
                             <div className="truncate max-w-[120px] sm:max-w-none">
                               {session.name}
@@ -377,8 +401,14 @@ export function UserProgressDashboard() {
                           <TableCell className="text-xs sm:text-sm">
                             {session.correctAnswers}/{session.totalQuestions}
                           </TableCell>
-                          <TableCell className="text-center">
-                            <Button asChild variant="ghost" size="sm" className="h-8 w-8 p-0">
+                          <TableCell className="text-center hidden sm:table-cell">
+                            <Button 
+                              asChild 
+                              variant="ghost" 
+                              size="sm" 
+                              className="h-8 w-8 p-0"
+                              onClick={(e) => e.stopPropagation()}
+                            >
                               <Link href={`/test/${session.id}/results`}>
                                 <Eye className="h-4 w-4" />
                               </Link>
@@ -469,8 +499,81 @@ export function UserProgressDashboard() {
                           <Badge variant="outline">{note.specialty}</Badge>
                           <span className="text-sm text-gray-500">{new Date(note.updatedAt).toLocaleDateString()}</span>
                         </div>
-                        <p className="text-sm text-gray-600 mb-2">{note.questionText}</p>
-                        <p className="text-gray-900">{note.noteText}</p>
+                        
+                        {/* Question Preview with Toggle */}
+                        <div 
+                          className="cursor-pointer hover:bg-gray-50 p-2 rounded mb-2"
+                          onClick={() => toggleNoteExpansion(note.id)}
+                        >
+                          <div className="flex items-center justify-between">
+                            <p className="text-sm text-gray-600 flex-1">{note.questionPreview}</p>
+                            {expandedNotes.has(note.id) ? (
+                              <ChevronUp className="w-4 h-4 text-gray-500 ml-2" />
+                            ) : (
+                              <ChevronDown className="w-4 h-4 text-gray-500 ml-2" />
+                            )}
+                          </div>
+                        </div>
+
+                        {/* Expanded Question Details */}
+                        {expandedNotes.has(note.id) && (
+                          <div className="mb-4 p-3 bg-gray-50 rounded border">
+                            <div className="space-y-3">
+                              {/* Full Question Text */}
+                              <div>
+                                <h4 className="font-medium text-sm mb-2">Question:</h4>
+                                <p className="text-sm text-gray-700">{note.questionText}</p>
+                              </div>
+
+                              {/* Answer Choices */}
+                              {note.choices && note.choices.length > 0 && (
+                                <div>
+                                  <h4 className="font-medium text-sm mb-2">Answer Choices:</h4>
+                                  <div className="space-y-1">
+                                    {note.choices.map((choice) => (
+                                      <div 
+                                        key={choice.letter} 
+                                        className={`p-2 rounded text-sm ${
+                                          choice.letter === note.correctAnswer 
+                                            ? 'bg-green-100 border border-green-200' 
+                                            : 'bg-white border border-gray-200'
+                                        }`}
+                                      >
+                                        <span className="font-medium">{choice.letter}. </span>
+                                        <span>{choice.text}</span>
+                                        {choice.letter === note.correctAnswer && (
+                                          <span className="ml-2 text-green-600 font-medium text-xs">(Correct)</span>
+                                        )}
+                                      </div>
+                                    ))}
+                                  </div>
+                                </div>
+                              )}
+
+                              {/* Explanation */}
+                              {note.explanation && (
+                                <div>
+                                  <h4 className="font-medium text-sm mb-2">Explanation:</h4>
+                                  <p className="text-sm text-gray-700">{note.explanation}</p>
+                                </div>
+                              )}
+
+                              {/* Sources */}
+                              {note.sources && (
+                                <div>
+                                  <h4 className="font-medium text-sm mb-2">Sources:</h4>
+                                  <p className="text-sm text-gray-700">{note.sources}</p>
+                                </div>
+                              )}
+                            </div>
+                          </div>
+                        )}
+
+                        {/* User Note */}
+                        <div>
+                          <h4 className="font-medium text-sm mb-2">Your Note:</h4>
+                          <p className="text-gray-900">{note.noteText}</p>
+                        </div>
                       </div>
                     ))
                   )}

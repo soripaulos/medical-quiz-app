@@ -62,40 +62,13 @@ export function CreateTestInterface() {
   }, [filters, sessionMode])
 
   const generateSessionName = () => {
-    const now = new Date()
-    const timeStr = now.toLocaleTimeString("en-US", {
-      hour: "2-digit",
-      minute: "2-digit",
-      hour12: false,
-    })
-
-    let name = `${sessionMode === "practice" ? "Practice" : "Exam"} ${timeStr}`
-
-    // Add specialty if only one is selected
-    if (filters.specialties.length === 1) {
-      const specialty = filters.specialties[0]
-      const shortName = specialty
-        .split(" ")
-        .map((word) => word.charAt(0))
-        .join("")
-      name = `${shortName} ${name}`
+    if (sessionName && !sessionName.includes("Session")) {
+      return // Don't override user-set names
     }
 
-    // Add year if only one is selected
-    if (filters.years.length === 1) {
-      name = `${filters.years[0]} ${name}`
-    }
-
-    // Add difficulty range if specific difficulties selected
-    if (filters.difficulties.length > 0 && filters.difficulties.length < 5) {
-      const minDiff = Math.min(...filters.difficulties)
-      const maxDiff = Math.max(...filters.difficulties)
-      if (minDiff === maxDiff) {
-        name = `L${minDiff} ${name}`
-      } else {
-        name = `L${minDiff}-${maxDiff} ${name}`
-      }
-    }
+    // Start with session mode and add session number
+    const sessionCount = Math.floor(Math.random() * 99) + 1
+    const name = `${sessionMode === "practice" ? "Practice" : "Exam"} Session ${sessionCount.toString().padStart(2, '0')}`
 
     setSessionName(name)
   }
