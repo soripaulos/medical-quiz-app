@@ -125,9 +125,9 @@ export function ActiveSessionCard({ compact = false }: ActiveSessionCardProps) {
   }
 
   const getTimeStatus = () => {
-    if (!activeSession?.time_remaining) return null
+    if (!activeSession?.time_remaining || !activeSession?.time_limit) return null
     
-    const percentage = (activeSession.time_remaining / (activeSession.time_limit! * 60)) * 100
+    const percentage = (activeSession.time_remaining / (activeSession.time_limit * 60)) * 100
     
     if (percentage <= 10) return 'critical'
     if (percentage <= 25) return 'warning'
@@ -225,7 +225,7 @@ export function ActiveSessionCard({ compact = false }: ActiveSessionCardProps) {
                   timeStatus === 'critical' ? 'text-red-600 dark:text-red-400' : 
                   timeStatus === 'warning' ? 'text-yellow-600 dark:text-yellow-400' : 'text-blue-600 dark:text-blue-400'
                 }`}>
-                  {formatTimeRemaining(activeSession.time_remaining)}
+                  {formatTimeRemaining(activeSession.time_remaining || 0)}
                 </p>
               </>
             ) : (

@@ -36,7 +36,17 @@
     - Added fallback values for all dashboard cards
     - Improved data validation
 
-### 4. **Enhanced Error Handling**
+### 4. **Fixed TypeScript Build Error**
+- **Issue**: Build failing due to TypeScript error in active-session-card.tsx
+- **Error**: `Argument of type 'number | undefined' is not assignable to parameter of type 'number'`
+- **Solution**: Added proper null/undefined handling
+- **Files Modified**:
+  - `components/test/active-session-card.tsx`
+    - Fixed `formatTimeRemaining(activeSession.time_remaining)` to `formatTimeRemaining(activeSession.time_remaining || 0)`
+    - Fixed `getTimeStatus` function to check for both `time_remaining` and `time_limit` before using them
+    - Removed unsafe non-null assertion operator (`!`) usage
+
+### 5. **Enhanced Error Handling**
 - **Issue**: Silent failures when APIs returned errors
 - **Solution**: Added comprehensive error handling and logging
 - **Files Modified**:
@@ -64,6 +74,10 @@
 - **Before**: Showing undefined/null values
 - **After**: Proper data display with fallback values
 
+### TypeScript Safety
+- **Before**: Unsafe non-null assertions and undefined handling
+- **After**: Proper null/undefined checks and default values
+
 ## Code Quality Improvements
 
 ### 1. **Removed Unused Code**
@@ -83,34 +97,41 @@
 - Added checks for undefined/null values
 - Added proper fallback handling
 
+### 4. **TypeScript Safety**
+- Removed unsafe non-null assertions
+- Added proper null/undefined checks
+- Added default values for optional properties
+
 ## Testing Verification
 
 To verify the fixes work correctly:
 
-1. **Dashboard Cards**: All cards should now display proper values
+1. **Build Process**: Application should build without TypeScript errors
+2. **Dashboard Cards**: All cards should now display proper values
    - Overall Score: Shows percentage with proper formatting
    - Time Spent: Shows formatted time across all sessions
    - Questions Attempted: Shows count and percentage
    - Study Sessions: Shows total completed sessions
 
-2. **Answer Distribution**: 
+3. **Answer Distribution**: 
    - Shows pie chart when data is available
    - Shows "No data available" message when no questions answered
    - Proper legend with percentages
 
-3. **Active Session Card**:
+4. **Active Session Card**:
    - No longer shows time spent for practice mode
    - Shows "Practice Mode" / "No time limit" for practice sessions
    - Shows time remaining for exam mode sessions
+   - Handles undefined time values gracefully
 
-4. **Error Handling**:
+5. **Error Handling**:
    - No more silent failures
    - Proper error messages in console
    - Graceful degradation when APIs fail
 
 ## Files Modified
 
-1. `components/test/active-session-card.tsx` - Removed time spent display
+1. `components/test/active-session-card.tsx` - Removed time spent display & fixed TypeScript errors
 2. `components/test/user-progress-dashboard.tsx` - Fixed data parsing and error handling
 3. `SESSION_TRACKING_FIXES.md` - This documentation
 
@@ -121,3 +142,4 @@ To verify the fixes work correctly:
 3. Test answer distribution with different data states
 4. Verify error handling works as expected
 5. Remove debug logging before production deployment
+6. Monitor for any remaining TypeScript issues in CI/CD pipeline
