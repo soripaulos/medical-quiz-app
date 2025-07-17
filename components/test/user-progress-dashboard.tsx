@@ -19,7 +19,7 @@ import {
   Pie,
   Cell,
 } from "recharts"
-import { Trophy, Target, Clock, BookOpen, Eye, FileText } from "lucide-react"
+import { Trophy, Target, Clock, BookOpen, Eye, FileText, GraduationCap, Timer } from "lucide-react"
 import Link from "next/link"
 import {
   Table,
@@ -167,6 +167,15 @@ export function UserProgressDashboard() {
     if (score >= 80) return "text-green-600"
     if (score >= 60) return "text-yellow-600"
     return "text-red-600"
+  }
+
+  const getSessionTypeIcon = (type: string) => {
+    return type === 'exam' ? <Timer className="w-4 h-4 text-red-500" /> : <GraduationCap className="w-4 h-4 text-blue-500" />
+  }
+
+  const formatShortDate = (dateString: string) => {
+    const date = new Date(dateString)
+    return `${date.getDate().toString().padStart(2, '0')}/${(date.getMonth() + 1).toString().padStart(2, '0')}`
   }
 
   const pieData = stats
@@ -340,35 +349,38 @@ export function UserProgressDashboard() {
                   <Table>
                     <TableHeader>
                       <TableRow>
-                        <TableHead>Test Name</TableHead>
-                        <TableHead>Type</TableHead>
-                        <TableHead>Date</TableHead>
-                        <TableHead>Score</TableHead>
-                        <TableHead>Questions</TableHead>
-                        <TableHead>Time</TableHead>
-                        <TableHead>Actions</TableHead>
+                        <TableHead className="text-xs sm:text-sm">Test Name</TableHead>
+                        <TableHead className="text-xs sm:text-sm w-8">Type</TableHead>
+                        <TableHead className="text-xs sm:text-sm w-16">Date</TableHead>
+                        <TableHead className="text-xs sm:text-sm w-16">Score</TableHead>
+                        <TableHead className="text-xs sm:text-sm w-20">Q's</TableHead>
+                        <TableHead className="text-xs sm:text-sm w-8">View</TableHead>
                       </TableRow>
                     </TableHeader>
                     <TableBody>
                       {sessionHistory.map((session) => (
                         <TableRow key={session.id}>
-                          <TableCell className="font-medium">{session.name}</TableCell>
-                          <TableCell>
-                            <Badge variant="outline">{session.type}</Badge>
+                          <TableCell className="font-medium text-xs sm:text-sm">
+                            <div className="truncate max-w-[120px] sm:max-w-none">
+                              {session.name}
+                            </div>
                           </TableCell>
-                          <TableCell>{new Date(session.date).toLocaleDateString()}</TableCell>
-                          <TableCell className={getScoreColor(session.score)}>
+                          <TableCell className="text-center">
+                            {getSessionTypeIcon(session.type)}
+                          </TableCell>
+                          <TableCell className="text-xs sm:text-sm">
+                            {formatShortDate(session.date)}
+                          </TableCell>
+                          <TableCell className={`text-xs sm:text-sm font-bold ${getScoreColor(session.score)}`}>
                             {session.score.toFixed(1)}%
                           </TableCell>
-                          <TableCell>
+                          <TableCell className="text-xs sm:text-sm">
                             {session.correctAnswers}/{session.totalQuestions}
                           </TableCell>
-                          <TableCell>{formatTime(session.timeSpent)}</TableCell>
-                          <TableCell>
-                            <Button asChild variant="outline" size="sm">
+                          <TableCell className="text-center">
+                            <Button asChild variant="ghost" size="sm" className="h-8 w-8 p-0">
                               <Link href={`/test/${session.id}/results`}>
-                                <Eye className="mr-2 h-4 w-4" />
-                                View
+                                <Eye className="h-4 w-4" />
                               </Link>
                             </Button>
                           </TableCell>
