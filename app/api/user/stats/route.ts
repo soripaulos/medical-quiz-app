@@ -42,7 +42,20 @@ export async function GET() {
     const totalQuestions = completedSessions.reduce((sum, s) => sum + (s.total_questions || 0), 0)
     const totalCorrect = completedSessions.reduce((sum, s) => sum + (s.correct_answers || 0), 0)
     const totalIncorrect = completedSessions.reduce((sum, s) => sum + (s.incorrect_answers || 0), 0)
-    const totalTimeSpentSeconds = completedSessions.reduce((sum, s) => sum + (s.total_time_spent || 0), 0)
+    
+    // Calculate total time spent using fresh dynamic data for each session
+    let totalTimeSpentSeconds = 0
+    for (const session of completedSessions) {
+      try {
+        const { data: activeTime } = await supabase.rpc('calculate_session_active_time', {
+          session_id: session.id
+        })
+        totalTimeSpentSeconds += activeTime || session.total_time_spent || 0
+      } catch (error) {
+        console.error(`Error calculating active time for session ${session.id}:`, error)
+        totalTimeSpentSeconds += session.total_time_spent || 0
+      }
+    }
 
     // Get total unique questions attempted across all sessions
     const { data: uniqueQuestions, error: uniqueError } = await supabase

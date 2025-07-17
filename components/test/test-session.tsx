@@ -1,5 +1,6 @@
 "use client"
 
+import { useEffect } from "react"
 import { QuizInterface } from "@/components/quiz/quiz-interface"
 import type { Question, UserSession, UserAnswer, UserQuestionProgress } from "@/lib/types"
 import { getAnswerChoices } from "@/lib/types"
@@ -26,6 +27,25 @@ export function TestSession({ sessionId }: TestSessionProps) {
     updateAnswer,
     updateProgress
   } = useSession(sessionId)
+
+  // Resume session activity when component mounts
+  useEffect(() => {
+    const resumeSession = async () => {
+      if (session && session.is_paused) {
+        try {
+          const response = await fetch(`/api/sessions/${sessionId}/resume`, {
+            method: "POST",
+          })
+          if (!response.ok) {
+            console.error("Failed to resume session activity")
+          }
+        } catch (error) {
+          console.error("Error resuming session activity:", error)
+        }
+      }
+    }
+    resumeSession()
+  }, [session, sessionId])
 
   const handleAnswerSelect = async (questionId: string, choiceLetter: string) => {
     if (!session) return

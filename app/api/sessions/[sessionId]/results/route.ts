@@ -95,16 +95,27 @@ export async function GET(_req: Request, context: { params: Promise<{ sessionId:
       console.error("Progress error:", progressError)
     }
 
-    // Use stored metrics from session
+    // Get fresh active time using the database function
+    const { data: activeTime, error: timeError } = await supabase.rpc('calculate_session_active_time', {
+      session_id: sessionId
+    })
+
+    if (timeError) {
+      console.error("Error calculating active time:", timeError)
+    }
+
+    const finalTimeSpent = activeTime || session.total_time_spent || 0
+
+    // Use stored metrics from session with fresh time data
     const performance = {
       totalQuestions: session.total_questions,
       correctAnswers: session.correct_answers || 0,
       incorrectAnswers: session.incorrect_answers || 0,
       unansweredQuestions: session.unanswered_questions || 0,
       accuracy: session.total_questions > 0 ? ((session.correct_answers || 0) / session.total_questions) * 100 : 0,
-      timeSpent: session.total_time_spent || 0,
+      timeSpent: finalTimeSpent,
       averageTimePerQuestion:
-        session.total_questions > 0 ? Math.floor((session.total_time_spent || 0) / session.total_questions) : 0,
+        session.total_questions > 0 ? Math.floor(finalTimeSpent / session.total_questions) : 0,
     }
 
     // Category breakdown
@@ -186,7 +197,7 @@ export async function GET(_req: Request, context: { params: Promise<{ sessionId:
         correctAnswer: q.correct_answer,
         correctAnswerText,
         isCorrect: userAnswer?.is_correct || false,
-        timeSpent: Math.floor((session.total_time_spent || 0) / session.total_questions), // Simple distribution
+        timeSpent: Math.floor(finalTimeSpent / session.total_questions), // Simple distribution
         difficulty: q.difficulty || 1,
         specialty: q.specialty?.name || "Unknown",
         isFlagged: progress?.is_flagged || false,
