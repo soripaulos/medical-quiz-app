@@ -19,7 +19,7 @@ import {
   Pie,
   Cell,
 } from "recharts"
-import { Trophy, Target, Clock, BookOpen, Eye, FileText, GraduationCap, Timer } from "lucide-react"
+import { Trophy, Target, Clock, BookOpen, Eye, FileText, BookOpenCheck, Timer } from "lucide-react"
 import Link from "next/link"
 import {
   Table,
@@ -170,7 +170,7 @@ export function UserProgressDashboard() {
   }
 
   const getSessionTypeIcon = (type: string) => {
-    return type === 'exam' ? <Timer className="w-4 h-4 text-red-500" /> : <GraduationCap className="w-4 h-4 text-blue-500" />
+    return type === 'exam' ? <Timer className="w-4 h-4 text-red-500" /> : <BookOpenCheck className="w-4 h-4 text-blue-500" />
   }
 
   const formatShortDate = (dateString: string) => {
@@ -350,23 +350,25 @@ export function UserProgressDashboard() {
                     <TableHeader>
                       <TableRow>
                         <TableHead className="text-xs sm:text-sm">Test Name</TableHead>
-                        <TableHead className="text-xs sm:text-sm w-8">Type</TableHead>
                         <TableHead className="text-xs sm:text-sm w-16">Date</TableHead>
                         <TableHead className="text-xs sm:text-sm w-16">Score</TableHead>
                         <TableHead className="text-xs sm:text-sm w-20">Q's</TableHead>
-                        <TableHead className="text-xs sm:text-sm w-8">View</TableHead>
                       </TableRow>
                     </TableHeader>
                     <TableBody>
                       {sessionHistory.map((session) => (
-                        <TableRow key={session.id}>
+                        <TableRow 
+                          key={session.id} 
+                          className="cursor-pointer hover:bg-gray-50 transition-colors"
+                          onClick={() => window.location.href = `/test/${session.id}/results`}
+                        >
                           <TableCell className="font-medium text-xs sm:text-sm">
-                            <div className="truncate max-w-[120px] sm:max-w-none">
-                              {session.name}
+                            <div className="flex items-center gap-2">
+                              {getSessionTypeIcon(session.type)}
+                              <span className="truncate max-w-[120px] sm:max-w-none">
+                                {session.name}
+                              </span>
                             </div>
-                          </TableCell>
-                          <TableCell className="text-center">
-                            {getSessionTypeIcon(session.type)}
                           </TableCell>
                           <TableCell className="text-xs sm:text-sm">
                             {formatShortDate(session.date)}
@@ -376,13 +378,6 @@ export function UserProgressDashboard() {
                           </TableCell>
                           <TableCell className="text-xs sm:text-sm">
                             {session.correctAnswers}/{session.totalQuestions}
-                          </TableCell>
-                          <TableCell className="text-center">
-                            <Button asChild variant="ghost" size="sm" className="h-8 w-8 p-0">
-                              <Link href={`/test/${session.id}/results`}>
-                                <Eye className="h-4 w-4" />
-                              </Link>
-                            </Button>
                           </TableCell>
                         </TableRow>
                       ))}
