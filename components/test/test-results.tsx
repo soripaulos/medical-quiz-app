@@ -134,6 +134,16 @@ export function TestResults({ sessionId }: TestResultsProps) {
     return `${secs}s`
   }
 
+  const formatTimeSpent = (seconds: number) => {
+    const hours = Math.floor(seconds / 3600)
+    const minutes = Math.floor((seconds % 3600) / 60)
+    
+    if (hours > 0) {
+      return `${hours}h ${minutes}m`
+    }
+    return `${minutes}m`
+  }
+
   if (loading) {
     return <FullPageSpinner />
   }
@@ -155,7 +165,7 @@ export function TestResults({ sessionId }: TestResultsProps) {
     )
   }
 
-  const { performance, categoryBreakdown, difficultyBreakdown, questionDetails } = results
+  const { performance, categoryBreakdown, questionDetails } = results
   const performanceBadge = getPerformanceBadge(performance.accuracy)
 
   // Chart data
@@ -172,7 +182,7 @@ export function TestResults({ sessionId }: TestResultsProps) {
         <div className="text-center space-y-4">
           <div className="flex items-center justify-center gap-3">
             <Trophy className="w-8 h-8 text-yellow-500" />
-            <h1 className="text-3xl font-bold text-gray-900">Test Results</h1>
+            <h1 className="text-3xl font-bold text-foreground">Test Results</h1>
           </div>
           <div className="flex items-center justify-center gap-4">
             <Badge variant="outline" className="text-sm">
@@ -209,7 +219,7 @@ export function TestResults({ sessionId }: TestResultsProps) {
               <Clock className="h-4 w-4 text-muted-foreground" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold">{formatTime(performance.timeSpent)}</div>
+              <div className="text-2xl font-bold">{formatTimeSpent(performance.timeSpent)}</div>
               <p className="text-xs text-muted-foreground">
                 Avg: {formatTime(performance.averageTimePerQuestion)} per question
               </p>
@@ -335,9 +345,9 @@ export function TestResults({ sessionId }: TestResultsProps) {
               </Card>
             </div>
 
-            {/* Breakdown Content */}
+            {/* Specialty Breakdown */}
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-              {/* Specialty Breakdown */}
+              {/* Specialty Chart */}
               <Card>
                 <CardHeader>
                   <CardTitle>Performance by Specialty</CardTitle>
@@ -355,27 +365,7 @@ export function TestResults({ sessionId }: TestResultsProps) {
                 </CardContent>
               </Card>
 
-              {/* Difficulty Breakdown */}
-              <Card>
-                <CardHeader>
-                  <CardTitle>Performance by Difficulty</CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <ResponsiveContainer width="100%" height={300}>
-                    <BarChart data={difficultyBreakdown}>
-                      <CartesianGrid strokeDasharray="3 3" />
-                      <XAxis dataKey="level" />
-                      <YAxis />
-                      <Tooltip formatter={(value) => [`${value}%`, "Accuracy"]} />
-                      <Bar dataKey="accuracy" fill="#10b981" />
-                    </BarChart>
-                  </ResponsiveContainer>
-                </CardContent>
-              </Card>
-            </div>
-
-            {/* Detailed Breakdown Tables */}
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+              {/* Specialty Details */}
               <Card>
                 <CardHeader>
                   <CardTitle>Specialty Details</CardTitle>
@@ -401,36 +391,8 @@ export function TestResults({ sessionId }: TestResultsProps) {
                   </div>
                 </CardContent>
               </Card>
-
-              <Card>
-                <CardHeader>
-                  <CardTitle>Difficulty Details</CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <div className="space-y-3">
-                    {difficultyBreakdown.map((difficulty) => (
-                      <div key={difficulty.level} className="flex items-center justify-between p-3 border rounded">
-                        <div>
-                          <p className="font-medium">Level {difficulty.level}</p>
-                          <p className="text-sm text-muted-foreground">
-                            {difficulty.correct}/{difficulty.total} questions
-                          </p>
-                        </div>
-                        <div className="text-right">
-                          <p className={`font-bold ${getPerformanceColor(difficulty.accuracy)}`}>
-                            {difficulty.accuracy.toFixed(1)}%
-                          </p>
-                          <Progress value={difficulty.accuracy} className="w-20" />
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                </CardContent>
-              </Card>
             </div>
           </TabsContent>
-
-
 
           <TabsContent value="questions">
             <Card>
