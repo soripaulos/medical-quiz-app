@@ -282,11 +282,10 @@ export function UserProgressDashboard() {
 
         <Tabs defaultValue="overview" className="space-y-6">
           <div className="flex flex-col sm:flex-row gap-2 sm:gap-0">
-            <TabsList className="grid w-full grid-cols-2 sm:grid-cols-5 h-auto sm:h-10">
+            <TabsList className="grid w-full grid-cols-2 sm:grid-cols-4 h-auto sm:h-10">
               <TabsTrigger value="overview" className="text-xs sm:text-sm py-2 sm:py-1">Overview</TabsTrigger>
               <TabsTrigger value="history" className="text-xs sm:text-sm py-2 sm:py-1">Test History</TabsTrigger>
               <TabsTrigger value="performance" className="text-xs sm:text-sm py-2 sm:py-1">Performance</TabsTrigger>
-              <TabsTrigger value="progress" className="text-xs sm:text-sm py-2 sm:py-1">Progress</TabsTrigger>
               <TabsTrigger value="notes" className="text-xs sm:text-sm py-2 sm:py-1">Notes</TabsTrigger>
             </TabsList>
           </div>
@@ -371,7 +370,6 @@ export function UserProgressDashboard() {
                     <TableHeader>
                       <TableRow>
                         <TableHead className="text-xs sm:text-sm">Test Name</TableHead>
-                        <TableHead className="text-xs sm:text-sm w-8">Type</TableHead>
                         <TableHead className="text-xs sm:text-sm w-16">Date</TableHead>
                         <TableHead className="text-xs sm:text-sm w-16">Score</TableHead>
                         <TableHead className="text-xs sm:text-sm w-20">Q's</TableHead>
@@ -386,12 +384,22 @@ export function UserProgressDashboard() {
                           onClick={() => router.push(`/test/${session.id}/results`)}
                         >
                           <TableCell className="font-medium text-xs sm:text-sm">
-                            <div className="truncate max-w-[120px] sm:max-w-none">
-                              {session.name}
+                            <div className="flex items-center justify-between">
+                              <div className="truncate max-w-[120px] sm:max-w-none">
+                                {session.name}
+                              </div>
+                              <Button 
+                                asChild 
+                                variant="ghost" 
+                                size="sm" 
+                                className="h-8 w-8 p-0 sm:hidden"
+                                onClick={(e) => e.stopPropagation()}
+                              >
+                                <Link href={`/test/${session.id}/results`}>
+                                  <Eye className="h-4 w-4" />
+                                </Link>
+                              </Button>
                             </div>
-                          </TableCell>
-                          <TableCell className="text-center">
-                            {getSessionTypeIcon(session.type)}
                           </TableCell>
                           <TableCell className="text-xs sm:text-sm">
                             {formatShortDate(session.date)}
@@ -425,61 +433,63 @@ export function UserProgressDashboard() {
           </TabsContent>
 
           <TabsContent value="performance" className="space-y-6">
-            <Card>
-              <CardHeader>
-                <CardTitle>Performance by Category</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <ResponsiveContainer width="100%" height={400}>
-                  <BarChart data={categoryPerformance}>
-                    <CartesianGrid strokeDasharray="3 3" />
-                    <XAxis dataKey="category" angle={-45} textAnchor="end" height={100} />
-                    <YAxis />
-                    <Tooltip formatter={(value) => [`${value}%`, "Accuracy"]} />
-                    <Bar dataKey="accuracy" fill="#3b82f6" />
-                  </BarChart>
-                </ResponsiveContainer>
-              </CardContent>
-            </Card>
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+              <Card>
+                <CardHeader>
+                  <CardTitle>Performance by Category</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <ResponsiveContainer width="100%" height={400}>
+                    <BarChart data={categoryPerformance}>
+                      <CartesianGrid strokeDasharray="3 3" />
+                      <XAxis dataKey="category" angle={-45} textAnchor="end" height={100} />
+                      <YAxis />
+                      <Tooltip formatter={(value) => [`${value}%`, "Accuracy"]} />
+                      <Bar dataKey="accuracy" fill="#3b82f6" />
+                    </BarChart>
+                  </ResponsiveContainer>
+                </CardContent>
+              </Card>
+
+              <Card>
+                <CardHeader>
+                  <CardTitle>Progress Over Time</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <ResponsiveContainer width="100%" height={400}>
+                    <LineChart data={progressData}>
+                      <CartesianGrid strokeDasharray="3 3" />
+                      <XAxis dataKey="sessionNumber" />
+                      <YAxis />
+                      <Tooltip
+                        formatter={(value, name) => [
+                          `${value}%`,
+                          name === "sessionAccuracy" ? "Session Score" : "Overall Average",
+                        ]}
+                        labelFormatter={(label) => `Session ${label}`}
+                      />
+                      <Line
+                        type="monotone"
+                        dataKey="sessionAccuracy"
+                        stroke="#ef4444"
+                        strokeWidth={2}
+                        name="sessionAccuracy"
+                      />
+                      <Line
+                        type="monotone"
+                        dataKey="cumulativeAccuracy"
+                        stroke="#3b82f6"
+                        strokeWidth={2}
+                        name="cumulativeAccuracy"
+                      />
+                    </LineChart>
+                  </ResponsiveContainer>
+                </CardContent>
+              </Card>
+            </div>
           </TabsContent>
 
-          <TabsContent value="progress" className="space-y-6">
-            <Card>
-              <CardHeader>
-                <CardTitle>Progress Over Time</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <ResponsiveContainer width="100%" height={400}>
-                  <LineChart data={progressData}>
-                    <CartesianGrid strokeDasharray="3 3" />
-                    <XAxis dataKey="sessionNumber" />
-                    <YAxis />
-                    <Tooltip
-                      formatter={(value, name) => [
-                        `${value}%`,
-                        name === "sessionAccuracy" ? "Session Score" : "Overall Average",
-                      ]}
-                      labelFormatter={(label) => `Session ${label}`}
-                    />
-                    <Line
-                      type="monotone"
-                      dataKey="sessionAccuracy"
-                      stroke="#ef4444"
-                      strokeWidth={2}
-                      name="sessionAccuracy"
-                    />
-                    <Line
-                      type="monotone"
-                      dataKey="cumulativeAccuracy"
-                      stroke="#3b82f6"
-                      strokeWidth={2}
-                      name="cumulativeAccuracy"
-                    />
-                  </LineChart>
-                </ResponsiveContainer>
-              </CardContent>
-            </Card>
-          </TabsContent>
+
 
           <TabsContent value="notes" className="space-y-6">
             <Card>
@@ -503,27 +513,27 @@ export function UserProgressDashboard() {
                         
                         {/* Question Preview with Toggle */}
                         <div 
-                          className="cursor-pointer hover:bg-gray-50 p-2 rounded mb-2"
+                          className="cursor-pointer hover:bg-muted p-2 rounded mb-2"
                           onClick={() => toggleNoteExpansion(note.id)}
                         >
                           <div className="flex items-center justify-between">
-                            <p className="text-sm text-gray-600 flex-1">{note.questionPreview}</p>
+                            <p className="text-sm text-muted-foreground flex-1">{note.questionPreview}</p>
                             {expandedNotes.has(note.id) ? (
-                              <ChevronUp className="w-4 h-4 text-gray-500 ml-2" />
+                              <ChevronUp className="w-4 h-4 text-muted-foreground ml-2" />
                             ) : (
-                              <ChevronDown className="w-4 h-4 text-gray-500 ml-2" />
+                              <ChevronDown className="w-4 h-4 text-muted-foreground ml-2" />
                             )}
                           </div>
                         </div>
 
                         {/* Expanded Question Details */}
                         {expandedNotes.has(note.id) && (
-                          <div className="mb-4 p-3 bg-gray-50 rounded border">
+                          <div className="mb-4 p-3 bg-muted rounded border">
                             <div className="space-y-3">
                               {/* Full Question Text */}
                               <div>
                                 <h4 className="font-medium text-sm mb-2">Question:</h4>
-                                <p className="text-sm text-gray-700">{note.questionText}</p>
+                                <p className="text-sm text-foreground">{note.questionText}</p>
                               </div>
 
                               {/* Answer Choices */}
@@ -536,14 +546,14 @@ export function UserProgressDashboard() {
                                         key={choice.letter} 
                                         className={`p-2 rounded text-sm ${
                                           choice.letter === note.correctAnswer 
-                                            ? 'bg-green-100 border border-green-200' 
-                                            : 'bg-white border border-gray-200'
+                                            ? 'bg-green-100 dark:bg-green-900 border border-green-200 dark:border-green-800' 
+                                            : 'bg-background border border-border'
                                         }`}
                                       >
                                         <span className="font-medium">{choice.letter}. </span>
                                         <span>{choice.text}</span>
                                         {choice.letter === note.correctAnswer && (
-                                          <span className="ml-2 text-green-600 font-medium text-xs">(Correct)</span>
+                                          <span className="ml-2 text-green-600 dark:text-green-400 font-medium text-xs">(Correct)</span>
                                         )}
                                       </div>
                                     ))}
@@ -555,7 +565,7 @@ export function UserProgressDashboard() {
                               {note.explanation && (
                                 <div>
                                   <h4 className="font-medium text-sm mb-2">Explanation:</h4>
-                                  <p className="text-sm text-gray-700">{note.explanation}</p>
+                                  <p className="text-sm text-foreground">{note.explanation}</p>
                                 </div>
                               )}
 
@@ -573,7 +583,7 @@ export function UserProgressDashboard() {
                         {/* User Note */}
                         <div>
                           <h4 className="font-medium text-sm mb-2">Your Note:</h4>
-                          <p className="text-gray-900">{note.noteText}</p>
+                          <p className="text-foreground">{note.noteText}</p>
                         </div>
                       </div>
                     ))

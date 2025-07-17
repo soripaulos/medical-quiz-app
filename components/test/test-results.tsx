@@ -244,9 +244,8 @@ export function TestResults({ sessionId }: TestResultsProps) {
         </div>
 
         <Tabs defaultValue="overview" className="space-y-6">
-          <TabsList className="grid w-full grid-cols-4">
+          <TabsList className="grid w-full grid-cols-3">
             <TabsTrigger value="overview">Overview</TabsTrigger>
-            <TabsTrigger value="breakdown">Breakdown</TabsTrigger>
             <TabsTrigger value="questions">Question Review</TabsTrigger>
             <TabsTrigger value="insights">Insights</TabsTrigger>
           </TabsList>
@@ -335,9 +334,8 @@ export function TestResults({ sessionId }: TestResultsProps) {
                 </CardContent>
               </Card>
             </div>
-          </TabsContent>
 
-          <TabsContent value="breakdown" className="space-y-6">
+            {/* Breakdown Content */}
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
               {/* Specialty Breakdown */}
               <Card>
@@ -388,7 +386,7 @@ export function TestResults({ sessionId }: TestResultsProps) {
                       <div key={category.specialty} className="flex items-center justify-between p-3 border rounded">
                         <div>
                           <p className="font-medium">{category.specialty}</p>
-                          <p className="text-sm text-gray-600">
+                          <p className="text-sm text-muted-foreground">
                             {category.correct}/{category.total} questions
                           </p>
                         </div>
@@ -414,7 +412,7 @@ export function TestResults({ sessionId }: TestResultsProps) {
                       <div key={difficulty.level} className="flex items-center justify-between p-3 border rounded">
                         <div>
                           <p className="font-medium">Level {difficulty.level}</p>
-                          <p className="text-sm text-gray-600">
+                          <p className="text-sm text-muted-foreground">
                             {difficulty.correct}/{difficulty.total} questions
                           </p>
                         </div>
@@ -431,6 +429,8 @@ export function TestResults({ sessionId }: TestResultsProps) {
               </Card>
             </div>
           </TabsContent>
+
+
 
           <TabsContent value="questions">
             <Card>
@@ -485,19 +485,19 @@ export function TestResults({ sessionId }: TestResultsProps) {
                                       key={choice.letter} 
                                       className={`p-2 rounded text-sm border ${
                                         choice.letter === q.correctAnswer 
-                                          ? 'bg-green-50 border-green-200' 
+                                          ? 'bg-green-50 dark:bg-green-900 border-green-200 dark:border-green-800' 
                                           : choice.letter === q.userAnswer 
-                                            ? 'bg-red-50 border-red-200' 
-                                            : 'bg-gray-50 border-gray-200'
+                                            ? 'bg-red-50 dark:bg-red-900 border-red-200 dark:border-red-800' 
+                                            : 'bg-background border-border'
                                       }`}
                                     >
                                       <span className="font-medium">{choice.letter}. </span>
                                       <span>{choice.text}</span>
                                       {choice.letter === q.correctAnswer && (
-                                        <span className="ml-2 text-green-600 font-medium">(Correct)</span>
+                                        <span className="ml-2 text-green-600 dark:text-green-400 font-medium">(Correct)</span>
                                       )}
                                       {choice.letter === q.userAnswer && choice.letter !== q.correctAnswer && (
-                                        <span className="ml-2 text-red-600 font-medium">(Your Answer)</span>
+                                        <span className="ml-2 text-red-600 dark:text-red-400 font-medium">(Your Answer)</span>
                                       )}
                                     </div>
                                   ))}
@@ -509,13 +509,13 @@ export function TestResults({ sessionId }: TestResultsProps) {
                             <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm border-t pt-4">
                               <div>
                                 <span className="font-medium">Your Answer: </span>
-                                <span className={q.userAnswer ? "" : "text-gray-500"}>
+                                <span className={q.userAnswer ? "" : "text-muted-foreground"}>
                                   {q.userAnswerText ? `${q.userAnswer}. ${q.userAnswerText}` : "Not Answered"}
                                 </span>
                               </div>
                               <div>
                                 <span className="font-medium">Correct Answer: </span>
-                                <span className="text-green-600">
+                                <span className="text-green-600 dark:text-green-400">
                                   {q.correctAnswerText ? `${q.correctAnswer}. ${q.correctAnswerText}` : q.correctAnswer}
                                 </span>
                               </div>
