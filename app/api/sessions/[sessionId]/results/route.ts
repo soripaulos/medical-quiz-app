@@ -104,7 +104,7 @@ export async function GET(_req: Request, context: { params: Promise<{ sessionId:
       console.error("Error calculating active time:", timeError)
     }
 
-    const finalTimeSpent = activeTime || session.total_time_spent || 0
+    const finalTimeSpent = activeTime || session.total_active_time || 0
 
     // Use stored metrics from session with fresh time data
     const performance = {

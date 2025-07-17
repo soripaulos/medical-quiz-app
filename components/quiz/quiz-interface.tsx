@@ -90,8 +90,71 @@ export function QuizInterface({
     }
     startSessionActivity()
 
-    // Cleanup function to pause session activity when component unmounts
+    // Handle page visibility changes (tab switching, minimizing)
+    const handleVisibilityChange = async () => {
+      if (document.hidden) {
+        // Page is hidden, pause session
+        try {
+          await fetch(`/api/sessions/${session.id}/pause`, {
+            method: "POST",
+          })
+        } catch (error) {
+          console.error("Error pausing session on visibility change:", error)
+        }
+      } else {
+        // Page is visible, resume session
+        try {
+          await fetch(`/api/sessions/${session.id}/resume`, {
+            method: "POST",
+          })
+        } catch (error) {
+          console.error("Error resuming session on visibility change:", error)
+        }
+      }
+    }
+
+    // Handle beforeunload event (browser close, page refresh, navigation)
+    const handleBeforeUnload = async (event: BeforeUnloadEvent) => {
+      // Use sendBeacon for reliable data sending during unload
+      const pauseData = JSON.stringify({})
+      
+      try {
+        // Try sendBeacon first (more reliable for unload events)
+        if (navigator.sendBeacon) {
+          navigator.sendBeacon(`/api/sessions/${session.id}/pause`, pauseData)
+        } else {
+          // Fallback to synchronous fetch
+          await fetch(`/api/sessions/${session.id}/pause`, {
+            method: "POST",
+            keepalive: true,
+          })
+        }
+      } catch (error) {
+        console.error("Error pausing session on beforeunload:", error)
+      }
+    }
+
+    // Handle unload event as backup
+    const handleUnload = () => {
+      // Last resort - use sendBeacon if available
+      if (navigator.sendBeacon) {
+        navigator.sendBeacon(`/api/sessions/${session.id}/pause`, JSON.stringify({}))
+      }
+    }
+
+    // Add event listeners
+    document.addEventListener("visibilitychange", handleVisibilityChange)
+    window.addEventListener("beforeunload", handleBeforeUnload)
+    window.addEventListener("unload", handleUnload)
+
+    // Cleanup function to pause session activity and remove event listeners
     return () => {
+      // Remove event listeners
+      document.removeEventListener("visibilitychange", handleVisibilityChange)
+      window.removeEventListener("beforeunload", handleBeforeUnload)
+      window.removeEventListener("unload", handleUnload)
+      
+      // Pause session activity when component unmounts
       const pauseSessionActivity = async () => {
         try {
           await fetch(`/api/sessions/${session.id}/pause`, {

@@ -20,12 +20,13 @@ export async function GET() {
         session_name,
         session_type,
         total_questions,
-        total_time_spent,
+        total_active_time,
         correct_answers,
         incorrect_answers,
         unanswered_questions,
         completed_at,
-        created_at
+        created_at,
+        is_active
       `)
       .eq("user_id", user.id)
       .order("created_at", { ascending: false })
@@ -37,53 +38,82 @@ export async function GET() {
 
     // Calculate aggregate stats from stored session metrics
     const completedSessions = sessions?.filter((s) => s.completed_at) || []
-
     const totalSessions = completedSessions.length
     const totalQuestions = completedSessions.reduce((sum, s) => sum + (s.total_questions || 0), 0)
     const totalCorrect = completedSessions.reduce((sum, s) => sum + (s.correct_answers || 0), 0)
     const totalIncorrect = completedSessions.reduce((sum, s) => sum + (s.incorrect_answers || 0), 0)
     
-    // Calculate total time spent using fresh dynamic data for each session
+    // Calculate total time spent using total_active_time for completed sessions and real-time for active ones
     let totalTimeSpentSeconds = 0
-    for (const session of completedSessions) {
+    for (const session of sessions || []) {
       try {
-        const { data: activeTime } = await supabase.rpc('calculate_session_active_time', {
-          session_id: session.id
-        })
-        totalTimeSpentSeconds += activeTime || session.total_time_spent || 0
+        if (session.is_active) {
+          // For active sessions, get real-time calculation
+          const { data: activeTime } = await supabase.rpc('calculate_session_active_time', {
+            session_id: session.id
+          })
+          totalTimeSpentSeconds += activeTime || session.total_active_time || 0
+        } else {
+          // For completed sessions, use stored total_active_time
+          totalTimeSpentSeconds += session.total_active_time || 0
+        }
       } catch (error) {
         console.error(`Error calculating active time for session ${session.id}:`, error)
-        totalTimeSpentSeconds += session.total_time_spent || 0
+        totalTimeSpentSeconds += session.total_active_time || 0
       }
     }
 
-    // Get total unique questions attempted across all sessions
-    const { data: uniqueQuestions, error: uniqueError } = await supabase
+    // Get latest answers per question for answer distribution (not across all sessions)
+    const { data: latestAnswers, error: answersError } = await supabase
       .from("user_answers")
-      .select("question_id")
+      .select("question_id, is_correct, answered_at")
       .eq("user_id", user.id)
+      .order("answered_at", { ascending: false })
 
-    if (uniqueError) {
-      console.error("Unique questions error:", uniqueError)
+    if (answersError) {
+      console.error("Latest answers error:", answersError)
     }
 
-    const uniqueQuestionIds = new Set(uniqueQuestions?.map((q) => q.question_id) || [])
-    const totalUniqueQuestions = uniqueQuestionIds.size
+    // Create map of question_id to most recent answer
+    const latestAnswerMap = new Map<string, { is_correct: boolean; answered_at: string }>()
+    latestAnswers?.forEach((answer) => {
+      if (!latestAnswerMap.has(answer.question_id)) {
+        latestAnswerMap.set(answer.question_id, {
+          is_correct: answer.is_correct,
+          answered_at: answer.answered_at,
+        })
+      }
+    })
 
-    // Calculate answer distribution based on all questions encountered
-    const { data: allQuestions, error: allQuestionsError } = await supabase.from("questions").select("id")
+    // Get total questions in database for distribution calculation
+    const { data: allQuestions, error: allQuestionsError } = await supabase
+      .from("questions")
+      .select("id")
 
     if (allQuestionsError) {
       console.error("All questions error:", allQuestionsError)
     }
 
     const totalQuestionsInDatabase = allQuestions?.length || 0
-    const correctPercentage = totalQuestionsInDatabase > 0 ? (totalCorrect / totalQuestionsInDatabase) * 100 : 0
-    const incorrectPercentage = totalQuestionsInDatabase > 0 ? (totalIncorrect / totalQuestionsInDatabase) * 100 : 0
-    const unansweredPercentage =
-      totalQuestionsInDatabase > 0
-        ? ((totalQuestionsInDatabase - totalUniqueQuestions) / totalQuestionsInDatabase) * 100
-        : 0
+    
+    // Calculate answer distribution based on latest answers per question
+    let latestCorrectCount = 0
+    let latestIncorrectCount = 0
+    
+    latestAnswerMap.forEach((answer) => {
+      if (answer.is_correct) {
+        latestCorrectCount++
+      } else {
+        latestIncorrectCount++
+      }
+    })
+
+    const totalAnsweredQuestions = latestAnswerMap.size
+    const unansweredCount = totalQuestionsInDatabase - totalAnsweredQuestions
+
+    const correctPercentage = totalQuestionsInDatabase > 0 ? (latestCorrectCount / totalQuestionsInDatabase) * 100 : 0
+    const incorrectPercentage = totalQuestionsInDatabase > 0 ? (latestIncorrectCount / totalQuestionsInDatabase) * 100 : 0
+    const unansweredPercentage = totalQuestionsInDatabase > 0 ? (unansweredCount / totalQuestionsInDatabase) * 100 : 0
 
     const stats = {
       totalSessions,
@@ -92,15 +122,22 @@ export async function GET() {
       totalIncorrect,
       totalTimeSpent: totalTimeSpentSeconds, // Return in seconds for proper conversion
       averageScore: totalQuestions > 0 ? (totalCorrect / totalQuestions) * 100 : 0,
-      totalUniqueQuestions,
+      totalUniqueQuestions: totalAnsweredQuestions,
       answerDistribution: {
         correct: correctPercentage,
         incorrect: incorrectPercentage,
         unanswered: unansweredPercentage,
       },
+      // Additional stats for better insights
+      latestAnswerStats: {
+        correct: latestCorrectCount,
+        incorrect: latestIncorrectCount,
+        unanswered: unansweredCount,
+        total: totalQuestionsInDatabase,
+      },
     }
 
-    return NextResponse.json({ stats })
+    return NextResponse.json(stats)
   } catch (error) {
     console.error("Error fetching user stats:", error)
     return NextResponse.json({ error: "Internal server error" }, { status: 500 })

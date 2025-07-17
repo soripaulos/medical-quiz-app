@@ -115,6 +115,13 @@ export function UserProgressDashboard() {
     try {
       setLoading(true)
 
+      // Clean up orphaned sessions first
+      try {
+        await fetch("/api/sessions/cleanup", { method: "POST" })
+      } catch (error) {
+        console.error("Error cleaning up orphaned sessions:", error)
+      }
+
       // Fetch all data in parallel
       const [statsRes, historyRes, categoryRes, progressRes, notesRes, uniqueRes] = await Promise.all([
         fetch("/api/user/stats"),
