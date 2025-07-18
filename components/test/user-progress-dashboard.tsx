@@ -115,11 +115,14 @@ export function UserProgressDashboard() {
     try {
       setLoading(true)
 
-      // Clean up orphaned sessions first
-      try {
-        await fetch("/api/sessions/cleanup", { method: "POST" })
-      } catch (error) {
-        console.error("Error cleaning up orphaned sessions:", error)
+      // Clean up orphaned sessions first, but only if there's no active session in localStorage
+      const activeSession = localStorage.getItem('activeTestSession')
+      if (!activeSession) {
+        try {
+          await fetch("/api/sessions/cleanup", { method: "POST" })
+        } catch (error) {
+          console.error("Error cleaning up orphaned sessions:", error)
+        }
       }
 
       // Fetch all data in parallel

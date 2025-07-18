@@ -97,6 +97,10 @@ export function EnhancedCreateTestInterface({ userProfile }: EnhancedCreateTestI
   const { user, signOut } = useAuth()
   const { theme, setTheme } = useTheme()
   const router = useRouter()
+  
+  // Session recovery state
+  const [recoverySession, setRecoverySession] = useState<any>(null)
+  const [showRecoveryPrompt, setShowRecoveryPrompt] = useState(false)
 
   const [filters, setFilters] = useState<QuestionFilters>({
     specialties: [],
@@ -136,7 +140,43 @@ export function EnhancedCreateTestInterface({ userProfile }: EnhancedCreateTestI
   useEffect(() => {
     fetchFilterOptions()
     generateSessionName()
+    checkForSessionRecovery()
   }, [])
+
+  // Check for session recovery on mount
+  const checkForSessionRecovery = () => {
+    const storedSession = localStorage.getItem('activeTestSession')
+    if (storedSession) {
+      try {
+        const sessionData = JSON.parse(storedSession)
+        const sessionAge = Date.now() - sessionData.startTime
+        
+        // Only show recovery prompt if session is less than 24 hours old
+        if (sessionAge < 24 * 60 * 60 * 1000) {
+          setRecoverySession(sessionData)
+          setShowRecoveryPrompt(true)
+        } else {
+          // Remove old session data
+          localStorage.removeItem('activeTestSession')
+        }
+      } catch (error) {
+        console.error('Error parsing stored session:', error)
+        localStorage.removeItem('activeTestSession')
+      }
+    }
+  }
+
+  const handleRecoverSession = () => {
+    if (recoverySession) {
+      router.push(`/test/${recoverySession.sessionId}`)
+    }
+  }
+
+  const handleDismissRecovery = () => {
+    setShowRecoveryPrompt(false)
+    setRecoverySession(null)
+    localStorage.removeItem('activeTestSession')
+  }
 
   useEffect(() => {
     fetchFilteredQuestions()
@@ -892,6 +932,37 @@ export function EnhancedCreateTestInterface({ userProfile }: EnhancedCreateTestI
           )}
         </Tabs>
       </main>
+
+      {/* Session Recovery Prompt */}
+      {showRecoveryPrompt && recoverySession && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+          <Card className="max-w-md w-full">
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <AlertCircle className="w-5 h-5 text-orange-500" />
+                Resume Test Session?
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <p className="text-sm text-gray-600">
+                We found an active test session: <strong>{recoverySession.sessionName}</strong>
+              </p>
+              <p className="text-sm text-gray-600">
+                Would you like to continue where you left off?
+              </p>
+              <div className="flex gap-2">
+                <Button onClick={handleRecoverSession} className="flex-1">
+                  <Play className="w-4 h-4 mr-2" />
+                  Resume Session
+                </Button>
+                <Button variant="outline" onClick={handleDismissRecovery} className="flex-1">
+                  Start New Test
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+      )}
     </div>
   )
 }

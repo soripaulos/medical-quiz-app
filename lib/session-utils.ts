@@ -157,22 +157,30 @@ export async function cleanupOrphanedSessions(userId: string): Promise<void> {
   const supabase = await createClient()
   
   try {
-    // Find sessions that are active but haven't been updated in a while (e.g., 1 hour)
-    const oneHourAgo = new Date(Date.now() - 60 * 60 * 1000).toISOString()
+    // Find sessions that are active but haven't been updated in a while (e.g., 6 hours - much more lenient)
+    const sixHoursAgo = new Date(Date.now() - 6 * 60 * 60 * 1000).toISOString()
     
     const { data: orphanedSessions } = await supabase
       .from("user_sessions")
-      .select("id")
+      .select("id, session_name, last_activity_at")
       .eq("user_id", userId)
       .eq("is_active", true)
-      .lt("last_activity_at", oneHourAgo)
+      .lt("last_activity_at", sixHoursAgo)
 
     if (orphanedSessions && orphanedSessions.length > 0) {
       console.log(`Found ${orphanedSessions.length} orphaned sessions for user ${userId}`)
       
-      // End each orphaned session
+      // End each orphaned session, but only if it's really old
       for (const session of orphanedSessions) {
-        await safelyEndSession(session.id)
+        const lastActivity = new Date(session.last_activity_at)
+        const now = new Date()
+        const hoursSinceActivity = (now.getTime() - lastActivity.getTime()) / (1000 * 60 * 60)
+        
+        // Only cleanup sessions that have been inactive for more than 6 hours
+        if (hoursSinceActivity > 6) {
+          console.log(`Cleaning up session ${session.id} (${session.session_name}) - inactive for ${hoursSinceActivity.toFixed(1)} hours`)
+          await safelyEndSession(session.id)
+        }
       }
     }
   } catch (error) {
