@@ -21,12 +21,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const router = useRouter()
   const supabase = createClient()
 
+  // Listen for auth changes
   useEffect(() => {
-    // Get initial session
-    supabase.auth.getSession().then(({ data: { session } }: { data: { session: Session | null } }) => {
-      setUser(session?.user ?? null)
-      setLoading(false)
-    })
+    const { data: { user } } = supabase.auth.getUser()
+    setUser(user)
+    setLoading(false)
 
     // Listen for auth changes
     const {
@@ -35,12 +34,35 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       setUser(session?.user ?? null)
       setLoading(false)
       
-      // Handle auth events
+      // Handle auth events with session preservation
       if (event === 'SIGNED_OUT') {
-        router.push('/login')
-        router.refresh()
+        // Check if user is in an active test session before redirecting
+        const activeSession = localStorage.getItem('activeTestSession')
+        if (!activeSession) {
+          router.push('/login')
+          router.refresh()
+        } else {
+          // Delay redirect to allow session cleanup
+          setTimeout(() => {
+            router.push('/login')
+            router.refresh()
+          }, 1000)
+        }
       } else if (event === 'SIGNED_IN') {
-        router.push('/')
+        // Check if user was in a test session before signing in
+        const activeSession = localStorage.getItem('activeTestSession')
+        if (activeSession) {
+          try {
+            const sessionData = JSON.parse(activeSession)
+            // Redirect back to the test session
+            router.push(`/test/${sessionData.sessionId}`)
+          } catch (error) {
+            console.error('Error parsing active session:', error)
+            router.push('/')
+          }
+        } else {
+          router.push('/')
+        }
         router.refresh()
       }
     })

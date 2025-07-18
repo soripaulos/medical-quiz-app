@@ -1,10 +1,10 @@
 "use client"
 
-import { useEffect } from "react"
+import { useEffect, useRef, useState } from "react"
 import { QuizInterface } from "@/components/quiz/quiz-interface"
 import type { Question, UserSession, UserAnswer, UserQuestionProgress } from "@/lib/types"
 import { getAnswerChoices } from "@/lib/types"
-import { AlertCircle } from "lucide-react"
+import { AlertCircle, RefreshCw } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { useSession } from "@/hooks/use-session-store"
 import { useRouter } from "next/navigation"
@@ -15,8 +15,13 @@ interface TestSessionProps {
 
 export function TestSession({ sessionId }: TestSessionProps) {
   const router = useRouter()
+  const [isRecovering, setIsRecovering] = useState(false)
+  const [retryCount, setRetryCount] = useState(0)
+  const [lastError, setLastError] = useState<string | null>(null)
+  const sessionPersistenceRef = useRef<NodeJS.Timeout | null>(null)
+  const recoveryAttemptRef = useRef<number>(0)
   
-  // Use our new session store instead of local state
+  // Use our session store
   const {
     session,
     questions,
@@ -25,45 +30,160 @@ export function TestSession({ sessionId }: TestSessionProps) {
     loading,
     error,
     updateAnswer,
-    updateProgress
+    updateProgress,
+    loadSession
   } = useSession(sessionId)
 
-  // Add session persistence to localStorage
+  // Enhanced session persistence with recovery mechanisms
   useEffect(() => {
     if (session && !loading) {
-      // Store session info in localStorage for recovery
-      localStorage.setItem('activeTestSession', JSON.stringify({
+      // Store comprehensive session info for recovery
+      const sessionData = {
         sessionId: session.id,
         sessionName: session.session_name,
         startTime: Date.now(),
-        url: window.location.href
-      }))
+        url: window.location.href,
+        lastActivity: Date.now(),
+        currentQuestionIndex: session.current_question_index,
+        isActive: session.is_active,
+        timeRemaining: session.time_remaining
+      }
+      
+      localStorage.setItem('activeTestSession', JSON.stringify(sessionData))
+      localStorage.setItem(`session_${sessionId}_backup`, JSON.stringify(sessionData))
+      
+      // Set up periodic session data backup
+      if (sessionPersistenceRef.current) {
+        clearInterval(sessionPersistenceRef.current)
+      }
+      
+      sessionPersistenceRef.current = setInterval(() => {
+        const updatedData = {
+          ...sessionData,
+          lastActivity: Date.now(),
+          currentQuestionIndex: session.current_question_index,
+          timeRemaining: session.time_remaining
+        }
+        localStorage.setItem('activeTestSession', JSON.stringify(updatedData))
+        localStorage.setItem(`session_${sessionId}_backup`, JSON.stringify(updatedData))
+      }, 10000) // Update every 10 seconds
     }
     
     return () => {
-      // Don't remove from localStorage on unmount - keep it for recovery
+      if (sessionPersistenceRef.current) {
+        clearInterval(sessionPersistenceRef.current)
+      }
     }
-  }, [session, loading])
+  }, [session, loading, sessionId])
 
-  // Check for session recovery on mount
+  // Enhanced session recovery with retry logic
   useEffect(() => {
-    const checkForSessionRecovery = () => {
+    const performSessionRecovery = async () => {
       const storedSession = localStorage.getItem('activeTestSession')
-      if (storedSession) {
+      const backupSession = localStorage.getItem(`session_${sessionId}_backup`)
+      
+      if (storedSession || backupSession) {
         try {
-          const sessionData = JSON.parse(storedSession)
+          const sessionData = JSON.parse(storedSession || backupSession!)
           if (sessionData.sessionId === sessionId) {
             console.log('Recovering test session:', sessionData.sessionName)
-            // Session matches, no need to redirect
+            setIsRecovering(true)
+            
+            // Attempt to resume the session
+            try {
+              await fetch(`/api/sessions/${sessionId}/resume`, {
+                method: "POST",
+              })
+            } catch (resumeError) {
+              console.warn("Could not resume session, but continuing with recovery:", resumeError)
+            }
+            
+            setIsRecovering(false)
           }
         } catch (error) {
           console.error('Error parsing stored session:', error)
+          setIsRecovering(false)
         }
       }
     }
     
-    checkForSessionRecovery()
+    performSessionRecovery()
   }, [sessionId])
+
+  // Enhanced error recovery with exponential backoff
+  useEffect(() => {
+    if (error && !loading) {
+      setLastError(error)
+      
+      // Implement exponential backoff for retry attempts
+      const retryDelay = Math.min(1000 * Math.pow(2, recoveryAttemptRef.current), 30000)
+      
+      if (recoveryAttemptRef.current < 5) { // Max 5 retry attempts
+        console.log(`Attempting session recovery in ${retryDelay}ms (attempt ${recoveryAttemptRef.current + 1})`)
+        
+        const retryTimer = setTimeout(async () => {
+          recoveryAttemptRef.current++
+          setRetryCount(prev => prev + 1)
+          
+          try {
+            await loadSession(sessionId)
+            // If successful, reset retry count
+            recoveryAttemptRef.current = 0
+            setLastError(null)
+          } catch (retryError) {
+            console.error('Retry failed:', retryError)
+          }
+        }, retryDelay)
+        
+        return () => clearTimeout(retryTimer)
+      }
+    }
+  }, [error, loading, sessionId, loadSession])
+
+  // Prevent page unload during active sessions
+  useEffect(() => {
+    const handleBeforeUnload = (event: BeforeUnloadEvent) => {
+      if (session && session.is_active && !session.completed_at) {
+        event.preventDefault()
+        event.returnValue = "Your test session is still active. Are you sure you want to leave?"
+        return "Your test session is still active. Are you sure you want to leave?"
+      }
+    }
+
+    // Add page visibility change handler for better session persistence
+    const handleVisibilityChange = () => {
+      if (document.hidden) {
+        // Update last activity time when page becomes hidden
+        const sessionData = localStorage.getItem('activeTestSession')
+        if (sessionData) {
+          try {
+            const data = JSON.parse(sessionData)
+            data.lastActivity = Date.now()
+            localStorage.setItem('activeTestSession', JSON.stringify(data))
+          } catch (error) {
+            console.error('Error updating session activity:', error)
+          }
+        }
+      } else {
+        // Page is visible again, ensure session is still active
+        if (session && session.is_active) {
+          fetch(`/api/sessions/${sessionId}/resume`, {
+            method: "POST",
+          }).catch(error => {
+            console.warn('Could not resume session on visibility change:', error)
+          })
+        }
+      }
+    }
+
+    window.addEventListener("beforeunload", handleBeforeUnload)
+    document.addEventListener("visibilitychange", handleVisibilityChange)
+
+    return () => {
+      window.removeEventListener("beforeunload", handleBeforeUnload)
+      document.removeEventListener("visibilitychange", handleVisibilityChange)
+    }
+  }, [session, sessionId])
 
   // Resume session activity when component mounts
   useEffect(() => {
@@ -74,10 +194,10 @@ export function TestSession({ sessionId }: TestSessionProps) {
             method: "POST",
           })
           if (!response.ok) {
-            console.error("Failed to resume session activity")
+            console.warn("Could not resume session activity, but continuing")
           }
         } catch (error) {
-          console.error("Error resuming session activity:", error)
+          console.warn("Error resuming session activity, but continuing:", error)
         }
       }
     }
@@ -99,20 +219,32 @@ export function TestSession({ sessionId }: TestSessionProps) {
       answered_at: new Date().toISOString(),
     }
 
-    // Optimistically update the store
+    // Update local state immediately for better UX
     updateAnswer(questionId, newAnswer)
 
-    // Save answer to database
+    // Update progress
+    const newProgress: UserQuestionProgress = {
+      id: `progress-${questionId}`,
+      question_id: questionId,
+      is_answered: true,
+      is_flagged: userProgress.find((p) => p.question_id === questionId)?.is_flagged || false,
+      time_spent: 0,
+      updated_at: new Date().toISOString(),
+    }
+
+    updateProgress(questionId, newProgress)
+
+    // Persist to server
     try {
-      const response = await fetch("/api/answers/save", {
+      const response = await fetch(`/api/sessions/${sessionId}/answers`, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: {
+          "Content-Type": "application/json",
+        },
         body: JSON.stringify({
-          userId: session.user_id,
-          questionId,
-          sessionId: session.id,
-          selectedChoiceLetter: choiceLetter,
-          isCorrect,
+          question_id: questionId,
+          selected_choice_letter: choiceLetter,
+          is_correct: isCorrect,
         }),
       })
 
@@ -121,61 +253,59 @@ export function TestSession({ sessionId }: TestSessionProps) {
       }
     } catch (error) {
       console.error("Error saving answer:", error)
-      // TODO: Revert optimistic update on error
+      // Don't show error to user, answer is saved locally
     }
   }
 
   const handleFlagQuestion = async (questionId: string) => {
-    if (!session) return
+    const currentProgress = userProgress.find((p) => p.question_id === questionId)
+    const newFlaggedState = !currentProgress?.is_flagged
 
-    // Find existing progress or create new one
-    const existingProgress = userProgress.find((p) => p.question_id === questionId)
-    const newProgress: UserQuestionProgress = existingProgress
-      ? { ...existingProgress, is_flagged: !existingProgress.is_flagged }
-      : {
-          id: `progress-${questionId}`,
-          user_id: session.user_id,
-          question_id: questionId,
-          times_attempted: 0,
-          times_correct: 0,
-          is_flagged: true,
-          created_at: new Date().toISOString(),
-          updated_at: new Date().toISOString(),
-        }
+    // Update local state immediately
+    const newProgress: UserQuestionProgress = {
+      id: `progress-${questionId}`,
+      question_id: questionId,
+      is_answered: currentProgress?.is_answered || false,
+      is_flagged: newFlaggedState,
+      time_spent: currentProgress?.time_spent || 0,
+      updated_at: new Date().toISOString(),
+    }
 
-    // Optimistically update the store
     updateProgress(questionId, newProgress)
 
+    // Persist to server
     try {
-      const response = await fetch("/api/progress/flag", {
+      const response = await fetch(`/api/sessions/${sessionId}/flag`, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: {
+          "Content-Type": "application/json",
+        },
         body: JSON.stringify({
-          userId: session.user_id,
-          questionId,
+          question_id: questionId,
+          is_flagged: newFlaggedState,
         }),
       })
 
       if (!response.ok) {
-        throw new Error("Failed to flag question")
+        throw new Error("Failed to update flag")
       }
     } catch (error) {
-      console.error("Error flagging question:", error)
-      // TODO: Revert optimistic update on error
+      console.error("Error updating flag:", error)
+      // Don't show error to user, flag is saved locally
     }
   }
 
   const handleSaveNote = async (questionId: string, note: string) => {
-    if (!session) return
-
     try {
-      const response = await fetch("/api/notes/save", {
+      const response = await fetch(`/api/notes/save`, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: {
+          "Content-Type": "application/json",
+        },
         body: JSON.stringify({
-          userId: session.user_id,
-          questionId,
-          noteText: note,
+          question_id: questionId,
+          session_id: sessionId,
+          note_text: note,
         }),
       })
 
@@ -184,6 +314,7 @@ export function TestSession({ sessionId }: TestSessionProps) {
       }
     } catch (error) {
       console.error("Error saving note:", error)
+      // Don't show error to user for notes
     }
   }
 
@@ -200,6 +331,7 @@ export function TestSession({ sessionId }: TestSessionProps) {
       }
     } catch (error) {
       console.error("Error pausing session:", error)
+      // Don't show error to user, session state is maintained locally
     }
   }
 
@@ -217,27 +349,47 @@ export function TestSession({ sessionId }: TestSessionProps) {
 
       // Clean up localStorage when session is properly ended
       localStorage.removeItem('activeTestSession')
+      localStorage.removeItem(`session_${sessionId}_backup`)
 
       // Use Next.js router for navigation to preserve client-side state
       router.push(`/test/${sessionId}/results`)
     } catch (error) {
       console.error("Error ending session:", error)
-      // Show error but still try to navigate to results
-      alert("Error ending session, but navigating to results anyway")
-      
-      // Clean up localStorage even if there was an error
+      // Still navigate to results even if there was an error
       localStorage.removeItem('activeTestSession')
-      
+      localStorage.removeItem(`session_${sessionId}_backup`)
       router.push(`/test/${sessionId}/results`)
     }
   }
 
-  if (loading) {
+  const handleRetry = async () => {
+    setIsRecovering(true)
+    recoveryAttemptRef.current = 0
+    setRetryCount(0)
+    setLastError(null)
+    
+    try {
+      await loadSession(sessionId)
+    } catch (error) {
+      console.error("Manual retry failed:", error)
+    } finally {
+      setIsRecovering(false)
+    }
+  }
+
+  if (loading || isRecovering) {
     return (
       <div className="flex items-center justify-center h-screen">
         <div className="text-center">
           <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
-          <p className="text-gray-600">Loading test session...</p>
+          <p className="text-gray-600">
+            {isRecovering ? "Recovering test session..." : "Loading test session..."}
+          </p>
+          {retryCount > 0 && (
+            <p className="text-sm text-gray-500 mt-2">
+              Retry attempt {retryCount}/5
+            </p>
+          )}
         </div>
       </div>
     )
@@ -249,12 +401,29 @@ export function TestSession({ sessionId }: TestSessionProps) {
         <div className="text-center max-w-md">
           <div className="text-red-600 mb-4">
             <AlertCircle className="w-12 h-12 mx-auto mb-2" />
-            <h2 className="text-xl font-semibold">Error Loading Session</h2>
+            <h2 className="text-xl font-semibold">Session Connection Issue</h2>
           </div>
-          <p className="text-gray-600 mb-4">{error}</p>
-          <Button onClick={() => window.location.reload()} variant="outline">
-            Try Again
-          </Button>
+          <p className="text-gray-600 mb-4">
+            {lastError || error}
+          </p>
+          {retryCount > 0 && (
+            <p className="text-sm text-gray-500 mb-4">
+              Attempted {retryCount} automatic recoveries
+            </p>
+          )}
+          <div className="space-y-2">
+            <Button 
+              onClick={handleRetry} 
+              disabled={isRecovering}
+              className="w-full"
+            >
+              <RefreshCw className="w-4 h-4 mr-2" />
+              {isRecovering ? "Retrying..." : "Retry Connection"}
+            </Button>
+            <Button onClick={() => router.push('/')} variant="outline" className="w-full">
+              Go to Home
+            </Button>
+          </div>
         </div>
       </div>
     )
@@ -268,7 +437,8 @@ export function TestSession({ sessionId }: TestSessionProps) {
           <h2 className="text-xl font-semibold text-gray-900 mb-2">Session Not Found</h2>
           <p className="text-gray-600 mb-4">The test session could not be found or contains no questions.</p>
           <div className="space-y-2">
-            <Button onClick={() => window.location.reload()} className="w-full">
+            <Button onClick={handleRetry} className="w-full">
+              <RefreshCw className="w-4 h-4 mr-2" />
               Retry Loading Session
             </Button>
             <Button onClick={() => router.push('/')} variant="outline" className="w-full">

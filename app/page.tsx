@@ -2,6 +2,7 @@ import { Suspense } from 'react'
 import { verifySession } from "@/lib/auth"
 import { LoginForm } from "@/components/auth/login-form"
 import { EnhancedCreateTestInterface } from "@/components/test/enhanced-create-test-interface"
+import { SessionRecovery } from "@/components/test/session-recovery"
 import { FullPageSpinner } from '@/components/ui/loading-spinner'
 
 export const dynamic = 'force-dynamic'
@@ -18,6 +19,9 @@ export default async function Page() {
   }
 
   return (
-    <EnhancedCreateTestInterface userProfile={session.profile} />
+    <div className="space-y-6">
+      <SessionRecovery />
+      <EnhancedCreateTestInterface userProfile={session.profile} />
+    </div>
   )
 }

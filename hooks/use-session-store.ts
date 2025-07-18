@@ -44,9 +44,29 @@ export const useSessionStore = create<SessionState>((set, get) => ({
 
   // Load session data from API
   loadSession: async (sessionId: string) => {
+    const currentState = get()
     set({ loading: true, error: null })
     
     try {
+      // First try to get session from cache if available
+      const cachedSession = localStorage.getItem(`session_${sessionId}_cache`)
+      if (cachedSession) {
+        try {
+          const cached = JSON.parse(cachedSession)
+          // Use cached data temporarily while loading fresh data
+          set({
+            session: cached.session,
+            questions: cached.questions || [],
+            userAnswers: cached.userAnswers || [],
+            userProgress: cached.userProgress || [],
+            loading: true, // Still loading fresh data
+            error: null
+          })
+        } catch (cacheError) {
+          console.warn('Error parsing cached session data:', cacheError)
+        }
+      }
+
       const response = await fetch(`/api/sessions/${sessionId}`)
       
       if (response.status === 401) {
@@ -75,11 +95,22 @@ export const useSessionStore = create<SessionState>((set, get) => ({
       }
 
       if (data.session) {
-        set({
+        const sessionData = {
           session: data.session,
           questions: data.questions || [],
           userAnswers: data.userAnswers || [],
           userProgress: data.userProgress || [],
+        }
+
+        // Cache the session data for offline access
+        try {
+          localStorage.setItem(`session_${sessionId}_cache`, JSON.stringify(sessionData))
+        } catch (cacheError) {
+          console.warn('Error caching session data:', cacheError)
+        }
+
+        set({
+          ...sessionData,
           loading: false,
           error: null
         })
@@ -88,6 +119,26 @@ export const useSessionStore = create<SessionState>((set, get) => ({
       }
     } catch (err: any) {
       console.error("Error loading session:", err)
+      
+      // Try to use cached data if available
+      const cachedSession = localStorage.getItem(`session_${sessionId}_cache`)
+      if (cachedSession && !currentState.session) {
+        try {
+          const cached = JSON.parse(cachedSession)
+          set({
+            session: cached.session,
+            questions: cached.questions || [],
+            userAnswers: cached.userAnswers || [],
+            userProgress: cached.userProgress || [],
+            loading: false,
+            error: "Using cached data - connection issues detected"
+          })
+          return
+        } catch (cacheError) {
+          console.warn('Error using cached session data:', cacheError)
+        }
+      }
+
       set({
         loading: false,
         error: err.message || "Failed to load session data"

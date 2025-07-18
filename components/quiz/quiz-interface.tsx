@@ -83,99 +83,132 @@ export function QuizInterface({
           method: "POST",
         })
         if (!response.ok) {
-          console.error("Failed to start session activity")
+          console.warn("Could not start session activity, but continuing")
         }
       } catch (error) {
-        console.error("Error starting session activity:", error)
+        console.warn("Error starting session activity, but continuing:", error)
       }
     }
     startSessionActivity()
 
-    // Handle page visibility changes (tab switching, minimizing) - LESS AGGRESSIVE
+    // Handle page visibility changes with improved logic
     const handleVisibilityChange = async () => {
       if (document.hidden) {
-        // Only update last activity time, don't pause the session
+        // Page is hidden (tab switch, minimize, etc.) - just update activity time
         try {
           await fetch(`/api/sessions/${session.id}/active-time`, {
             method: "POST",
           })
         } catch (error) {
-          console.error("Error updating activity time on visibility change:", error)
+          console.warn("Error updating activity time on visibility change:", error)
         }
       } else {
-        // Page is visible, ensure session is active
-        try {
-          await fetch(`/api/sessions/${session.id}/resume`, {
-            method: "POST",
-          })
-        } catch (error) {
-          console.error("Error resuming session on visibility change:", error)
+        // Page is visible again - ensure session is active but don't be aggressive
+        if (session.is_active) {
+          try {
+            await fetch(`/api/sessions/${session.id}/resume`, {
+              method: "POST",
+            })
+          } catch (error) {
+            console.warn("Error resuming session on visibility change:", error)
+          }
         }
       }
     }
 
-    // Handle beforeunload event (browser close, page refresh, navigation) - ONLY FOR ACTUAL UNLOAD
+    // Handle beforeunload event - only warn for actual navigation/close
     const handleBeforeUnload = (event: BeforeUnloadEvent) => {
-      // Only show warning if there are unsaved changes or if session is in progress
+      // Only show warning if session is active and not completed
       if (session.is_active && !session.completed_at) {
         event.preventDefault()
-        event.returnValue = "Are you sure you want to leave? Your test session is still active."
-        return "Are you sure you want to leave? Your test session is still active."
+        event.returnValue = "Your test session is still active. Are you sure you want to leave?"
+        return "Your test session is still active. Are you sure you want to leave?"
       }
     }
 
-    // Handle unload event as backup - ONLY PAUSE ON ACTUAL UNLOAD
-    const handleUnload = () => {
-      // Only pause if actually unloading (not just tab switching)
-      if (navigator.sendBeacon) {
-        navigator.sendBeacon(`/api/sessions/${session.id}/pause`, JSON.stringify({}))
+    // Handle page focus/blur for better session management
+    const handleFocus = () => {
+      // Page gained focus - ensure session is active
+      if (session.is_active) {
+        fetch(`/api/sessions/${session.id}/resume`, {
+          method: "POST",
+        }).catch(error => {
+          console.warn("Error resuming session on focus:", error)
+        })
       }
     }
 
-    // Add event listeners with less aggressive handling
+    const handleBlur = () => {
+      // Page lost focus - update activity time
+      fetch(`/api/sessions/${session.id}/active-time`, {
+        method: "POST",
+      }).catch(error => {
+        console.warn("Error updating activity time on blur:", error)
+      })
+    }
+
+    // Add event listeners with improved handling
     document.addEventListener("visibilitychange", handleVisibilityChange)
     window.addEventListener("beforeunload", handleBeforeUnload)
-    window.addEventListener("unload", handleUnload)
+    window.addEventListener("focus", handleFocus)
+    window.addEventListener("blur", handleBlur)
 
-    // Cleanup function - MINIMAL CLEANUP
+    // Cleanup function - minimal cleanup to preserve session
     return () => {
       // Remove event listeners
       document.removeEventListener("visibilitychange", handleVisibilityChange)
       window.removeEventListener("beforeunload", handleBeforeUnload)
-      window.removeEventListener("unload", handleUnload)
+      window.removeEventListener("focus", handleFocus)
+      window.removeEventListener("blur", handleBlur)
       
-      // Don't pause session on component unmount - let it stay active
-      // Only update last activity time
+      // Only update last activity time on cleanup, don't pause session
       const updateActivityTime = async () => {
         try {
           await fetch(`/api/sessions/${session.id}/active-time`, {
             method: "POST",
           })
         } catch (error) {
-          console.error("Error updating activity time:", error)
+          console.warn("Error updating activity time on cleanup:", error)
         }
       }
       updateActivityTime()
     }
-  }, [session.id])
+  }, [session.id, session.is_active, session.completed_at])
 
-  // Add periodic heartbeat to keep session alive and prevent cleanup
+  // Enhanced periodic heartbeat to keep session alive
   useEffect(() => {
     const heartbeatInterval = setInterval(async () => {
       try {
         // Send heartbeat to update last_activity_at and prevent session cleanup
-        await fetch(`/api/sessions/${session.id}/active-time`, {
+        const response = await fetch(`/api/sessions/${session.id}/active-time`, {
           method: "POST",
         })
+        
+        // If heartbeat fails, try to resume session
+        if (!response.ok && session.is_active) {
+          await fetch(`/api/sessions/${session.id}/resume`, {
+            method: "POST",
+          })
+        }
       } catch (error) {
-        console.error("Error sending session heartbeat:", error)
+        console.warn("Error sending session heartbeat:", error)
+        // Try to resume session if heartbeat fails
+        if (session.is_active) {
+          try {
+            await fetch(`/api/sessions/${session.id}/resume`, {
+              method: "POST",
+            })
+          } catch (resumeError) {
+            console.warn("Error resuming session after heartbeat failure:", resumeError)
+          }
+        }
       }
-    }, 30000) // Send heartbeat every 30 seconds
+    }, 15000) // Send heartbeat every 15 seconds (more frequent)
 
     return () => {
       clearInterval(heartbeatInterval)
     }
-  }, [session.id])
+  }, [session.id, session.is_active])
 
   // Fetch user notes on component mount
   useEffect(() => {

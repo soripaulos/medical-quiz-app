@@ -152,34 +152,37 @@ export async function safelyEndSession(sessionId: string): Promise<{ success: bo
 
 /**
  * Clean up orphaned sessions (sessions that were not properly closed)
+ * Made less aggressive to preserve active sessions
  */
 export async function cleanupOrphanedSessions(userId: string): Promise<void> {
   const supabase = await createClient()
   
   try {
-    // Find sessions that are active but haven't been updated in a while (e.g., 6 hours - much more lenient)
-    const sixHoursAgo = new Date(Date.now() - 6 * 60 * 60 * 1000).toISOString()
+    // Find sessions that are active but haven't been updated in a very long time (24 hours - much more lenient)
+    const twentyFourHoursAgo = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString()
     
     const { data: orphanedSessions } = await supabase
       .from("user_sessions")
       .select("id, session_name, last_activity_at")
       .eq("user_id", userId)
       .eq("is_active", true)
-      .lt("last_activity_at", sixHoursAgo)
+      .lt("last_activity_at", twentyFourHoursAgo)
 
     if (orphanedSessions && orphanedSessions.length > 0) {
-      console.log(`Found ${orphanedSessions.length} orphaned sessions for user ${userId}`)
+      console.log(`Found ${orphanedSessions.length} potentially orphaned sessions for user ${userId}`)
       
-      // End each orphaned session, but only if it's really old
+      // End each orphaned session, but only if it's really, really old
       for (const session of orphanedSessions) {
         const lastActivity = new Date(session.last_activity_at)
         const now = new Date()
         const hoursSinceActivity = (now.getTime() - lastActivity.getTime()) / (1000 * 60 * 60)
         
-        // Only cleanup sessions that have been inactive for more than 6 hours
-        if (hoursSinceActivity > 6) {
+        // Only cleanup sessions that have been inactive for more than 24 hours
+        if (hoursSinceActivity > 24) {
           console.log(`Cleaning up session ${session.id} (${session.session_name}) - inactive for ${hoursSinceActivity.toFixed(1)} hours`)
           await safelyEndSession(session.id)
+        } else {
+          console.log(`Preserving session ${session.id} (${session.session_name}) - inactive for only ${hoursSinceActivity.toFixed(1)} hours`)
         }
       }
     }
