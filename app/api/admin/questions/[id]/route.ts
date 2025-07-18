@@ -116,16 +116,58 @@ export async function DELETE(req: Request, context: { params: Promise<{ id: stri
   const { id } = await context.params
 
   try {
+    // First, delete related records to avoid foreign key constraint issues
+    
+    // Delete user answers for this question
+    const { error: answersError } = await supabase
+      .from("user_answers")
+      .delete()
+      .eq("question_id", id)
+    
+    if (answersError) {
+      console.warn("Error deleting user answers:", answersError)
+      // Continue anyway as this might not be critical
+    }
+
+    // Delete user progress for this question
+    const { error: progressError } = await supabase
+      .from("user_question_progress")
+      .delete()
+      .eq("question_id", id)
+    
+    if (progressError) {
+      console.warn("Error deleting user progress:", progressError)
+      // Continue anyway as this might not be critical
+    }
+
+    // Delete user notes for this question
+    const { error: notesError } = await supabase
+      .from("user_notes")
+      .delete()
+      .eq("question_id", id)
+    
+    if (notesError) {
+      console.warn("Error deleting user notes:", notesError)
+      // Continue anyway as this might not be critical
+    }
+
+    // Finally, delete the question itself
     const { error } = await supabase
       .from("questions")
       .delete()
       .eq("id", id)
 
-    if (error) throw error
+    if (error) {
+      console.error("Error deleting question:", error)
+      throw new Error(`Failed to delete question: ${error.message}`)
+    }
 
     return NextResponse.json({ ok: true })
   } catch (err) {
     console.error("Error deleting question:", err)
-    return NextResponse.json({ ok: false, message: String(err) }, { status: 400 })
+    return NextResponse.json({ 
+      ok: false, 
+      message: err instanceof Error ? err.message : String(err) 
+    }, { status: 400 })
   }
 }

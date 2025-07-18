@@ -1,7 +1,7 @@
 "use client"
 
 import { useState, useEffect } from "react"
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
@@ -111,6 +111,9 @@ export function QuestionViewer({ questionId, open, onClose }: QuestionViewerProp
               <X className="w-4 h-4" />
             </Button>
           </DialogTitle>
+          <DialogDescription>
+            View complete question details including metadata, answer choices, and explanations.
+          </DialogDescription>
         </DialogHeader>
 
         <ScrollArea className="max-h-[80vh] pr-4">

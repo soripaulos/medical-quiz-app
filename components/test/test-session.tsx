@@ -28,6 +28,43 @@ export function TestSession({ sessionId }: TestSessionProps) {
     updateProgress
   } = useSession(sessionId)
 
+  // Add session persistence to localStorage
+  useEffect(() => {
+    if (session && !loading) {
+      // Store session info in localStorage for recovery
+      localStorage.setItem('activeTestSession', JSON.stringify({
+        sessionId: session.id,
+        sessionName: session.session_name,
+        startTime: Date.now(),
+        url: window.location.href
+      }))
+    }
+    
+    return () => {
+      // Don't remove from localStorage on unmount - keep it for recovery
+    }
+  }, [session, loading])
+
+  // Check for session recovery on mount
+  useEffect(() => {
+    const checkForSessionRecovery = () => {
+      const storedSession = localStorage.getItem('activeTestSession')
+      if (storedSession) {
+        try {
+          const sessionData = JSON.parse(storedSession)
+          if (sessionData.sessionId === sessionId) {
+            console.log('Recovering test session:', sessionData.sessionName)
+            // Session matches, no need to redirect
+          }
+        } catch (error) {
+          console.error('Error parsing stored session:', error)
+        }
+      }
+    }
+    
+    checkForSessionRecovery()
+  }, [sessionId])
+
   // Resume session activity when component mounts
   useEffect(() => {
     const resumeSession = async () => {
@@ -178,12 +215,19 @@ export function TestSession({ sessionId }: TestSessionProps) {
         throw new Error("Failed to end session")
       }
 
+      // Clean up localStorage when session is properly ended
+      localStorage.removeItem('activeTestSession')
+
       // Use Next.js router for navigation to preserve client-side state
       router.push(`/test/${sessionId}/results`)
     } catch (error) {
       console.error("Error ending session:", error)
       // Show error but still try to navigate to results
       alert("Error ending session, but navigating to results anyway")
+      
+      // Clean up localStorage even if there was an error
+      localStorage.removeItem('activeTestSession')
+      
       router.push(`/test/${sessionId}/results`)
     }
   }

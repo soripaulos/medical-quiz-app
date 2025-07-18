@@ -1,7 +1,7 @@
 "use client"
 
 import { useState, useEffect } from "react"
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
@@ -37,10 +37,10 @@ export function QuestionEditor({ questionId, open, onClose, onSave }: QuestionEd
   const [questionText, setQuestionText] = useState("")
   const [explanation, setExplanation] = useState("")
   const [sources, setSources] = useState("")
-  const [year, setYear] = useState("")
-  const [difficulty, setDifficulty] = useState("")
-  const [specialty, setSpecialty] = useState("")
-  const [examType, setExamType] = useState("")
+  const [year, setYear] = useState("none")
+  const [difficulty, setDifficulty] = useState("none")
+  const [specialty, setSpecialty] = useState("none")
+  const [examType, setExamType] = useState("none")
   const [questionImage, setQuestionImage] = useState<File | null>(null)
   const [explanationImage, setExplanationImage] = useState<File | null>(null)
   const [answerChoices, setAnswerChoices] = useState<AnswerChoice[]>([])
@@ -73,10 +73,10 @@ export function QuestionEditor({ questionId, open, onClose, onSave }: QuestionEd
         setQuestionText(q.question_text || "")
         setExplanation(q.explanation || "")
         setSources(q.sources || "")
-        setYear(q.year?.toString() || "")
-        setDifficulty(q.difficulty?.toString() || "")
-        setSpecialty(q.specialty?.name || "")
-        setExamType(q.exam_type?.name || "")
+        setYear(q.year?.toString() || "none")
+        setDifficulty(q.difficulty?.toString() || "none")
+        setSpecialty(q.specialty?.name || "none")
+        setExamType(q.exam_type?.name || "none")
         setCorrectAnswer(q.correct_answer || "")
         
         // Convert question choices to form format
@@ -154,10 +154,10 @@ export function QuestionEditor({ questionId, open, onClose, onSave }: QuestionEd
         questionText,
         explanation,
         sources,
-        year: year || null,
-        difficulty: difficulty || null,
-        specialty: specialty || null,
-        examType: examType || null,
+        year: year && year !== "none" ? year : null,
+        difficulty: difficulty && difficulty !== "none" ? difficulty : null,
+        specialty: specialty && specialty !== "none" ? specialty : null,
+        examType: examType && examType !== "none" ? examType : null,
         questionImageUrl,
         explanationImageUrl,
         answerChoices,
@@ -194,10 +194,10 @@ export function QuestionEditor({ questionId, open, onClose, onSave }: QuestionEd
     setQuestionText("")
     setExplanation("")
     setSources("")
-    setYear("")
-    setDifficulty("")
-    setSpecialty("")
-    setExamType("")
+    setYear("none")
+    setDifficulty("none")
+    setSpecialty("none")
+    setExamType("none")
     setQuestionImage(null)
     setExplanationImage(null)
     setAnswerChoices([])
@@ -231,6 +231,9 @@ export function QuestionEditor({ questionId, open, onClose, onSave }: QuestionEd
               <X className="w-4 h-4" />
             </Button>
           </DialogTitle>
+          <DialogDescription>
+            Edit question details, answer choices, and metadata. All changes will be saved to the database.
+          </DialogDescription>
         </DialogHeader>
 
         <ScrollArea className="max-h-[80vh] pr-4">
@@ -366,7 +369,7 @@ export function QuestionEditor({ questionId, open, onClose, onSave }: QuestionEd
                         <SelectValue placeholder="Select specialty" />
                       </SelectTrigger>
                       <SelectContent>
-                        <SelectItem value="">None</SelectItem>
+                        <SelectItem value="none">None</SelectItem>
                         {specialties.map((spec) => (
                           <SelectItem key={spec} value={spec}>
                             {spec}
@@ -383,7 +386,7 @@ export function QuestionEditor({ questionId, open, onClose, onSave }: QuestionEd
                         <SelectValue placeholder="Select exam type" />
                       </SelectTrigger>
                       <SelectContent>
-                        <SelectItem value="">None</SelectItem>
+                        <SelectItem value="none">None</SelectItem>
                         {examTypes.map((type) => (
                           <SelectItem key={type} value={type}>
                             {type}
@@ -400,7 +403,7 @@ export function QuestionEditor({ questionId, open, onClose, onSave }: QuestionEd
                         <SelectValue placeholder="Select year" />
                       </SelectTrigger>
                       <SelectContent>
-                        <SelectItem value="">None</SelectItem>
+                        <SelectItem value="none">None</SelectItem>
                         {years.map((yr) => (
                           <SelectItem key={yr} value={yr.toString()}>
                             {yr}
@@ -417,7 +420,7 @@ export function QuestionEditor({ questionId, open, onClose, onSave }: QuestionEd
                         <SelectValue placeholder="Select difficulty" />
                       </SelectTrigger>
                       <SelectContent>
-                        <SelectItem value="">None</SelectItem>
+                        <SelectItem value="none">None</SelectItem>
                         {[1, 2, 3, 4, 5].map((diff) => (
                           <SelectItem key={diff} value={diff.toString()}>
                             Level {diff}
