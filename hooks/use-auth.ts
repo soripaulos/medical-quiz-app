@@ -23,9 +23,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   // Listen for auth changes
   useEffect(() => {
-    const { data: { user } } = supabase.auth.getUser()
-    setUser(user)
-    setLoading(false)
+    // Get initial session
+    supabase.auth.getSession().then(({ data: { session } }: { data: { session: Session | null } }) => {
+      setUser(session?.user ?? null)
+      setLoading(false)
+    })
 
     // Listen for auth changes
     const {

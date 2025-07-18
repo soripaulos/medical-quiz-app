@@ -222,13 +222,17 @@ export function TestSession({ sessionId }: TestSessionProps) {
     // Update local state immediately for better UX
     updateAnswer(questionId, newAnswer)
 
-    // Update progress
+    // Update progress with correct UserQuestionProgress structure
+    const existingProgress = userProgress.find((p) => p.question_id === questionId)
     const newProgress: UserQuestionProgress = {
-      id: `progress-${questionId}`,
+      id: existingProgress?.id || `progress-${questionId}`,
       question_id: questionId,
-      is_answered: true,
-      is_flagged: userProgress.find((p) => p.question_id === questionId)?.is_flagged || false,
-      time_spent: 0,
+      times_attempted: (existingProgress?.times_attempted || 0) + 1,
+      times_correct: (existingProgress?.times_correct || 0) + (isCorrect ? 1 : 0),
+      is_flagged: existingProgress?.is_flagged || false,
+      last_attempted: new Date().toISOString(),
+      user_id: session.user_id,
+      created_at: existingProgress?.created_at || new Date().toISOString(),
       updated_at: new Date().toISOString(),
     }
 
@@ -258,16 +262,21 @@ export function TestSession({ sessionId }: TestSessionProps) {
   }
 
   const handleFlagQuestion = async (questionId: string) => {
+    if (!session) return
+
     const currentProgress = userProgress.find((p) => p.question_id === questionId)
     const newFlaggedState = !currentProgress?.is_flagged
 
-    // Update local state immediately
+    // Update local state immediately with correct UserQuestionProgress structure
     const newProgress: UserQuestionProgress = {
-      id: `progress-${questionId}`,
+      id: currentProgress?.id || `progress-${questionId}`,
       question_id: questionId,
-      is_answered: currentProgress?.is_answered || false,
+      times_attempted: currentProgress?.times_attempted || 0,
+      times_correct: currentProgress?.times_correct || 0,
       is_flagged: newFlaggedState,
-      time_spent: currentProgress?.time_spent || 0,
+      last_attempted: currentProgress?.last_attempted,
+      user_id: session.user_id,
+      created_at: currentProgress?.created_at || new Date().toISOString(),
       updated_at: new Date().toISOString(),
     }
 
