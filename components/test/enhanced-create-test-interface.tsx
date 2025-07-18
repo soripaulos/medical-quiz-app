@@ -31,6 +31,7 @@ import {
   Sun,
   TrendingUp,
   Shield,
+  Loader2,
 } from "lucide-react"
 import Link from "next/link"
 import { useRouter } from "next/navigation"
@@ -435,8 +436,167 @@ export function EnhancedCreateTestInterface({ userProfile }: EnhancedCreateTestI
             <>
               <TabsContent value="custom" className="space-y-6">
                 <div className="grid gap-4 sm:gap-6 grid-cols-1 lg:grid-cols-3">
-                  {/* Left Column: Question Filters */}
-                  <Card className="lg:col-span-2">
+                  {/* Test Settings Panel - First in mobile, last in desktop */}
+                  <div className="space-y-6 order-1 lg:order-2">
+                    {/* Active Session Card */}
+                    <ActiveSessionCard compact={true} />
+                    
+                    <Card>
+                      <CardHeader className="dark:bg-card bg-primary text-primary-foreground">
+                        <CardTitle className="flex items-center gap-2">
+                          <Settings className="w-5 h-5" />
+                          Test Configuration
+                        </CardTitle>
+                      </CardHeader>
+                      <CardContent className="space-y-4">
+                        <div>
+                          <Label htmlFor="sessionName">Test Name</Label>
+                          <Input
+                            id="sessionName"
+                            value={sessionName}
+                            onChange={(e) => setSessionName(e.target.value)}
+                            placeholder="Auto-generated name..."
+                            className="mt-1"
+                          />
+                          <p className="text-xs text-gray-500 mt-1">Name is auto-generated based on your settings</p>
+                        </div>
+
+                        <div>
+                          <Label htmlFor="sessionMode">Test Mode</Label>
+                          <Select value={sessionMode} onValueChange={(value: "practice" | "exam") => setSessionMode(value)}>
+                            <SelectTrigger className="mt-1">
+                              <SelectValue />
+                            </SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="practice">Practice Mode</SelectItem>
+                              <SelectItem value="exam">Exam Mode</SelectItem>
+                            </SelectContent>
+                          </Select>
+                          <p className="text-xs text-gray-500 mt-1">
+                            {sessionMode === "practice"
+                              ? "Get immediate feedback after each question"
+                              : "Review answers only at the end"}
+                          </p>
+                        </div>
+
+                        {sessionMode === "practice" && (
+                          <div className="border border-blue-200 rounded-lg p-4 bg-transparent">
+                            <div className="flex items-start space-x-3">
+                              <Checkbox
+                                id="trackProgress"
+                                checked={trackProgress}
+                                onCheckedChange={(checked) => setTrackProgress(checked as boolean)}
+                              />
+                              <div className="space-y-2">
+                                <Label htmlFor="trackProgress" className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70">
+                                  Track my progress across sessions
+                                </Label>
+                                <p className="text-xs text-gray-600">
+                                  Remember which questions I've answered correctly to help focus on areas that need improvement
+                                </p>
+                              </div>
+                            </div>
+                          </div>
+                        )}
+
+                        {sessionMode === "exam" && (
+                          <div>
+                            <Label htmlFor="timeLimit">Time Limit (minutes)</Label>
+                            <Input
+                              id="timeLimit"
+                              type="number"
+                              value={timeLimit}
+                              onChange={(e) => setTimeLimit(Number(e.target.value))}
+                              placeholder="Enter time limit..."
+                              min="1"
+                              className="mt-1"
+                            />
+                            <p className="text-xs text-gray-500 mt-1">Set time limit for exam mode</p>
+                          </div>
+                        )}
+
+                        <div className="border border-purple-200 rounded-lg p-4 bg-transparent">
+                          <div className="flex items-start space-x-3">
+                            <Checkbox
+                              id="randomizeOrder"
+                              checked={randomizeOrder}
+                              onCheckedChange={(checked) => setRandomizeOrder(checked as boolean)}
+                            />
+                            <div className="space-y-2">
+                              <Label htmlFor="randomizeOrder" className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70">
+                                Randomize question order
+                              </Label>
+                              <p className="text-xs text-gray-600">Shuffle questions for a different experience each time</p>
+                            </div>
+                          </div>
+                        </div>
+
+                        <Button 
+                          onClick={createSession} 
+                          disabled={creating || validationErrors.length > 0 || !sessionName.trim()}
+                          className="w-full"
+                        >
+                          {creating ? (
+                            <>
+                              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                              Creating Test...
+                            </>
+                          ) : (
+                            <>
+                              <Play className="mr-2 h-4 w-4" />
+                              Start Test ({questionCount} questions)
+                            </>
+                          )}
+                        </Button>
+
+                        {validationErrors.length > 0 && (
+                          <div className="mt-4 p-3 bg-red-50 border border-red-200 rounded-md">
+                            <h4 className="text-sm font-medium text-red-800 mb-1">Please fix the following:</h4>
+                            <ul className="text-sm text-red-700 space-y-1">
+                              {validationErrors.map((error, index) => (
+                                <li key={index}>• {error}</li>
+                              ))}
+                            </ul>
+                          </div>
+                        )}
+                      </CardContent>
+                    </Card>
+
+                    {/* Quick Stats Card */}
+                    <Card>
+                      <CardHeader>
+                        <CardTitle>Quick Stats</CardTitle>
+                      </CardHeader>
+                      <CardContent className="space-y-4">
+                        <div className="flex items-center justify-between">
+                          <span className="text-sm text-gray-600">Questions Available:</span>
+                          <Badge variant="secondary" className="text-lg font-bold">
+                            {loading ? "..." : questionCount}
+                          </Badge>
+                        </div>
+
+                        <div>
+                          <span className="text-sm text-gray-600 block mb-2">Active Filters:</span>
+                          {getSelectedFiltersCount() === 0 ? (
+                            <span className="text-sm text-green-600">All questions included</span>
+                          ) : (
+                            <div className="flex flex-wrap gap-1">
+                              {Object.entries(filters).map(([key, values]) =>
+                                values.map((value: string | number) => (
+                                  <Badge key={`${key}-${value}`} variant="outline" className="text-xs">
+                                    {String(value)}
+                                  </Badge>
+                                )),
+                              )}
+                            </div>
+                          )}
+                        </div>
+                      </CardContent>
+                    </Card>
+                  </div>
+
+                  {/* Left Column: Question Filters - Second in mobile, first in desktop */}
+                  <Card className="lg:col-span-2 order-2 lg:order-1">
                     <CardHeader className="dark:bg-card bg-primary text-primary-foreground">
                       <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2">
                         <div className="flex items-center gap-3">
@@ -701,181 +861,6 @@ export function EnhancedCreateTestInterface({ userProfile }: EnhancedCreateTestI
                       </div>
                     </CardContent>
                   </Card>
-
-                  {/* Test Settings Panel */}
-                  <div className="space-y-6">
-                    {/* Active Session Card */}
-                    <ActiveSessionCard compact={true} />
-                    
-                    <Card>
-                      <CardHeader className="dark:bg-card bg-primary text-primary-foreground">
-                        <CardTitle className="flex items-center gap-2">
-                          <Settings className="w-5 h-5" />
-                          Test Configuration
-                        </CardTitle>
-                      </CardHeader>
-                      <CardContent className="space-y-4">
-                        <div>
-                          <Label htmlFor="sessionName">Test Name</Label>
-                          <Input
-                            id="sessionName"
-                            value={sessionName}
-                            onChange={(e) => setSessionName(e.target.value)}
-                            placeholder="Auto-generated name..."
-                            className="mt-1"
-                          />
-                          <p className="text-xs text-gray-500 mt-1">Name is auto-generated based on your settings</p>
-                        </div>
-
-                        <div>
-                          <Label htmlFor="sessionMode">Test Mode</Label>
-                          <Select value={sessionMode} onValueChange={(value: "practice" | "exam") => setSessionMode(value)}>
-                            <SelectTrigger className="mt-1">
-                              <SelectValue />
-                            </SelectTrigger>
-                            <SelectContent>
-                              <SelectItem value="practice">Practice Mode</SelectItem>
-                              <SelectItem value="exam">Exam Mode</SelectItem>
-                            </SelectContent>
-                          </Select>
-                          <p className="text-xs text-gray-500 mt-1">
-                            {sessionMode === "practice"
-                              ? "Get immediate feedback after each question"
-                              : "Review answers only at the end"}
-                          </p>
-                        </div>
-
-                        {sessionMode === "practice" && (
-                          <div className="border border-blue-200 rounded-lg p-4 bg-transparent">
-                            <div className="flex items-start space-x-3">
-                              <TrendingUp className="w-5 h-5 text-blue-600 mt-0.5" />
-                              <div className="flex-1">
-                                <div className="flex items-center space-x-2 mb-2">
-                                  <Checkbox
-                                    id="trackProgress"
-                                    checked={trackProgress}
-                                    onCheckedChange={(checked) => setTrackProgress(checked as boolean)}
-                                  />
-                                  <Label htmlFor="trackProgress" className="text-sm font-medium">
-                                    Track my progress
-                                  </Label>
-                                </div>
-                                <p className="text-xs text-gray-600">
-                                  {trackProgress
-                                    ? "Your answers will be recorded and used to track your performance over time. This helps with filtering questions by status (answered, correct, incorrect)."
-                                    : "Your answers will not be saved to your progress history. Use this for casual practice without affecting your statistics."}
-                                </p>
-                              </div>
-                            </div>
-                          </div>
-                        )}
-
-                        <div>
-                          <Label htmlFor="maxQuestions">Number of Questions</Label>
-                          <Input
-                            id="maxQuestions"
-                            type="number"
-                            value={maxQuestions || ""}
-                            onChange={(e) => setMaxQuestions(e.target.value ? Number.parseInt(e.target.value) : null)}
-                            placeholder={`All ${questionCount} questions`}
-                            className="mt-1"
-                            min="1"
-                            max={Math.min(questionCount, 200)}
-                          />
-                          <p className="text-xs text-gray-500 mt-1">
-                            Limit the number of questions in your test (max 200 per session)
-                          </p>
-                        </div>
-
-                        {sessionMode === "exam" && (
-                          <div>
-                            <Label htmlFor="timeLimit">Time Limit (minutes) *</Label>
-                            <Input
-                              id="timeLimit"
-                              type="number"
-                              value={timeLimit || ""}
-                              onChange={(e) => setTimeLimit(e.target.value ? Number.parseInt(e.target.value) : null)}
-                              placeholder="Required for exam mode"
-                              className="mt-1"
-                              min="1"
-                              required
-                            />
-                            <p className="text-xs text-gray-500 mt-1">Estimated time: {getEstimatedTime()} minutes</p>
-                          </div>
-                        )}
-
-                        <div className="flex items-center space-x-2">
-                          <Checkbox
-                            id="randomizeOrder"
-                            checked={randomizeOrder}
-                            onCheckedChange={(checked) => setRandomizeOrder(checked as boolean)}
-                          />
-                          <Label htmlFor="randomizeOrder" className="text-sm">
-                            Randomize question order
-                          </Label>
-                        </div>
-
-                        <Separator className="my-4" />
-
-                        {validationErrors.length > 0 && (
-                          <Alert className="mb-4">
-                            <AlertCircle className="h-4 w-4" />
-                            <AlertDescription>
-                              <ul className="list-disc list-inside space-y-1">
-                                {validationErrors.map((error, index) => (
-                                  <li key={index} className="text-sm">
-                                    {error}
-                                  </li>
-                                ))}
-                              </ul>
-                            </AlertDescription>
-                          </Alert>
-                        )}
-
-                        <Button
-                          onClick={createSession}
-                          disabled={creating || validationErrors.length > 0 || !sessionName.trim()}
-                          className="w-full"
-                          size="lg"
-                        >
-                          <Play className="w-4 h-4 mr-2" />
-                          {creating ? "Creating Test..." : "Start Test"}
-                        </Button>
-                      </CardContent>
-                    </Card>
-
-                    {/* Quick Stats */}
-                    <Card>
-                      <CardHeader>
-                        <CardTitle>Quick Stats</CardTitle>
-                      </CardHeader>
-                      <CardContent className="space-y-4">
-                        <div className="flex items-center justify-between">
-                          <span className="text-sm text-gray-600">Questions Available:</span>
-                          <Badge variant="secondary" className="text-lg font-bold">
-                            {loading ? "..." : questionCount}
-                          </Badge>
-                        </div>
-
-                        <div>
-                          <span className="text-sm text-gray-600 block mb-2">Active Filters:</span>
-                          {getSelectedFiltersCount() === 0 ? (
-                            <span className="text-sm text-green-600">All questions included</span>
-                          ) : (
-                            <div className="flex flex-wrap gap-1">
-                              {Object.entries(filters).map(([key, values]) =>
-                                values.map((value: string | number) => (
-                                  <Badge key={`${key}-${value}`} variant="outline" className="text-xs">
-                                    {String(value)}
-                                  </Badge>
-                                )),
-                              )}
-                            </div>
-                          )}
-                        </div>
-                      </CardContent>
-                    </Card>
-                  </div>
                 </div>
               </TabsContent>
 

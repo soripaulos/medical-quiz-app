@@ -7,10 +7,8 @@ import { Badge } from '@/components/ui/badge'
 import { Progress } from '@/components/ui/progress'
 import { 
   Play, 
-  Clock, 
   BookOpen, 
   Target, 
-  Calendar,
   AlertCircle,
   CheckCircle2,
   Brain
@@ -102,17 +100,6 @@ export function ActiveSessionCard({ compact = false }: ActiveSessionCardProps) {
     }
   }
 
-  const formatTimeRemaining = (timeRemaining: number) => {
-    const hours = Math.floor(timeRemaining / 3600)
-    const minutes = Math.floor((timeRemaining % 3600) / 60)
-    const seconds = timeRemaining % 60
-    
-    if (hours > 0) {
-      return `${hours}:${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`
-    }
-    return `${minutes}:${seconds.toString().padStart(2, '0')}`
-  }
-
   const getSessionTypeColor = (type: string) => {
     return type === 'exam' 
       ? 'bg-red-100 text-red-800 border-red-200 dark:bg-red-900/20 dark:text-red-400 dark:border-red-800' 
@@ -122,16 +109,6 @@ export function ActiveSessionCard({ compact = false }: ActiveSessionCardProps) {
   const getProgressPercentage = () => {
     if (!activeSession) return 0
     return Math.round((activeSession.current_question_index / activeSession.total_questions) * 100)
-  }
-
-  const getTimeStatus = () => {
-    if (!activeSession?.time_remaining || !activeSession?.time_limit) return null
-    
-    const percentage = (activeSession.time_remaining / (activeSession.time_limit * 60)) * 100
-    
-    if (percentage <= 10) return 'critical'
-    if (percentage <= 25) return 'warning'
-    return 'normal'
   }
 
   if (loading) {
@@ -177,7 +154,6 @@ export function ActiveSessionCard({ compact = false }: ActiveSessionCardProps) {
     )
   }
 
-  const timeStatus = getTimeStatus()
   const progressPercentage = getProgressPercentage()
   const isExamMode = activeSession.session_type === 'exam'
 
@@ -213,41 +189,13 @@ export function ActiveSessionCard({ compact = false }: ActiveSessionCardProps) {
 
         {/* Stats Grid */}
         <div className="grid grid-cols-2 gap-3">
-          {/* Time Display */}
+          {/* Performance - Show for both modes */}
           <div className="space-y-1">
-            {isExamMode ? (
-              <>
-                <div className="flex items-center space-x-2">
-                  <Clock className="h-4 w-4 text-gray-500 dark:text-gray-400" />
-                  <span className="text-sm font-medium text-gray-700 dark:text-gray-300">Time Remaining</span>
-                </div>
-                <p className={`text-base font-bold ${
-                  timeStatus === 'critical' ? 'text-red-600 dark:text-red-400' : 
-                  timeStatus === 'warning' ? 'text-yellow-600 dark:text-yellow-400' : 'text-blue-600 dark:text-blue-400'
-                }`}>
-                  {formatTimeRemaining(activeSession.time_remaining || 0)}
-                </p>
-              </>
-            ) : (
-              <>
-                <div className="flex items-center space-x-2">
-                  <Calendar className="h-4 w-4 text-gray-500 dark:text-gray-400" />
-                  <span className="text-sm font-medium text-gray-700 dark:text-gray-300">Practice Mode</span>
-                </div>
-                <p className="text-base font-bold text-gray-600 dark:text-gray-400">
-                  No time limit
-                </p>
-              </>
-            )}
-          </div>
-
-          {/* Performance - Only show for practice mode */}
-          {!isExamMode && (
-            <div className="space-y-1">
-              <div className="flex items-center space-x-2">
-                <Target className="h-4 w-4 text-green-500" />
-                <span className="text-sm font-medium text-gray-700 dark:text-gray-300">Performance</span>
-              </div>
+            <div className="flex items-center space-x-2">
+              <Target className="h-4 w-4 text-green-500" />
+              <span className="text-sm font-medium text-gray-700 dark:text-gray-300">Performance</span>
+            </div>
+            {!isExamMode ? (
               <div className="flex items-center space-x-3">
                 <div className="flex items-center space-x-1">
                   <CheckCircle2 className="h-4 w-4 text-green-500" />
@@ -258,22 +206,24 @@ export function ActiveSessionCard({ compact = false }: ActiveSessionCardProps) {
                   <span className="text-sm font-bold text-red-600 dark:text-red-400">{sessionMetrics.incorrectAnswers}</span>
                 </div>
               </div>
-            </div>
-          )}
-          
-          {/* For exam mode, show a placeholder or different stat */}
-          {isExamMode && (
-            <div className="space-y-1">
-              <div className="flex items-center space-x-2">
-                <Target className="h-4 w-4 text-gray-500 dark:text-gray-400" />
-                <span className="text-sm font-medium text-gray-700 dark:text-gray-300">Answered</span>
-              </div>
+            ) : (
               <div className="flex items-center space-x-1">
                 <span className="text-base font-bold text-gray-600 dark:text-gray-400">{sessionMetrics.totalAnswered}</span>
-                <span className="text-sm text-gray-500 dark:text-gray-400">questions</span>
+                <span className="text-sm text-gray-500 dark:text-gray-400">answered</span>
               </div>
+            )}
+          </div>
+
+          {/* Session Type */}
+          <div className="space-y-1">
+            <div className="flex items-center space-x-2">
+              <BookOpen className="h-4 w-4 text-blue-500" />
+              <span className="text-sm font-medium text-gray-700 dark:text-gray-300">Mode</span>
             </div>
-          )}
+            <p className="text-base font-bold text-blue-600 dark:text-blue-400">
+              {activeSession.session_type.charAt(0).toUpperCase() + activeSession.session_type.slice(1)}
+            </p>
+          </div>
         </div>
 
         {/* Action Button */}

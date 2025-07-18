@@ -446,7 +446,9 @@ export function QuizInterface({
             <span className="sr-only">Lab Values</span>
           </Button>
           <Button variant="ghost" size="icon" onClick={() => setShowNotes(!showNotes)}>
-            <StickyNote className="h-5 w-5" />
+            <StickyNote 
+              className={`h-5 w-5 ${currentNote ? "text-blue-500 fill-current" : ""}`}
+            />
             <span className="sr-only">Notes</span>
           </Button>
           <Button variant="ghost" size="icon" onClick={toggleDarkMode}>
