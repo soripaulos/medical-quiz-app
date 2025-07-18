@@ -115,6 +115,13 @@ export function UserProgressDashboard() {
     try {
       setLoading(true)
 
+      // Clean up orphaned sessions first
+      try {
+        await fetch("/api/sessions/cleanup", { method: "POST" })
+      } catch (error) {
+        console.error("Error cleaning up orphaned sessions:", error)
+      }
+
       // Fetch all data in parallel
       const [statsRes, historyRes, categoryRes, progressRes, notesRes, uniqueRes] = await Promise.all([
         fetch("/api/user/stats"),
@@ -127,32 +134,44 @@ export function UserProgressDashboard() {
 
       if (statsRes.ok) {
         const data = await statsRes.json()
-        setStats(data.stats)
+        setStats(data)
+      } else {
+        console.error("Failed to fetch stats:", statsRes.status)
       }
 
       if (historyRes.ok) {
         const data = await historyRes.json()
-        setSessionHistory(data.sessions)
+        setSessionHistory(data.sessions || [])
+      } else {
+        console.error("Failed to fetch session history:", historyRes.status)
       }
 
       if (categoryRes.ok) {
         const data = await categoryRes.json()
-        setCategoryPerformance(data.categoryPerformance)
+        setCategoryPerformance(data.categoryPerformance || [])
+      } else {
+        console.error("Failed to fetch category performance:", categoryRes.status)
       }
 
       if (progressRes.ok) {
         const data = await progressRes.json()
-        setProgressData(data.progressData)
+        setProgressData(data.progressData || [])
+      } else {
+        console.error("Failed to fetch progress data:", progressRes.status)
       }
 
       if (notesRes.ok) {
         const data = await notesRes.json()
-        setUserNotes(data.notes)
+        setUserNotes(data.notes || [])
+      } else {
+        console.error("Failed to fetch notes:", notesRes.status)
       }
 
       if (uniqueRes.ok) {
         const data = await uniqueRes.json()
-        setUniqueQuestions(data)
+        setUniqueQuestions(data || { uniqueQuestions: 0, totalQuestions: 0, percentageAttempted: 0 })
+      } else {
+        console.error("Failed to fetch unique questions:", uniqueRes.status)
       }
     } catch (error) {
       console.error("Error fetching dashboard data:", error)
@@ -199,13 +218,23 @@ export function UserProgressDashboard() {
     return `${date.getDate().toString().padStart(2, '0')}/${(date.getMonth() + 1).toString().padStart(2, '0')}`
   }
 
-  const pieData = stats
+  const pieData = stats && stats.answerDistribution
     ? [
         { name: "Correct", value: stats.answerDistribution.correct, color: "#10b981" },
         { name: "Incorrect", value: stats.answerDistribution.incorrect, color: "#ef4444" },
         { name: "Unanswered", value: stats.answerDistribution.unanswered, color: "#6b7280" },
       ]
     : []
+
+  // Check if we have valid data
+  const hasValidData = pieData.some(item => item.value > 0)
+
+  // Debug logging
+  if (process.env.NODE_ENV === 'development') {
+    console.log("Stats:", stats)
+    console.log("Answer Distribution:", stats?.answerDistribution)
+    console.log("Pie Data:", pieData)
+  }
 
   if (loading) {
     return (
@@ -298,35 +327,47 @@ export function UserProgressDashboard() {
                   <CardTitle>Answer Distribution</CardTitle>
                 </CardHeader>
                 <CardContent>
-                  <ResponsiveContainer width="100%" height={300}>
-                    <PieChart>
-                      <Pie
-                        data={pieData}
-                        cx="50%"
-                        cy="50%"
-                        labelLine={false}
-                        label={false}
-                        outerRadius={80}
-                        fill="#8884d8"
-                        dataKey="value"
-                      >
+                  {hasValidData ? (
+                    <>
+                      <ResponsiveContainer width="100%" height={300}>
+                        <PieChart>
+                          <Pie
+                            data={pieData}
+                            cx="50%"
+                            cy="50%"
+                            labelLine={false}
+                            label={false}
+                            outerRadius={80}
+                            fill="#8884d8"
+                            dataKey="value"
+                          >
+                            {pieData.map((entry, index) => (
+                              <Cell key={`cell-${index}`} fill={entry.color} />
+                            ))}
+                          </Pie>
+                          <Tooltip formatter={(value) => [`${(value as number).toFixed(1)}%`, ""]} />
+                        </PieChart>
+                      </ResponsiveContainer>
+                      <div className="mt-4 flex flex-wrap justify-center gap-4">
                         {pieData.map((entry, index) => (
-                          <Cell key={`cell-${index}`} fill={entry.color} />
+                          <div key={`legend-${index}`} className="flex items-center gap-2">
+                            <div className="w-3 h-3 rounded-full" style={{ backgroundColor: entry.color }} />
+                            <span className="text-sm font-medium">
+                              {entry.name}: {entry.value.toFixed(1)}%
+                            </span>
+                          </div>
                         ))}
-                      </Pie>
-                      <Tooltip formatter={(value) => [`${(value as number).toFixed(1)}%`, ""]} />
-                    </PieChart>
-                  </ResponsiveContainer>
-                  <div className="mt-4 flex flex-wrap justify-center gap-4">
-                    {pieData.map((entry, index) => (
-                      <div key={`legend-${index}`} className="flex items-center gap-2">
-                        <div className="w-3 h-3 rounded-full" style={{ backgroundColor: entry.color }} />
-                        <span className="text-sm font-medium">
-                          {entry.name}: {entry.value.toFixed(1)}%
-                        </span>
                       </div>
-                    ))}
-                  </div>
+                    </>
+                  ) : (
+                    <div className="flex items-center justify-center h-[300px] text-gray-500">
+                      <div className="text-center">
+                        <BookOpen className="h-12 w-12 mx-auto mb-4 text-gray-400" />
+                        <p className="text-lg font-medium">No data available</p>
+                        <p className="text-sm">Start answering questions to see your distribution</p>
+                      </div>
+                    </div>
+                  )}
                 </CardContent>
               </Card>
 

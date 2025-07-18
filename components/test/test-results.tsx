@@ -410,7 +410,7 @@ export function TestResults({ sessionId }: TestResultsProps) {
                       }`}
                       onClick={() => setSelectedQuestion(selectedQuestion === q.questionId ? null : q.questionId)}
                     >
-                      <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-2">
+                      <div className="flex items-center justify-between gap-4">
                         <div className="flex items-center gap-3 flex-grow min-w-0">
                           <span className="font-semibold">Q{index + 1}</span>
                           {q.isCorrect ? (
@@ -421,8 +421,8 @@ export function TestResults({ sessionId }: TestResultsProps) {
                           {q.isFlagged && <Flag className="h-5 w-5 text-yellow-500" />}
                           <p className="truncate text-sm">{q.questionText}</p>
                         </div>
-                        <div className="flex items-center gap-3 text-sm text-muted-foreground flex-shrink-0">
-                          <Badge variant="secondary">{q.specialty}</Badge>
+                        <div className="flex-shrink-0 ml-auto">
+                          <Badge variant="secondary" className="whitespace-nowrap">{q.specialty}</Badge>
                         </div>
                       </div>
 
