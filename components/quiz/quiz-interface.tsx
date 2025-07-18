@@ -445,10 +445,11 @@ export function QuizInterface({
             <Beaker className="h-5 w-5" />
             <span className="sr-only">Lab Values</span>
           </Button>
-          <Button variant="ghost" size="icon" onClick={() => setShowNotes(!showNotes)}>
-            <StickyNote 
-              className={`h-5 w-5 ${currentNote ? "text-blue-500 fill-current" : ""}`}
-            />
+          <Button variant="ghost" size="icon" onClick={() => setShowNotes(!showNotes)} className="relative">
+            <StickyNote className="h-5 w-5" />
+            {currentNote && (
+              <div className="absolute -top-1 -right-1 w-3 h-3 bg-red-500 rounded-full border-2 border-white dark:border-gray-800"></div>
+            )}
             <span className="sr-only">Notes</span>
           </Button>
           <Button variant="ghost" size="icon" onClick={toggleDarkMode}>
