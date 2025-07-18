@@ -43,6 +43,7 @@ import { UserProgressDashboard } from "./user-progress-dashboard"
 import { LoadingSpinner } from "@/components/ui/loading-spinner"
 import { useToast } from "@/components/ui/use-toast"
 import { ActiveSessionCard } from "./active-session-card"
+import { AppLogo } from "@/components/ui/app-logo"
 
 // Helper: safely parse JSON, logs non-JSON text responses for easier debugging
 /**
@@ -384,7 +385,7 @@ export function EnhancedCreateTestInterface({ userProfile }: EnhancedCreateTestI
       <header className="sticky top-0 z-40 w-full border-b bg-background">
         <div className="flex items-center justify-between p-3 sm:p-4 border-b">
           <div className="flex items-center space-x-4">
-            <h1 className="text-lg sm:text-xl font-bold">MedPrep ET</h1>
+            <AppLogo size="md" />
           </div>
           <div className="flex items-center space-x-2 sm:space-x-4">
             {userProfile?.role === "admin" && (

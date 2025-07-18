@@ -11,6 +11,7 @@ import { QuestionSidebar } from "./question-sidebar"
 import { LabValuesModal } from "./lab-values-modal"
 import { CalculatorModal } from "./calculator-modal"
 import { NotesPanel } from "./notes-panel"
+import { AppLogo } from "@/components/ui/app-logo"
 import type { Question, UserSession, UserAnswer, UserQuestionProgress, UserNote } from "@/lib/types"
 import { useRouter } from "next/navigation"
 import {
@@ -426,6 +427,7 @@ export function QuizInterface({
               />
             </SheetContent>
           </Sheet>
+          <AppLogo size="sm" />
           <div className="text-sm font-medium">
             Item{" "}
             <span className="font-bold">
