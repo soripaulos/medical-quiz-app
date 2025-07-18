@@ -505,8 +505,8 @@ export function EnhancedCreateTestInterface({ userProfile }: EnhancedCreateTestI
                             <Input
                               id="timeLimit"
                               type="number"
-                              value={timeLimit}
-                              onChange={(e) => setTimeLimit(Number(e.target.value))}
+                              value={timeLimit || ""}
+                              onChange={(e) => setTimeLimit(e.target.value ? Number(e.target.value) : null)}
                               placeholder="Enter time limit..."
                               min="1"
                               className="mt-1"

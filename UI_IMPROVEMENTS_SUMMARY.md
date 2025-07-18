@@ -45,6 +45,16 @@
     - Now active session card appears first in mobile, last in desktop
     - Maintained `lg:col-span-2` for question filters in desktop view
 
+### 5. **Fixed TypeScript Build Error**
+- **Issue**: Build failing due to TypeScript error in enhanced-create-test-interface.tsx
+- **Error**: `Type 'number | null' is not assignable to type 'string | number | readonly string[] | undefined'`
+- **Solution**: Fixed timeLimit input value handling for null values
+- **Files Modified**:
+  - `components/test/enhanced-create-test-interface.tsx`
+    - Fixed `value={timeLimit}` to `value={timeLimit || ""}`
+    - Fixed `onChange={(e) => setTimeLimit(Number(e.target.value))}` to `onChange={(e) => setTimeLimit(e.target.value ? Number(e.target.value) : null)}`
+    - Now properly handles null values by converting to empty string for display and back to null when empty
+
 ## Technical Details
 
 ### Active Session Card Layout Changes
@@ -103,12 +113,27 @@ Grid: [Performance] [Mode]
 <StickyNote className={`h-5 w-5 ${currentNote ? "text-blue-500 fill-current" : ""}`} />
 ```
 
+### TypeScript Fix for Input Values
+**Problem**: Input component expects `string | number | readonly string[] | undefined` but `timeLimit` was `number | null`
+
+**Solution**:
+```tsx
+// Before (causing error):
+<Input value={timeLimit} onChange={(e) => setTimeLimit(Number(e.target.value))} />
+
+// After (fixed):
+<Input 
+  value={timeLimit || ""} 
+  onChange={(e) => setTimeLimit(e.target.value ? Number(e.target.value) : null)} 
+/>
+```
+
 ## Files Modified
 
 1. `components/test/active-session-card.tsx` - Removed time displays, reorganized layout
 2. `components/test/test-results.tsx` - Fixed specialty tag positioning
 3. `components/quiz/quiz-interface.tsx` - Added note indicator
-4. `components/test/enhanced-create-test-interface.tsx` - Fixed mobile layout order
+4. `components/test/enhanced-create-test-interface.tsx` - Fixed mobile layout order & TypeScript error
 5. `UI_IMPROVEMENTS_SUMMARY.md` - This documentation
 
 ## Testing Checklist
@@ -134,6 +159,11 @@ Grid: [Performance] [Mode]
 - [ ] Question filters appear below active session card in mobile
 - [ ] Desktop layout remains unchanged (filters left, settings right)
 - [ ] Responsive breakpoints work correctly
+
+### TypeScript & Build
+- [ ] Application builds without TypeScript errors
+- [ ] Time limit input accepts both number and empty values
+- [ ] Input handles null values properly without crashes
 
 ## Browser Compatibility
 - All changes use standard CSS flexbox and grid properties
