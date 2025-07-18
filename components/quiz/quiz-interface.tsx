@@ -427,7 +427,6 @@ export function QuizInterface({
               />
             </SheetContent>
           </Sheet>
-          <span className="text-sm font-bold text-white">MedPrep</span>
           <div className="text-sm font-medium">
             Item{" "}
             <span className="font-bold">

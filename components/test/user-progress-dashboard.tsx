@@ -329,35 +329,35 @@ export function UserProgressDashboard() {
                 <CardContent>
                   {hasValidData ? (
                     <>
-                      <ResponsiveContainer width="100%" height={300}>
-                        <PieChart>
-                          <Pie
-                            data={pieData}
-                            cx="50%"
-                            cy="50%"
-                            labelLine={false}
-                            label={false}
-                            outerRadius={80}
-                            fill="#8884d8"
-                            dataKey="value"
-                          >
-                            {pieData.map((entry, index) => (
-                              <Cell key={`cell-${index}`} fill={entry.color} />
-                            ))}
-                          </Pie>
-                          <Tooltip formatter={(value) => [`${(value as number).toFixed(1)}%`, ""]} />
-                        </PieChart>
-                      </ResponsiveContainer>
-                      <div className="mt-4 flex flex-wrap justify-center gap-4">
+                  <ResponsiveContainer width="100%" height={300}>
+                    <PieChart>
+                      <Pie
+                        data={pieData}
+                        cx="50%"
+                        cy="50%"
+                        labelLine={false}
+                        label={false}
+                        outerRadius={80}
+                        fill="#8884d8"
+                        dataKey="value"
+                      >
                         {pieData.map((entry, index) => (
-                          <div key={`legend-${index}`} className="flex items-center gap-2">
-                            <div className="w-3 h-3 rounded-full" style={{ backgroundColor: entry.color }} />
-                            <span className="text-sm font-medium">
-                              {entry.name}: {entry.value.toFixed(1)}%
-                            </span>
-                          </div>
+                          <Cell key={`cell-${index}`} fill={entry.color} />
                         ))}
+                      </Pie>
+                      <Tooltip formatter={(value) => [`${(value as number).toFixed(1)}%`, ""]} />
+                    </PieChart>
+                  </ResponsiveContainer>
+                  <div className="mt-4 flex flex-wrap justify-center gap-4">
+                    {pieData.map((entry, index) => (
+                      <div key={`legend-${index}`} className="flex items-center gap-2">
+                        <div className="w-3 h-3 rounded-full" style={{ backgroundColor: entry.color }} />
+                        <span className="text-sm font-medium">
+                          {entry.name}: {entry.value.toFixed(1)}%
+                        </span>
                       </div>
+                    ))}
+                  </div>
                     </>
                   ) : (
                     <div className="flex items-center justify-center h-[300px] text-gray-500">
@@ -475,58 +475,58 @@ export function UserProgressDashboard() {
 
           <TabsContent value="performance" className="space-y-6">
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-              <Card>
-                <CardHeader>
-                  <CardTitle>Performance by Category</CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <ResponsiveContainer width="100%" height={400}>
-                    <BarChart data={categoryPerformance}>
-                      <CartesianGrid strokeDasharray="3 3" />
-                      <XAxis dataKey="category" angle={-45} textAnchor="end" height={100} />
-                      <YAxis />
-                      <Tooltip formatter={(value) => [`${value}%`, "Accuracy"]} />
-                      <Bar dataKey="accuracy" fill="#3b82f6" />
-                    </BarChart>
-                  </ResponsiveContainer>
-                </CardContent>
-              </Card>
+            <Card>
+              <CardHeader>
+                <CardTitle>Performance by Category</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <ResponsiveContainer width="100%" height={400}>
+                  <BarChart data={categoryPerformance}>
+                    <CartesianGrid strokeDasharray="3 3" />
+                    <XAxis dataKey="category" angle={-45} textAnchor="end" height={100} />
+                    <YAxis />
+                    <Tooltip formatter={(value) => [`${value}%`, "Accuracy"]} />
+                    <Bar dataKey="accuracy" fill="#3b82f6" />
+                  </BarChart>
+                </ResponsiveContainer>
+              </CardContent>
+            </Card>
 
-              <Card>
-                <CardHeader>
-                  <CardTitle>Progress Over Time</CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <ResponsiveContainer width="100%" height={400}>
-                    <LineChart data={progressData}>
-                      <CartesianGrid strokeDasharray="3 3" />
-                      <XAxis dataKey="sessionNumber" />
-                      <YAxis />
-                      <Tooltip
-                        formatter={(value, name) => [
-                          `${value}%`,
-                          name === "sessionAccuracy" ? "Session Score" : "Overall Average",
-                        ]}
-                        labelFormatter={(label) => `Session ${label}`}
-                      />
-                      <Line
-                        type="monotone"
-                        dataKey="sessionAccuracy"
-                        stroke="#ef4444"
-                        strokeWidth={2}
-                        name="sessionAccuracy"
-                      />
-                      <Line
-                        type="monotone"
-                        dataKey="cumulativeAccuracy"
-                        stroke="#3b82f6"
-                        strokeWidth={2}
-                        name="cumulativeAccuracy"
-                      />
-                    </LineChart>
-                  </ResponsiveContainer>
-                </CardContent>
-              </Card>
+            <Card>
+              <CardHeader>
+                <CardTitle>Progress Over Time</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <ResponsiveContainer width="100%" height={400}>
+                  <LineChart data={progressData}>
+                    <CartesianGrid strokeDasharray="3 3" />
+                    <XAxis dataKey="sessionNumber" />
+                    <YAxis />
+                    <Tooltip
+                      formatter={(value, name) => [
+                        `${value}%`,
+                        name === "sessionAccuracy" ? "Session Score" : "Overall Average",
+                      ]}
+                      labelFormatter={(label) => `Session ${label}`}
+                    />
+                    <Line
+                      type="monotone"
+                      dataKey="sessionAccuracy"
+                      stroke="#ef4444"
+                      strokeWidth={2}
+                      name="sessionAccuracy"
+                    />
+                    <Line
+                      type="monotone"
+                      dataKey="cumulativeAccuracy"
+                      stroke="#3b82f6"
+                      strokeWidth={2}
+                      name="cumulativeAccuracy"
+                    />
+                  </LineChart>
+                </ResponsiveContainer>
+              </CardContent>
+            </Card>
             </div>
           </TabsContent>
 
