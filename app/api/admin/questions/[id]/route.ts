@@ -1,8 +1,9 @@
 import { NextResponse } from "next/server"
 import { createAdminClient } from "@/lib/supabase/admin-client"
 
-export async function GET(req: Request, { params }: { params: { id: string } }) {
+export async function GET(req: Request, context: { params: Promise<{ id: string }> }) {
   const supabase = createAdminClient()
+  const { id } = await context.params
 
   try {
     const { data: question, error } = await supabase
@@ -14,7 +15,7 @@ export async function GET(req: Request, { params }: { params: { id: string } }) 
         exam_type:exam_types(id, name)
       `,
       )
-      .eq("id", params.id)
+      .eq("id", id)
       .single()
 
     if (error) throw error
@@ -26,9 +27,10 @@ export async function GET(req: Request, { params }: { params: { id: string } }) 
   }
 }
 
-export async function PUT(req: Request, { params }: { params: { id: string } }) {
+export async function PUT(req: Request, context: { params: Promise<{ id: string }> }) {
   const payload = (await req.json()) as any
   const supabase = createAdminClient()
+  const { id } = await context.params
 
   try {
     // Get FK ids with better error handling
@@ -96,7 +98,7 @@ export async function PUT(req: Request, { params }: { params: { id: string } }) 
         correct_answer: payload.correctAnswer,
         ...choiceData,
       })
-      .eq("id", params.id)
+      .eq("id", id)
       .select()
       .single()
 
@@ -109,14 +111,15 @@ export async function PUT(req: Request, { params }: { params: { id: string } }) 
   }
 }
 
-export async function DELETE(req: Request, { params }: { params: { id: string } }) {
+export async function DELETE(req: Request, context: { params: Promise<{ id: string }> }) {
   const supabase = createAdminClient()
+  const { id } = await context.params
 
   try {
     const { error } = await supabase
       .from("questions")
       .delete()
-      .eq("id", params.id)
+      .eq("id", id)
 
     if (error) throw error
 

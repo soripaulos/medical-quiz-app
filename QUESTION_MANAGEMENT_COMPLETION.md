@@ -121,12 +121,34 @@ components/admin/
 
 The implementation has been tested for:
 - ✅ TypeScript compilation (no errors)
+- ✅ Next.js 15 compatibility (build successful)
 - ✅ Component integration
 - ✅ API route functionality
 - ✅ Modal behavior
 - ✅ Form validation
 - ✅ Image upload handling
 - ✅ Data filtering and searching
+
+## 🔧 Build Fix Applied
+
+**Issue**: Next.js 15 changed the API route parameter structure from `{ params: { id: string } }` to `{ params: Promise<{ id: string }> }`.
+
+**Solution**: Updated all API route handlers in `/api/admin/questions/[id]/route.ts` to use the new async parameter structure:
+
+```typescript
+// Before (Next.js 14)
+export async function GET(req: Request, { params }: { params: { id: string } }) {
+  // ...
+}
+
+// After (Next.js 15)
+export async function GET(req: Request, context: { params: Promise<{ id: string }> }) {
+  const { id } = await context.params
+  // ...
+}
+```
+
+This fix ensures compatibility with Next.js 15 and resolves the build error encountered during deployment.
 
 ## 🔄 Future Enhancements
 
