@@ -427,7 +427,7 @@ export function QuizInterface({
               />
             </SheetContent>
           </Sheet>
-          <AppLogo size="sm" />
+          <span className="text-sm font-bold text-white">MedPrep</span>
           <div className="text-sm font-medium">
             Item{" "}
             <span className="font-bold">

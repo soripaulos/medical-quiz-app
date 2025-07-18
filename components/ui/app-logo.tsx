@@ -28,7 +28,7 @@ export function AppLogo({ className = "", size = "md" }: AppLogoProps) {
       
       {/* Text */}
       <span className={`font-bold ${textSizes[size]} text-foreground`}>
-        MedPrep<span className="text-primary">ET</span>
+        MedPrep<span className="text-blue-800 dark:text-blue-300">ET</span>
       </span>
     </div>
   )
