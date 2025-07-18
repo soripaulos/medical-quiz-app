@@ -1,10 +1,21 @@
 import { NextResponse } from "next/server"
 import { createClient } from "@/lib/supabase/server"
+import { verifySession } from "@/lib/auth"
 
 export const dynamic = "force-dynamic"
 
 export async function GET(_req: Request, context: { params: Promise<{ sessionId: string }> }) {
   try {
+    // Authenticate user first
+    const userSession = await verifySession()
+    
+    if (!userSession) {
+      return NextResponse.json(
+        { error: "Unauthorized" },
+        { status: 401 }
+      )
+    }
+
     const supabase = await createClient()
     const { sessionId } = await context.params
 
@@ -84,16 +95,27 @@ export async function GET(_req: Request, context: { params: Promise<{ sessionId:
       console.error("Progress error:", progressError)
     }
 
-    // Use stored metrics from session
+    // Get fresh active time using the database function
+    const { data: activeTime, error: timeError } = await supabase.rpc('calculate_session_active_time', {
+      session_id: sessionId
+    })
+
+    if (timeError) {
+      console.error("Error calculating active time:", timeError)
+    }
+
+    const finalTimeSpent = activeTime || session.total_active_time || 0
+
+    // Use stored metrics from session with fresh time data
     const performance = {
       totalQuestions: session.total_questions,
       correctAnswers: session.correct_answers || 0,
       incorrectAnswers: session.incorrect_answers || 0,
       unansweredQuestions: session.unanswered_questions || 0,
       accuracy: session.total_questions > 0 ? ((session.correct_answers || 0) / session.total_questions) * 100 : 0,
-      timeSpent: session.total_time_spent || 0,
+      timeSpent: finalTimeSpent,
       averageTimePerQuestion:
-        session.total_questions > 0 ? Math.floor((session.total_time_spent || 0) / session.total_questions) : 0,
+        session.total_questions > 0 ? Math.floor(finalTimeSpent / session.total_questions) : 0,
     }
 
     // Category breakdown
@@ -149,16 +171,38 @@ export async function GET(_req: Request, context: { params: Promise<{ sessionId:
       const userAnswer = userAnswers?.find((a) => a.question_id === q.id)
       const progress = userProgress?.find((p) => p.question_id === q.id)
 
+      // Get answer choices
+      const choices = []
+      if (q.choice_a) choices.push({ letter: "A", text: q.choice_a })
+      if (q.choice_b) choices.push({ letter: "B", text: q.choice_b })
+      if (q.choice_c) choices.push({ letter: "C", text: q.choice_c })
+      if (q.choice_d) choices.push({ letter: "D", text: q.choice_d })
+      if (q.choice_e) choices.push({ letter: "E", text: q.choice_e })
+      if (q.choice_f) choices.push({ letter: "F", text: q.choice_f })
+
+      const userAnswerText = userAnswer?.selected_choice_letter 
+        ? choices.find(c => c.letter === userAnswer.selected_choice_letter)?.text || userAnswer.selected_choice_letter
+        : null
+
+      const correctAnswerText = q.correct_answer 
+        ? choices.find(c => c.letter === q.correct_answer)?.text || q.correct_answer
+        : null
+
       return {
         questionId: q.id,
         questionText: q.question_text,
+        choices,
         userAnswer: userAnswer?.selected_choice_letter || null,
+        userAnswerText,
         correctAnswer: q.correct_answer,
+        correctAnswerText,
         isCorrect: userAnswer?.is_correct || false,
-        timeSpent: Math.floor((session.total_time_spent || 0) / session.total_questions), // Simple distribution
+        timeSpent: Math.floor(finalTimeSpent / session.total_questions), // Simple distribution
         difficulty: q.difficulty || 1,
         specialty: q.specialty?.name || "Unknown",
         isFlagged: progress?.is_flagged || false,
+        explanation: q.explanation,
+        sources: q.sources,
       }
     })
 

@@ -1,3 +1,13 @@
+export interface Profile {
+  id: string
+  email: string
+  full_name?: string
+  role: 'student' | 'admin'
+  active_session_id?: string
+  created_at: string
+  updated_at: string
+}
+
 export interface Question {
   id: string
   question_text: string
@@ -47,6 +57,10 @@ export interface UserSession {
   completed_at?: string
   user_id: string
   total_time_spent?: number
+  total_active_time?: number
+  session_started_at?: string
+  session_paused_at?: string
+  last_activity_at?: string
   correct_answers?: number
   incorrect_answers?: number
   unanswered_questions?: number

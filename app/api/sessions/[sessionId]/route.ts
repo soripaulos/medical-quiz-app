@@ -1,10 +1,20 @@
 import { NextResponse } from "next/server"
 import { createClient } from "@/lib/supabase/server"
+import { verifySession } from "@/lib/auth"
 
 export async function GET(req: Request, context: { params: Promise<{ sessionId: string }> }) {
-  const supabase = await createClient()
-
   try {
+    // Authenticate user first
+    const userSession = await verifySession()
+    
+    if (!userSession) {
+      return NextResponse.json(
+        { ok: false, message: "Unauthorized" },
+        { status: 401 }
+      )
+    }
+
+    const supabase = await createClient()
     const { sessionId } = await context.params
     
     // Fetch session details

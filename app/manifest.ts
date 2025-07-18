@@ -2,21 +2,21 @@ import type { MetadataRoute } from "next"
 
 export default function manifest(): MetadataRoute.Manifest {
   return {
-    name: "Medical Quiz App",
-    short_name: "MedQuiz",
-    description: "A comprehensive medical quiz application for USMLE preparation",
+    name: "MedPrep ET",
+    short_name: "MedPrep ET",
+    description: "Your comprehensive resource for medical exam preparation.",
     start_url: "/",
     display: "standalone",
-    background_color: "#ffffff",
-    theme_color: "#4f46e5",
+    background_color: "#fff",
+    theme_color: "#fff",
     icons: [
       {
-        src: "/icon-192x192.png",
+        src: "/app-icon.png",
         sizes: "192x192",
         type: "image/png",
       },
       {
-        src: "/icon-512x512.png",
+        src: "/app-icon.png",
         sizes: "512x512",
         type: "image/png",
       },

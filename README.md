@@ -1,4 +1,6 @@
-# Medical quiz app
+# MedPrep ET
+
+A comprehensive medical quiz application for USMLE preparation, built with Next.js, TypeScript, and Supabase.
 
 *Automatically synced with your [v0.dev](https://v0.dev) deployments*
 

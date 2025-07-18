@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server"
 import { createClient } from "@/lib/supabase/server"
+import { getUser } from "@/lib/auth"
 
 export async function GET(request: Request) {
   const { searchParams } = new URL(request.url)
@@ -10,16 +11,13 @@ export async function GET(request: Request) {
   }
 
   try {
-    const supabase = await createClient()
-
-    // Get the current user
-    const {
-      data: { user },
-      error: userError,
-    } = await supabase.auth.getUser()
-    if (userError || !user) {
+    // Get current user using DAL
+    const user = await getUser()
+    if (!user) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
     }
+
+    const supabase = await createClient()
 
     // Get session questions to filter notes
     const { data: sessionQuestions } = await supabase

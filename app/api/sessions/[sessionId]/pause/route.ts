@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server"
 import { createClient } from "@/lib/supabase/server"
+import { safelyPauseSession, calculateSessionMetrics } from "@/lib/session-utils"
 
 export async function POST(req: Request, context: { params: Promise<{ sessionId: string }> }) {
   try {
@@ -17,39 +18,36 @@ export async function POST(req: Request, context: { params: Promise<{ sessionId:
       return NextResponse.json({ error: "Session not found" }, { status: 404 })
     }
 
-    // Calculate current metrics for paused session
-    const { data: answers } = await supabase.from("user_answers").select("is_correct").eq("session_id", sessionId)
-
-    const correctAnswers = answers?.filter((a) => a.is_correct).length || 0
-    const incorrectAnswers = answers?.filter((a) => !a.is_correct).length || 0
-    const totalAnswered = correctAnswers + incorrectAnswers
-    const unansweredQuestions = Math.max(0, session.total_questions - totalAnswered)
-
-    // Calculate time spent so far
-    let totalTimeSpent = 0
-    if (session.time_limit && session.time_remaining !== null) {
-      totalTimeSpent = session.time_limit * 60 - session.time_remaining
-    } else {
-      const startTime = new Date(session.created_at).getTime()
-      const pauseTime = new Date().getTime()
-      totalTimeSpent = Math.floor((pauseTime - startTime) / 1000)
+    // Only pause if session is active and not already paused
+    if (!session.is_active || session.is_paused) {
+      return NextResponse.json({ 
+        success: true, 
+        message: "Session is already paused or inactive" 
+      })
     }
 
-    // Update session to paused state with current metrics
-    const { error: updateError } = await supabase
-      .from("user_sessions")
-      .update({
-        is_paused: true,
-        total_time_spent: totalTimeSpent,
-        correct_answers: correctAnswers,
-        incorrect_answers: incorrectAnswers,
-        unanswered_questions: unansweredQuestions,
-      })
-      .eq("id", sessionId)
+    // Use utility function to safely pause the session
+    const result = await safelyPauseSession(sessionId)
 
-    if (updateError) {
-      console.error("Error pausing session:", updateError)
+    if (!result.success) {
       return NextResponse.json({ error: "Failed to pause session" }, { status: 500 })
+    }
+
+    // Calculate and update current metrics
+    try {
+      const metrics = await calculateSessionMetrics(sessionId)
+      
+      await supabase
+        .from("user_sessions")
+        .update({
+          correct_answers: metrics.correctAnswers,
+          incorrect_answers: metrics.incorrectAnswers,
+          unanswered_questions: metrics.unansweredQuestions,
+        })
+        .eq("id", sessionId)
+    } catch (error) {
+      console.error("Error updating session metrics:", error)
+      // Don't fail the request - the session was paused successfully
     }
 
     return NextResponse.json({ success: true })

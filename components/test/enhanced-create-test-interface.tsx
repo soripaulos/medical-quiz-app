@@ -3,6 +3,7 @@
 import type React from "react"
 
 import { useState, useEffect } from "react"
+import { useTheme } from "next-themes"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Checkbox } from "@/components/ui/checkbox"
@@ -29,13 +30,20 @@ import {
   Moon,
   Sun,
   TrendingUp,
+  Shield,
+  Loader2,
 } from "lucide-react"
 import Link from "next/link"
 import { useRouter } from "next/navigation"
 import { useAuth } from "@/hooks/use-auth"
 import type { Question, QuestionFilters } from "@/lib/types"
+import type { UserProfile } from "@/lib/auth"
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
 import { UserProgressDashboard } from "./user-progress-dashboard"
+import { LoadingSpinner } from "@/components/ui/loading-spinner"
+import { useToast } from "@/components/ui/use-toast"
+import { ActiveSessionCard } from "./active-session-card"
+import { AppLogo } from "@/components/ui/app-logo"
 
 // Helper: safely parse JSON, logs non-JSON text responses for easier debugging
 /**
@@ -81,9 +89,18 @@ interface TestPreset {
   icon: React.ReactNode
 }
 
-export function EnhancedCreateTestInterface() {
-  const { user, profile, signOut } = useAuth()
+interface EnhancedCreateTestInterfaceProps {
+  userProfile: UserProfile
+}
+
+export function EnhancedCreateTestInterface({ userProfile }: EnhancedCreateTestInterfaceProps) {
+  const { user, signOut } = useAuth()
+  const { theme, setTheme } = useTheme()
   const router = useRouter()
+  
+  // Session recovery state
+  const [recoverySession, setRecoverySession] = useState<any>(null)
+  const [showRecoveryPrompt, setShowRecoveryPrompt] = useState(false)
 
   const [filters, setFilters] = useState<QuestionFilters>({
     specialties: [],
@@ -103,7 +120,6 @@ export function EnhancedCreateTestInterface() {
   const [randomizeOrder, setRandomizeOrder] = useState(true)
   const [creating, setCreating] = useState(false)
   const [validationErrors, setValidationErrors] = useState<string[]>([])
-  const [isDarkMode, setIsDarkMode] = useState(false)
   const [trackProgress, setTrackProgress] = useState(true)
 
   // Available options from database
@@ -124,7 +140,43 @@ export function EnhancedCreateTestInterface() {
   useEffect(() => {
     fetchFilterOptions()
     generateSessionName()
+    checkForSessionRecovery()
   }, [])
+
+  // Check for session recovery on mount
+  const checkForSessionRecovery = () => {
+    const storedSession = localStorage.getItem('activeTestSession')
+    if (storedSession) {
+      try {
+        const sessionData = JSON.parse(storedSession)
+        const sessionAge = Date.now() - sessionData.startTime
+        
+        // Only show recovery prompt if session is less than 24 hours old
+        if (sessionAge < 24 * 60 * 60 * 1000) {
+          setRecoverySession(sessionData)
+          setShowRecoveryPrompt(true)
+        } else {
+          // Remove old session data
+          localStorage.removeItem('activeTestSession')
+        }
+      } catch (error) {
+        console.error('Error parsing stored session:', error)
+        localStorage.removeItem('activeTestSession')
+      }
+    }
+  }
+
+  const handleRecoverSession = () => {
+    if (recoverySession) {
+      router.push(`/test/${recoverySession.sessionId}`)
+    }
+  }
+
+  const handleDismissRecovery = () => {
+    setShowRecoveryPrompt(false)
+    setRecoverySession(null)
+    localStorage.removeItem('activeTestSession')
+  }
 
   useEffect(() => {
     fetchFilteredQuestions()
@@ -133,47 +185,16 @@ export function EnhancedCreateTestInterface() {
 
   useEffect(() => {
     generateSessionName()
-  }, [filters, sessionMode, sessionName])
+  }, [filters, sessionMode])
 
   const generateSessionName = () => {
-    if (sessionName && !sessionName.includes(new Date().toLocaleTimeString().slice(0, 5))) {
+    if (sessionName && !sessionName.includes("Session")) {
       return // Don't override user-set names
     }
 
-    const now = new Date()
-    const timeStr = now.toLocaleTimeString("en-US", {
-      hour: "2-digit",
-      minute: "2-digit",
-      hour12: false,
-    })
-
-    let name = `${sessionMode === "practice" ? "Practice" : "Exam"} ${timeStr}`
-
-    // Add specialty if only one is selected
-    if (filters.specialties.length === 1) {
-      const specialty = filters.specialties[0]
-      const shortName = specialty
-        .split(" ")
-        .map((word) => word.charAt(0))
-        .join("")
-      name = `${shortName} ${name}`
-    }
-
-    // Add year if only one is selected
-    if (filters.years.length === 1) {
-      name = `${filters.years[0]} ${name}`
-    }
-
-    // Add difficulty range if specific difficulties selected
-    if (filters.difficulties.length > 0 && filters.difficulties.length < 5) {
-      const minDiff = Math.min(...filters.difficulties)
-      const maxDiff = Math.max(...filters.difficulties)
-      if (minDiff === maxDiff) {
-        name = `L${minDiff} ${name}`
-      } else {
-        name = `L${minDiff}-${maxDiff} ${name}`
-      }
-    }
+    // Start with session mode and add session number
+    const sessionCount = Math.floor(Math.random() * 99) + 1
+    const name = `${sessionMode === "practice" ? "Practice" : "Exam"} Session ${sessionCount.toString().padStart(2, '0')}`
 
     setSessionName(name)
   }
@@ -388,59 +409,48 @@ export function EnhancedCreateTestInterface() {
     return Math.ceil(finalCount * averageTimePerQuestion)
   }
 
-  const toggleDarkMode = () => {
-    setIsDarkMode(!isDarkMode)
-    document.documentElement.classList.toggle("dark")
-  }
-
   const handleSignOut = async () => {
     try {
       await signOut()
+      // The AuthProvider will automatically redirect to /login after signOut
     } catch (error) {
       console.error("Error signing out:", error)
+      // Force redirect to login if signOut fails
+      router.push("/login")
     }
   }
 
   return (
-    <div className={`border border-blue-200 rounded-lg p-4 bg-slate-100 ${isDarkMode ? "bg-gray-900" : "bg-gray-50"}`}>
-      <div className="max-w-7xl mx-auto">
-        {/* Header */}
-        <div className="flex items-center justify-between mb-6">
-          <div className="flex items-center gap-4">
-            <h1 className="text-3xl font-bold">Med Exam Prep</h1>
-            <Button variant="outline" size="sm" onClick={fetchFilteredQuestions} disabled={loading}>
-              <RefreshCw className={`w-4 h-4 mr-2 ${loading ? "animate-spin" : ""}`} />
-              Refresh
-            </Button>
+    <div className="min-h-screen bg-background text-foreground">
+      <header className="sticky top-0 z-40 w-full border-b bg-background">
+        <div className="flex items-center justify-between p-3 sm:p-4 border-b">
+          <div className="flex items-center space-x-4">
+            <AppLogo size="md" />
           </div>
-          <div className="flex gap-2">
-            {profile?.role === "admin" && (
+          <div className="flex items-center space-x-2 sm:space-x-4">
+            {userProfile?.role === "admin" && (
               <Link href="/admin">
-                <Button variant="outline" size="sm">
-                  <Settings className="w-4 h-4 mr-2" />
-                  Admin Panel
+                <Button variant="outline" size="sm" className="flex items-center gap-1 sm:gap-2 px-2 sm:px-3">
+                  <Shield className="w-4 h-4" />
+                  <span className="hidden sm:inline">Admin Panel</span>
                 </Button>
               </Link>
             )}
-            <Button variant="ghost" size="sm" onClick={toggleDarkMode} className="flex items-center gap-2">
-              {isDarkMode ? <Sun className="w-4 h-4" /> : <Moon className="w-4 h-4" />}
-              {isDarkMode ? "Light" : "Dark"}
+            <Button variant="ghost" size="sm" onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')} className="flex items-center gap-2 p-2">
+              {theme === 'dark' ? <Sun className="w-4 h-4" /> : <Moon className="w-4 h-4" />}
             </Button>
             <Popover>
               <PopoverTrigger asChild>
-                <Button variant="outline" className="flex items-center gap-2 bg-transparent">
+                <Button variant="outline" className="flex items-center gap-1 sm:gap-2 bg-transparent px-2 sm:px-3">
                   <User className="w-4 h-4" />
-                  {profile?.full_name || profile?.email}
+                  <span className="hidden sm:inline">{user?.user_metadata?.full_name || user?.email}</span>
                 </Button>
               </PopoverTrigger>
               <PopoverContent className="w-64" align="end">
                 <div className="space-y-3">
                   <div className="border-b pb-3">
-                    <p className="font-medium">{profile?.full_name || "User"}</p>
-                    <p className="text-sm text-gray-600">{profile?.email}</p>
-                    <Badge variant="outline" className="mt-1 text-xs">
-                      {profile?.role}
-                    </Badge>
+                    <p className="font-medium">{user?.user_metadata?.full_name || "User"}</p>
+                    <p className="text-sm text-gray-600">{user?.email}</p>
                   </div>
                   <Button
                     variant="ghost"
@@ -455,459 +465,504 @@ export function EnhancedCreateTestInterface() {
             </Popover>
           </div>
         </div>
-
+      </header>
+      <main className="w-full p-2 sm:p-4 md:p-6 lg:p-8">
         <Tabs defaultValue="custom" className="space-y-6">
-          <TabsList className="grid w-full grid-cols-2">
-            <TabsTrigger value="custom">Create Test</TabsTrigger>
-            <TabsTrigger value="progress">My Progress</TabsTrigger>
+          <TabsList className="grid w-full grid-cols-2 h-auto sm:h-10">
+            <TabsTrigger value="custom" className="text-sm py-2 sm:py-1">Create Test</TabsTrigger>
+            <TabsTrigger value="progress" className="text-sm py-2 sm:py-1">My Progress</TabsTrigger>
           </TabsList>
 
-          <TabsContent value="custom" className="space-y-6">
-            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-              {/* Filters Panel */}
-              <div className="lg:col-span-2">
-                <Card>
-                  <CardHeader>
-                    <div className="flex items-center justify-between">
-                      <CardTitle className="flex items-center gap-2">
-                        <Filter className="w-5 h-5" />
-                        Question Filters
-                        <Badge variant="secondary" className="ml-2">
-                          {loading ? "Loading..." : `${questionCount} questions`}
-                        </Badge>
-                      </CardTitle>
-                      <Button variant="outline" size="sm" onClick={clearAllFilters}>
-                        Clear All
-                      </Button>
-                    </div>
-                    <p className="text-sm text-gray-600">
-                      Leave sections unchecked to include all items from that category
-                    </p>
-                  </CardHeader>
-                  <CardContent className="space-y-6">
-                    {/* Specialties */}
-                    <div>
-                      <div className="flex items-center justify-between mb-3">
-                        <Label className="text-base font-medium">
-                          <GraduationCap className="w-4 h-4 inline mr-2" />
-                          Specialties
-                          {filters.specialties.length === 0 && (
-                            <span className="text-sm text-green-600 font-normal ml-2">(All)</span>
-                          )}
-                        </Label>
-                        <div className="flex gap-2">
-                          <Button
-                            variant="link"
-                            size="sm"
-                            onClick={() => selectAllInSection("specialties")}
-                            className="text-blue-600 p-0 h-auto text-xs"
-                          >
-                            Select All
-                          </Button>
-                          <Button
-                            variant="link"
-                            size="sm"
-                            onClick={() => clearFilterSection("specialties")}
-                            className="text-blue-600 p-0 h-auto text-xs"
-                          >
-                            Clear
-                          </Button>
+          {userProfile ? (
+            <>
+              <TabsContent value="custom" className="space-y-6">
+                <div className="grid gap-4 sm:gap-6 grid-cols-1 lg:grid-cols-3">
+                  {/* Test Settings Panel - First in mobile, last in desktop */}
+                  <div className="space-y-6 order-1 lg:order-2">
+                    {/* Active Session Card */}
+                    <ActiveSessionCard compact={true} />
+                    
+                    <Card>
+                      <CardHeader className="dark:bg-card bg-primary text-primary-foreground">
+                        <CardTitle className="flex items-center gap-2">
+                          <Settings className="w-5 h-5" />
+                          Test Configuration
+                        </CardTitle>
+                      </CardHeader>
+                      <CardContent className="space-y-4">
+                        <div>
+                          <Label htmlFor="sessionName">Test Name</Label>
+                          <Input
+                            id="sessionName"
+                            value={sessionName}
+                            onChange={(e) => setSessionName(e.target.value)}
+                            placeholder="Auto-generated name..."
+                            className="mt-1"
+                          />
+                          <p className="text-xs text-gray-500 mt-1">Name is auto-generated based on your settings</p>
                         </div>
-                      </div>
-                      <div className="grid grid-cols-2 gap-3">
-                        {specialties.map((specialty) => (
-                          <div key={specialty} className="flex items-center space-x-2">
-                            <Checkbox
-                              id={`specialty-${specialty}`}
-                              checked={filters.specialties.includes(specialty)}
-                              onCheckedChange={(checked) =>
-                                handleFilterChange("specialties", specialty, checked as boolean)
-                              }
-                            />
-                            <Label htmlFor={`specialty-${specialty}`} className="text-sm">
-                              {specialty}
-                            </Label>
-                          </div>
-                        ))}
-                      </div>
-                    </div>
 
-                    <Separator />
-
-                    {/* Years */}
-                    <div>
-                      <div className="flex items-center justify-between mb-3">
-                        <Label className="text-base font-medium">
-                          <Calendar className="w-4 h-4 inline mr-2" />
-                          Years
-                          {filters.years.length === 0 && (
-                            <span className="text-sm text-green-600 font-normal ml-2">(All)</span>
-                          )}
-                        </Label>
-                        <div className="flex gap-2">
-                          <Button
-                            variant="link"
-                            size="sm"
-                            onClick={() => selectAllInSection("years")}
-                            className="text-blue-600 p-0 h-auto text-xs"
-                          >
-                            Select All
-                          </Button>
-                          <Button
-                            variant="link"
-                            size="sm"
-                            onClick={() => clearFilterSection("years")}
-                            className="text-blue-600 p-0 h-auto text-xs"
-                          >
-                            Clear
-                          </Button>
+                        <div>
+                          <Label htmlFor="sessionMode">Test Mode</Label>
+                          <Select value={sessionMode} onValueChange={(value: "practice" | "exam") => setSessionMode(value)}>
+                            <SelectTrigger className="mt-1">
+                              <SelectValue />
+                            </SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="practice">Practice Mode</SelectItem>
+                              <SelectItem value="exam">Exam Mode</SelectItem>
+                            </SelectContent>
+                          </Select>
+                          <p className="text-xs text-gray-500 mt-1">
+                            {sessionMode === "practice"
+                              ? "Get immediate feedback after each question"
+                              : "Review answers only at the end"}
+                          </p>
                         </div>
-                      </div>
-                      <div className="grid grid-cols-4 gap-3">
-                        {availableYears.map((year) => (
-                          <div key={year} className="flex items-center space-x-2">
-                            <Checkbox
-                              id={`year-${year}`}
-                              checked={filters.years.includes(year)}
-                              onCheckedChange={(checked) => handleFilterChange("years", year, checked as boolean)}
-                            />
-                            <Label htmlFor={`year-${year}`} className="text-sm">
-                              {year}
-                            </Label>
-                          </div>
-                        ))}
-                      </div>
-                    </div>
 
-                    <Separator />
-
-                    {/* Difficulty */}
-                    <div>
-                      <div className="flex items-center justify-between mb-3">
-                        <Label className="text-base font-medium">
-                          <Target className="w-4 h-4 inline mr-2" />
-                          Difficulty
-                          {filters.difficulties.length === 0 && (
-                            <span className="text-sm text-green-600 font-normal ml-2">(All)</span>
-                          )}
-                        </Label>
-                        <div className="flex gap-2">
-                          <Button
-                            variant="link"
-                            size="sm"
-                            onClick={() => selectAllInSection("difficulties")}
-                            className="text-blue-600 p-0 h-auto text-xs"
-                          >
-                            Select All
-                          </Button>
-                          <Button
-                            variant="link"
-                            size="sm"
-                            onClick={() => clearFilterSection("difficulties")}
-                            className="text-blue-600 p-0 h-auto text-xs"
-                          >
-                            Clear
-                          </Button>
-                        </div>
-                      </div>
-                      <div className="flex gap-4">
-                        {difficulties.map((difficulty) => (
-                          <div key={difficulty} className="flex items-center space-x-2">
-                            <Checkbox
-                              id={`difficulty-${difficulty}`}
-                              checked={filters.difficulties.includes(difficulty)}
-                              onCheckedChange={(checked) =>
-                                handleFilterChange("difficulties", difficulty, checked as boolean)
-                              }
-                            />
-                            <Label htmlFor={`difficulty-${difficulty}`} className="text-sm">
-                              Level {difficulty}
-                            </Label>
-                          </div>
-                        ))}
-                      </div>
-                    </div>
-
-                    <Separator />
-
-                    {/* Question Status */}
-                    <div>
-                      <div className="flex items-center justify-between mb-3">
-                        <Label className="text-base font-medium">
-                          <CheckCircle className="w-4 h-4 inline mr-2" />
-                          Question Status
-                          {filters.questionStatus.length === 0 && (
-                            <span className="text-sm text-green-600 font-normal ml-2">(All)</span>
-                          )}
-                        </Label>
-                        <div className="flex gap-2">
-                          <Button
-                            variant="link"
-                            size="sm"
-                            onClick={() => selectAllInSection("questionStatus")}
-                            className="text-blue-600 p-0 h-auto text-xs"
-                          >
-                            Select All
-                          </Button>
-                          <Button
-                            variant="link"
-                            size="sm"
-                            onClick={() => clearFilterSection("questionStatus")}
-                            className="text-blue-600 p-0 h-auto text-xs"
-                          >
-                            Clear
-                          </Button>
-                        </div>
-                      </div>
-                      <div className="grid grid-cols-2 gap-3">
-                        {questionStatuses.map((status) => (
-                          <div key={status.value} className="flex items-center space-x-2">
-                            <Checkbox
-                              id={`status-${status.value}`}
-                              checked={filters.questionStatus.includes(status.value as any)}
-                              onCheckedChange={(checked) =>
-                                handleFilterChange("questionStatus", status.value, checked as boolean)
-                              }
-                            />
-                            <Label htmlFor={`status-${status.value}`} className="text-sm">
-                              {status.label}
-                            </Label>
-                          </div>
-                        ))}
-                      </div>
-                    </div>
-
-                    <Separator />
-
-                    {/* Exam Types */}
-                    <div>
-                      <div className="flex items-center justify-between mb-3">
-                        <Label className="text-base font-medium">
-                          <FileText className="w-4 h-4 inline mr-2" />
-                          Exam Types
-                          {filters.examTypes.length === 0 && (
-                            <span className="text-sm text-green-600 font-normal ml-2">(All)</span>
-                          )}
-                        </Label>
-                        <div className="flex gap-2">
-                          <Button
-                            variant="link"
-                            size="sm"
-                            onClick={() => selectAllInSection("examTypes")}
-                            className="text-blue-600 p-0 h-auto text-xs"
-                          >
-                            Select All
-                          </Button>
-                          <Button
-                            variant="link"
-                            size="sm"
-                            onClick={() => clearFilterSection("examTypes")}
-                            className="text-blue-600 p-0 h-auto text-xs"
-                          >
-                            Clear
-                          </Button>
-                        </div>
-                      </div>
-                      <div className="flex gap-4">
-                        {examTypes.map((examType) => (
-                          <div key={examType} className="flex items-center space-x-2">
-                            <Checkbox
-                              id={`examtype-${examType}`}
-                              checked={filters.examTypes.includes(examType)}
-                              onCheckedChange={(checked) =>
-                                handleFilterChange("examTypes", examType, checked as boolean)
-                              }
-                            />
-                            <Label htmlFor={`examtype-${examType}`} className="text-sm">
-                              {examType}
-                            </Label>
-                          </div>
-                        ))}
-                      </div>
-                    </div>
-                  </CardContent>
-                </Card>
-              </div>
-
-              {/* Test Settings Panel */}
-              <div className="space-y-6">
-                <Card>
-                  <CardHeader>
-                    <CardTitle className="flex items-center gap-2">
-                      <Settings className="w-5 h-5" />
-                      Test Configuration
-                    </CardTitle>
-                  </CardHeader>
-                  <CardContent className="space-y-4">
-                    <div>
-                      <Label htmlFor="sessionName">Test Name</Label>
-                      <Input
-                        id="sessionName"
-                        value={sessionName}
-                        onChange={(e) => setSessionName(e.target.value)}
-                        placeholder="Auto-generated name..."
-                        className="mt-1"
-                      />
-                      <p className="text-xs text-gray-500 mt-1">Name is auto-generated based on your settings</p>
-                    </div>
-
-                    <div>
-                      <Label htmlFor="sessionMode">Test Mode</Label>
-                      <Select value={sessionMode} onValueChange={(value: "practice" | "exam") => setSessionMode(value)}>
-                        <SelectTrigger className="mt-1">
-                          <SelectValue />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="practice">Practice Mode</SelectItem>
-                          <SelectItem value="exam">Exam Mode</SelectItem>
-                        </SelectContent>
-                      </Select>
-                      <p className="text-xs text-gray-500 mt-1">
-                        {sessionMode === "practice"
-                          ? "Get immediate feedback after each question"
-                          : "Review answers only at the end"}
-                      </p>
-                    </div>
-
-                    {sessionMode === "practice" && (
-                      <div className="border border-blue-200 rounded-lg p-4 bg-transparent">
-                        <div className="flex items-start space-x-3">
-                          <TrendingUp className="w-5 h-5 text-blue-600 mt-0.5" />
-                          <div className="flex-1">
-                            <div className="flex items-center space-x-2 mb-2">
-                              <Checkbox
-                                id="trackProgress"
-                                checked={trackProgress}
-                                onCheckedChange={(checked) => setTrackProgress(checked as boolean)}
-                              />
-                              <Label htmlFor="trackProgress" className="text-sm font-medium">
-                                Track my progress
-                              </Label>
+                        {sessionMode === "practice" && (
+                          <div className="border border-blue-200 rounded-lg p-4 bg-transparent">
+                            <div className="flex items-start space-x-3">
+                              <TrendingUp className="w-5 h-5 text-blue-600 mt-0.5" />
+                              <div className="flex-1">
+                                <div className="flex items-center space-x-2 mb-2">
+                                  <Checkbox
+                                    id="trackProgress"
+                                    checked={trackProgress}
+                                    onCheckedChange={(checked) => setTrackProgress(checked as boolean)}
+                                  />
+                                  <Label htmlFor="trackProgress" className="text-sm font-medium">
+                                    Track my progress
+                                  </Label>
+                                </div>
+                                <p className="text-xs text-gray-600">
+                                  {trackProgress
+                                    ? "Your answers will be recorded and used to track your performance over time. This helps with filtering questions by status (answered, correct, incorrect)."
+                                    : "Your answers will not be saved to your progress history. Use this for casual practice without affecting your statistics."}
+                                </p>
+                              </div>
                             </div>
-                            <p className="text-xs text-gray-600">
-                              {trackProgress
-                                ? "Your answers will be recorded and used to track your performance over time. This helps with filtering questions by status (answered, correct, incorrect)."
-                                : "Your answers will not be saved to your progress history. Use this for casual practice without affecting your statistics."}
-                            </p>
+                          </div>
+                        )}
+
+                        <div>
+                          <Label htmlFor="maxQuestions">Number of Questions</Label>
+                          <Input
+                            id="maxQuestions"
+                            type="number"
+                            value={maxQuestions || ""}
+                            onChange={(e) => setMaxQuestions(e.target.value ? Number.parseInt(e.target.value) : null)}
+                            placeholder={`All ${questionCount} questions`}
+                            className="mt-1"
+                            min="1"
+                            max={Math.min(questionCount, 200)}
+                          />
+                          <p className="text-xs text-gray-500 mt-1">
+                            Limit the number of questions in your test (max 200 per session)
+                          </p>
+                        </div>
+
+                        {sessionMode === "exam" && (
+                          <div>
+                            <Label htmlFor="timeLimit">Time Limit (minutes) *</Label>
+                            <Input
+                              id="timeLimit"
+                              type="number"
+                              value={timeLimit || ""}
+                              onChange={(e) => setTimeLimit(e.target.value ? Number.parseInt(e.target.value) : null)}
+                              placeholder="Required for exam mode"
+                              className="mt-1"
+                              min="1"
+                              required
+                            />
+                            <p className="text-xs text-gray-500 mt-1">Estimated time: {getEstimatedTime()} minutes</p>
+                          </div>
+                        )}
+
+                        <div className="flex items-center space-x-2">
+                          <Checkbox
+                            id="randomizeOrder"
+                            checked={randomizeOrder}
+                            onCheckedChange={(checked) => setRandomizeOrder(checked as boolean)}
+                          />
+                          <Label htmlFor="randomizeOrder" className="text-sm">
+                            Randomize question order
+                          </Label>
+                        </div>
+
+                        <Separator className="my-4" />
+
+                        {validationErrors.length > 0 && (
+                          <Alert className="mb-4">
+                            <AlertCircle className="h-4 w-4" />
+                            <AlertDescription>
+                              <ul className="list-disc list-inside space-y-1">
+                                {validationErrors.map((error, index) => (
+                                  <li key={index} className="text-sm">
+                                    {error}
+                                  </li>
+                                ))}
+                              </ul>
+                            </AlertDescription>
+                          </Alert>
+                        )}
+
+                        <Button
+                          onClick={createSession}
+                          disabled={creating || validationErrors.length > 0 || !sessionName.trim()}
+                          className="w-full"
+                          size="lg"
+                        >
+                          <Play className="w-4 h-4 mr-2" />
+                          {creating ? "Creating Test..." : "Start Test"}
+                        </Button>
+                      </CardContent>
+                    </Card>
+
+                    {/* Quick Stats Card */}
+                    <Card>
+                      <CardHeader>
+                        <CardTitle>Quick Stats</CardTitle>
+                      </CardHeader>
+                      <CardContent className="space-y-4">
+                        <div className="flex items-center justify-between">
+                          <span className="text-sm text-gray-600">Questions Available:</span>
+                          <Badge variant="secondary" className="text-lg font-bold">
+                            {loading ? "..." : questionCount}
+                          </Badge>
+                        </div>
+
+                        <div>
+                          <span className="text-sm text-gray-600 block mb-2">Active Filters:</span>
+                          {getSelectedFiltersCount() === 0 ? (
+                            <span className="text-sm text-green-600">All questions included</span>
+                          ) : (
+                            <div className="flex flex-wrap gap-1">
+                              {Object.entries(filters).map(([key, values]) =>
+                                values.map((value: string | number) => (
+                                  <Badge key={`${key}-${value}`} variant="outline" className="text-xs">
+                                    {String(value)}
+                                  </Badge>
+                                )),
+                              )}
+                            </div>
+                          )}
+                        </div>
+                      </CardContent>
+                    </Card>
+                  </div>
+
+                  {/* Left Column: Question Filters - Second in mobile, first in desktop */}
+                  <Card className="lg:col-span-2 order-2 lg:order-1">
+                    <CardHeader className="dark:bg-card bg-primary text-primary-foreground">
+                      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2">
+                        <div className="flex items-center gap-3">
+                          <Filter className="h-6 w-6" />
+                          <div className="flex items-center gap-3">
+                            <CardTitle>Question Filters</CardTitle>
+                            <Badge
+                              variant="outline"
+                              className="bg-transparent text-primary-foreground border-primary-foreground/50"
+                            >
+                              {questionCount} questions
+                            </Badge>
+                          </div>
+                        </div>
+                        <Button variant="ghost" size="sm" onClick={clearAllFilters}>
+                          Clear All
+                        </Button>
+                      </div>
+                    </CardHeader>
+                    <CardContent className="p-6">
+                      <div className="grid gap-8">
+                        {/* Specialties */}
+                        <div>
+                          <div className="flex items-center justify-between mb-3">
+                            <Label className="text-base font-medium">
+                              <GraduationCap className="w-4 h-4 inline mr-2" />
+                              Specialties
+                              {filters.specialties.length === 0 && (
+                                <span className="text-sm text-green-600 font-normal ml-2">(All)</span>
+                              )}
+                            </Label>
+                            <div className="flex gap-2">
+                              <Button
+                                variant="link"
+                                size="sm"
+                                onClick={() => selectAllInSection("specialties")}
+                                className="text-blue-600 p-0 h-auto text-xs"
+                              >
+                                Select All
+                              </Button>
+                              <Button
+                                variant="link"
+                                size="sm"
+                                onClick={() => clearFilterSection("specialties")}
+                                className="text-blue-600 p-0 h-auto text-xs"
+                              >
+                                Clear
+                              </Button>
+                            </div>
+                          </div>
+                          <div className="grid grid-cols-2 gap-3">
+                            {specialties.map((specialty) => (
+                              <div key={specialty} className="flex items-center space-x-2">
+                                <Checkbox
+                                  id={`specialty-${specialty}`}
+                                  checked={filters.specialties.includes(specialty)}
+                                  onCheckedChange={(checked) =>
+                                    handleFilterChange("specialties", specialty, checked as boolean)
+                                  }
+                                />
+                                <Label htmlFor={`specialty-${specialty}`} className="text-sm">
+                                  {specialty}
+                                </Label>
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+
+                        <Separator />
+
+                        {/* Years */}
+                        <div>
+                          <div className="flex items-center justify-between mb-3">
+                            <Label className="text-base font-medium">
+                              <Calendar className="w-4 h-4 inline mr-2" />
+                              Years
+                              {filters.years.length === 0 && (
+                                <span className="text-sm text-green-600 font-normal ml-2">(All)</span>
+                              )}
+                            </Label>
+                            <div className="flex gap-2">
+                              <Button
+                                variant="link"
+                                size="sm"
+                                onClick={() => selectAllInSection("years")}
+                                className="text-blue-600 p-0 h-auto text-xs"
+                              >
+                                Select All
+                              </Button>
+                              <Button
+                                variant="link"
+                                size="sm"
+                                onClick={() => clearFilterSection("years")}
+                                className="text-blue-600 p-0 h-auto text-xs"
+                              >
+                                Clear
+                              </Button>
+                            </div>
+                          </div>
+                          <div className="grid grid-cols-4 gap-3">
+                            {availableYears.map((year) => (
+                              <div key={year} className="flex items-center space-x-2">
+                                <Checkbox
+                                  id={`year-${year}`}
+                                  checked={filters.years.includes(year)}
+                                  onCheckedChange={(checked) => handleFilterChange("years", year, checked as boolean)}
+                                />
+                                <Label htmlFor={`year-${year}`} className="text-sm">
+                                  {year}
+                                </Label>
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+
+                        <Separator />
+
+                        {/* Difficulty */}
+                        <div>
+                          <div className="flex items-center justify-between mb-3">
+                            <Label className="text-base font-medium">
+                              <Target className="w-4 h-4 inline mr-2" />
+                              Difficulty
+                              {filters.difficulties.length === 0 && (
+                                <span className="text-sm text-green-600 font-normal ml-2">(All)</span>
+                              )}
+                            </Label>
+                            <div className="flex gap-2">
+                              <Button
+                                variant="link"
+                                size="sm"
+                                onClick={() => selectAllInSection("difficulties")}
+                                className="text-blue-600 p-0 h-auto text-xs"
+                              >
+                                Select All
+                              </Button>
+                              <Button
+                                variant="link"
+                                size="sm"
+                                onClick={() => clearFilterSection("difficulties")}
+                                className="text-blue-600 p-0 h-auto text-xs"
+                              >
+                                Clear
+                              </Button>
+                            </div>
+                          </div>
+                          <div className="flex gap-4">
+                            {difficulties.map((difficulty) => (
+                              <div key={difficulty} className="flex items-center space-x-2">
+                                <Checkbox
+                                  id={`difficulty-${difficulty}`}
+                                  checked={filters.difficulties.includes(difficulty)}
+                                  onCheckedChange={(checked) =>
+                                    handleFilterChange("difficulties", difficulty, checked as boolean)
+                                  }
+                                />
+                                <Label htmlFor={`difficulty-${difficulty}`} className="text-sm">
+                                  {difficulty}
+                                </Label>
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+
+                        <Separator />
+
+                        {/* Question Status */}
+                        <div>
+                          <div className="flex items-center justify-between mb-3">
+                            <Label className="text-base font-medium">
+                              <CheckCircle className="w-4 h-4 inline mr-2" />
+                              Question Status
+                              {filters.questionStatus.length === 0 && (
+                                <span className="text-sm text-green-600 font-normal ml-2">(All)</span>
+                              )}
+                            </Label>
+                            <div className="flex gap-2">
+                              <Button
+                                variant="link"
+                                size="sm"
+                                onClick={() => selectAllInSection("questionStatus")}
+                                className="text-blue-600 p-0 h-auto text-xs"
+                              >
+                                Select All
+                              </Button>
+                              <Button
+                                variant="link"
+                                size="sm"
+                                onClick={() => clearFilterSection("questionStatus")}
+                                className="text-blue-600 p-0 h-auto text-xs"
+                              >
+                                Clear
+                              </Button>
+                            </div>
+                          </div>
+                          <div className="grid grid-cols-2 gap-3">
+                            {questionStatuses.map((status) => (
+                              <div key={status.value} className="flex items-center space-x-2">
+                                <Checkbox
+                                  id={`status-${status.value}`}
+                                  checked={filters.questionStatus.includes(status.value as any)}
+                                  onCheckedChange={(checked) =>
+                                    handleFilterChange("questionStatus", status.value, checked as boolean)
+                                  }
+                                />
+                                <Label htmlFor={`status-${status.value}`} className="text-sm">
+                                  {status.label}
+                                </Label>
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+
+                        <Separator />
+
+                        {/* Exam Types */}
+                        <div>
+                          <div className="flex items-center justify-between mb-3">
+                            <Label className="text-base font-medium">
+                              <FileText className="w-4 h-4 inline mr-2" />
+                              Exam Types
+                              {filters.examTypes.length === 0 && (
+                                <span className="text-sm text-green-600 font-normal ml-2">(All)</span>
+                              )}
+                            </Label>
+                            <div className="flex gap-2">
+                              <Button
+                                variant="link"
+                                size="sm"
+                                onClick={() => selectAllInSection("examTypes")}
+                                className="text-blue-600 p-0 h-auto text-xs"
+                              >
+                                Select All
+                              </Button>
+                              <Button
+                                variant="link"
+                                size="sm"
+                                onClick={() => clearFilterSection("examTypes")}
+                                className="text-blue-600 p-0 h-auto text-xs"
+                              >
+                                Clear
+                              </Button>
+                            </div>
+                          </div>
+                          <div className="flex gap-4">
+                            {examTypes.map((examType) => (
+                              <div key={examType} className="flex items-center space-x-2">
+                                <Checkbox
+                                  id={`examtype-${examType}`}
+                                  checked={filters.examTypes.includes(examType)}
+                                  onCheckedChange={(checked) =>
+                                    handleFilterChange("examTypes", examType, checked as boolean)
+                                  }
+                                />
+                                <Label htmlFor={`examtype-${examType}`} className="text-sm">
+                                  {examType}
+                                </Label>
+                              </div>
+                            ))}
                           </div>
                         </div>
                       </div>
-                    )}
+                    </CardContent>
+                  </Card>
+                </div>
+              </TabsContent>
 
-                    <div>
-                      <Label htmlFor="maxQuestions">Maximum Questions (Optional)</Label>
-                      <Input
-                        id="maxQuestions"
-                        type="number"
-                        value={maxQuestions || ""}
-                        onChange={(e) => setMaxQuestions(e.target.value ? Number.parseInt(e.target.value) : null)}
-                        placeholder={`All ${questionCount} questions`}
-                        className="mt-1"
-                        min="1"
-                        max={Math.min(questionCount, 200)}
-                      />
-                      <p className="text-xs text-gray-500 mt-1">
-                        Limit the number of questions in your test (max 200 per session)
-                      </p>
-                    </div>
-
-                    {sessionMode === "exam" && (
-                      <div>
-                        <Label htmlFor="timeLimit">Time Limit (minutes) *</Label>
-                        <Input
-                          id="timeLimit"
-                          type="number"
-                          value={timeLimit || ""}
-                          onChange={(e) => setTimeLimit(e.target.value ? Number.parseInt(e.target.value) : null)}
-                          placeholder="Required for exam mode"
-                          className="mt-1"
-                          min="1"
-                          required
-                        />
-                        <p className="text-xs text-gray-500 mt-1">Estimated time: {getEstimatedTime()} minutes</p>
-                      </div>
-                    )}
-
-                    <div className="flex items-center space-x-2">
-                      <Checkbox
-                        id="randomizeOrder"
-                        checked={randomizeOrder}
-                        onCheckedChange={(checked) => setRandomizeOrder(checked as boolean)}
-                      />
-                      <Label htmlFor="randomizeOrder" className="text-sm">
-                        Randomize question order
-                      </Label>
-                    </div>
-
-                    <Separator className="my-4" />
-
-                    {validationErrors.length > 0 && (
-                      <Alert className="mb-4">
-                        <AlertCircle className="h-4 w-4" />
-                        <AlertDescription>
-                          <ul className="list-disc list-inside space-y-1">
-                            {validationErrors.map((error, index) => (
-                              <li key={index} className="text-sm">
-                                {error}
-                              </li>
-                            ))}
-                          </ul>
-                        </AlertDescription>
-                      </Alert>
-                    )}
-
-                    <Button
-                      onClick={createSession}
-                      disabled={creating || validationErrors.length > 0 || !sessionName.trim()}
-                      className="w-full"
-                      size="lg"
-                    >
-                      <Play className="w-4 h-4 mr-2" />
-                      {creating ? "Creating Test..." : "Start Test"}
-                    </Button>
-                  </CardContent>
-                </Card>
-
-                {/* Quick Stats */}
-                <Card>
-                  <CardHeader>
-                    <CardTitle>Quick Stats</CardTitle>
-                  </CardHeader>
-                  <CardContent className="space-y-4">
-                    <div className="flex items-center justify-between">
-                      <span className="text-sm text-gray-600">Questions Available:</span>
-                      <Badge variant="secondary" className="text-lg font-bold">
-                        {loading ? "..." : questionCount}
-                      </Badge>
-                    </div>
-
-                    <div>
-                      <span className="text-sm text-gray-600 block mb-2">Active Filters:</span>
-                      {getSelectedFiltersCount() === 0 ? (
-                        <span className="text-sm text-green-600">All questions included</span>
-                      ) : (
-                        <div className="flex flex-wrap gap-1">
-                          {Object.entries(filters).map(([key, values]) =>
-                            values.map((value: string | number) => (
-                              <Badge key={`${key}-${value}`} variant="outline" className="text-xs">
-                                {String(value)}
-                              </Badge>
-                            )),
-                          )}
-                        </div>
-                      )}
-                    </div>
-                  </CardContent>
-                </Card>
-              </div>
+              <TabsContent value="progress" className="h-full">
+                <UserProgressDashboard />
+              </TabsContent>
+            </>
+          ) : (
+            <div className="flex flex-col items-center justify-center h-full">
+              <LoadingSpinner />
             </div>
-          </TabsContent>
-
-          <TabsContent value="progress" className="space-y-6">
-            <UserProgressDashboard />
-          </TabsContent>
+          )}
         </Tabs>
-      </div>
+      </main>
+
+      {/* Session Recovery Prompt */}
+      {showRecoveryPrompt && recoverySession && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+          <Card className="max-w-md w-full">
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <AlertCircle className="w-5 h-5 text-orange-500" />
+                Resume Test Session?
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <p className="text-sm text-gray-600">
+                We found an active test session: <strong>{recoverySession.sessionName}</strong>
+              </p>
+              <p className="text-sm text-gray-600">
+                Would you like to continue where you left off?
+              </p>
+              <div className="flex gap-2">
+                <Button onClick={handleRecoverSession} className="flex-1">
+                  <Play className="w-4 h-4 mr-2" />
+                  Resume Session
+                </Button>
+                <Button variant="outline" onClick={handleDismissRecovery} className="flex-1">
+                  Start New Test
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+      )}
     </div>
   )
 }

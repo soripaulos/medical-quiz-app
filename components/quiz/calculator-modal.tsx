@@ -10,145 +10,162 @@ interface CalculatorModalProps {
 }
 
 export function CalculatorModal({ open, onOpenChange }: CalculatorModalProps) {
-  const [display, setDisplay] = useState("0")
-  const [previousValue, setPreviousValue] = useState<number | null>(null)
-  const [operation, setOperation] = useState<string | null>(null)
-  const [waitingForOperand, setWaitingForOperand] = useState(false)
+  const [input, setInput] = useState("0")
+  const [operator, setOperator] = useState<string | null>(null)
+  const [prevValue, setPrevValue] = useState<string | null>(null)
 
-  const inputNumber = (num: string) => {
-    if (waitingForOperand) {
-      setDisplay(num)
-      setWaitingForOperand(false)
+  const handleNumber = (num: string) => {
+    if (input === "0" && num !== ".") {
+      setInput(num)
+    } else if (input.includes(".") && num === ".") {
+      return
     } else {
-      setDisplay(display === "0" ? num : display + num)
+      setInput(input + num)
     }
   }
 
-  const inputOperation = (nextOperation: string) => {
-    const inputValue = Number.parseFloat(display)
-
-    if (previousValue === null) {
-      setPreviousValue(inputValue)
-    } else if (operation) {
-      const currentValue = previousValue || 0
-      const newValue = calculate(currentValue, inputValue, operation)
-
-      setDisplay(String(newValue))
-      setPreviousValue(newValue)
+  const handleOperator = (op: string) => {
+    if (prevValue) {
+      handleEquals()
     }
-
-    setWaitingForOperand(true)
-    setOperation(nextOperation)
+    setPrevValue(input)
+    setInput("0")
+    setOperator(op)
   }
 
-  const calculate = (firstValue: number, secondValue: number, operation: string) => {
-    switch (operation) {
+  const handleEquals = () => {
+    if (!operator || prevValue === null) return
+
+    const current = parseFloat(input)
+    const previous = parseFloat(prevValue)
+    let result
+
+    switch (operator) {
       case "+":
-        return firstValue + secondValue
+        result = previous + current
+        break
       case "-":
-        return firstValue - secondValue
+        result = previous - current
+        break
       case "×":
-        return firstValue * secondValue
+        result = previous * current
+        break
       case "÷":
-        return firstValue / secondValue
-      case "=":
-        return secondValue
+        result = previous / current
+        break
       default:
-        return secondValue
+        return
     }
+    setInput(result.toString())
+    setOperator(null)
+    setPrevValue(null)
   }
 
-  const performCalculation = () => {
-    const inputValue = Number.parseFloat(display)
-
-    if (previousValue !== null && operation) {
-      const newValue = calculate(previousValue, inputValue, operation)
-      setDisplay(String(newValue))
-      setPreviousValue(null)
-      setOperation(null)
-      setWaitingForOperand(true)
-    }
+  const handleClear = () => {
+    setInput("0")
+    setOperator(null)
+    setPrevValue(null)
   }
 
-  const clear = () => {
-    setDisplay("0")
-    setPreviousValue(null)
-    setOperation(null)
-    setWaitingForOperand(false)
+  const handleFunction = (func: string) => {
+    const value = parseFloat(input)
+    let result
+
+    switch (func) {
+      case "sin":
+        result = Math.sin((value * Math.PI) / 180) // Assuming degree input
+        break
+      case "cos":
+        result = Math.cos((value * Math.PI) / 180) // Assuming degree input
+        break
+      case "tan":
+        result = Math.tan((value * Math.PI) / 180) // Assuming degree input
+        break
+      case "log":
+        result = Math.log10(value)
+        break
+      case "ln":
+        result = Math.log(value)
+        break
+      case "√":
+        result = Math.sqrt(value)
+        break
+      case "x²":
+        result = Math.pow(value, 2)
+        break
+      case "%":
+        result = value / 100
+        break
+      case "+/-":
+        result = value * -1
+        break
+      default:
+        return
+    }
+    setInput(result.toString())
+  }
+
+  const handleButtonClick = (btn: string) => {
+    if (/[0-9.]/.test(btn)) {
+      handleNumber(btn)
+    } else if (["+", "-", "×", "÷"].includes(btn)) {
+      handleOperator(btn)
+    } else if (btn === "=") {
+      handleEquals()
+    } else if (btn === "C") {
+      handleClear()
+    } else if (btn === "DEL") {
+      setInput(input.slice(0, -1) || "0")
+    } else {
+      handleFunction(btn)
+    }
   }
 
   const buttons = [
-    ["Del", "M+", "MR", "Rnd", "C"],
-    ["1/x", "log10", "ln", "e", "%"],
-    ["sin", "cos", "tan", "π", "√"],
-    ["n!", "Mod", "x^y", "∛√", "("],
-    ["7", "8", "9", "+", "-/+"],
-    ["4", "5", "6", "-", "√"],
-    ["1", "2", "3", "/", "x³"],
-    [".", "0", "=", "X", "x²"],
-  ]
-
-  const handleButtonClick = (btn: string) => {
-    switch (btn) {
-      case "C":
-        clear()
-        break
-      case "=":
-        performCalculation()
-        break
-      case "+":
-      case "-":
-      case "×":
-      case "÷":
-        inputOperation(btn)
-        break
-      case ".":
-        if (display.indexOf(".") === -1) {
-          inputNumber(".")
-        }
-        break
-      default:
-        if (/\d/.test(btn)) {
-          inputNumber(btn)
-        }
-        break
-    }
-  }
+    "sin", "cos", "tan", "log", "C",
+    "ln", "√", "x²", "%", "DEL",
+    "7", "8", "9", "÷", "+/-",
+    "4", "5", "6", "×", "(",
+    "1", "2", "3", "-", ")",
+    "0", ".", "=", "+",
+  ];
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-md bg-gray-900 text-white border-0">
-        <div className="space-y-4">
-          {/* Display */}
-          <div className="bg-black p-4 rounded text-right text-2xl font-mono">{display}</div>
+      <DialogContent className="max-w-sm p-0 border-0">
+        <div className="bg-background rounded-lg shadow-lg">
+          <div className="p-4">
+            <div className="bg-muted text-muted-foreground rounded-md p-4 h-20 flex flex-col justify-end items-end mb-4">
+              <div className="text-3xl font-mono break-all text-right w-full">
+                {operator && prevValue ? `${prevValue} ${operator}` : ''}
+              </div>
+              <div className="text-5xl font-mono break-all text-right w-full">{input}</div>
+            </div>
+            <div className="grid grid-cols-5 gap-2">
+              {buttons.map((btn) => {
+                const isOperator = ["÷", "×", "-", "+", "="].includes(btn)
+                const isFn = ["sin", "cos", "tan", "log", "ln", "√", "x²", "%", "+/-"].includes(btn)
+                const isClear = ["C", "DEL"].includes(btn)
+                
+                let className = ""
+                if (isOperator) className = "bg-primary text-primary-foreground hover:bg-primary/90"
+                if (isClear) className = "bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                if (isFn) className = "bg-secondary text-secondary-foreground hover:bg-secondary/80"
+                if (btn === "0") className += " col-span-2"
 
-          {/* Buttons */}
-          <div className="grid grid-cols-5 gap-1">
-            {buttons.flat().map((btn, index) => (
-              <Button
-                key={index}
-                variant="outline"
-                className={`h-12 text-sm font-medium ${
-                  /\d|\./.test(btn)
-                    ? "bg-gray-600 hover:bg-gray-500 text-white border-gray-500"
-                    : "bg-blue-600 hover:bg-blue-500 text-white border-blue-500"
-                }`}
-                onClick={() => handleButtonClick(btn)}
-              >
-                {btn}
-              </Button>
-            ))}
-          </div>
 
-          {/* Close button */}
-          <div className="flex justify-end">
-            <Button
-              variant="outline"
-              onClick={() => onOpenChange(false)}
-              className="bg-gray-600 hover:bg-gray-500 text-white border-gray-500"
-            >
-              Close
-            </Button>
+                return (
+                  <Button
+                    key={btn}
+                    onClick={() => handleButtonClick(btn)}
+                    className={`h-14 text-xl ${className}`}
+                    variant={isOperator || isClear || isFn ? "default" : "outline"}
+                  >
+                    {btn}
+                  </Button>
+                )
+              })}
+            </div>
           </div>
         </div>
       </DialogContent>

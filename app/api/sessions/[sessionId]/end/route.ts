@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server"
 import { createClient } from "@/lib/supabase/server"
+import { safelyEndSession } from "@/lib/session-utils"
 
 export async function POST(req: Request, context: { params: Promise<{ sessionId: string }> }) {
   try {
@@ -17,52 +18,31 @@ export async function POST(req: Request, context: { params: Promise<{ sessionId:
       return NextResponse.json({ error: "Session not found" }, { status: 404 })
     }
 
-    // Calculate metrics
-    const { data: answers } = await supabase.from("user_answers").select("is_correct").eq("session_id", sessionId)
+    // Use the utility function to safely end the session
+    const result = await safelyEndSession(sessionId)
 
-    const correctAnswers = answers?.filter((a) => a.is_correct).length || 0
-    const incorrectAnswers = answers?.filter((a) => !a.is_correct).length || 0
-    const totalAnswered = correctAnswers + incorrectAnswers
-    const unansweredQuestions = Math.max(0, session.total_questions - totalAnswered)
-
-    // Calculate time spent
-    let totalTimeSpent = 0
-    if (session.time_limit && session.time_remaining !== null) {
-      // Timed session: time_limit (minutes) * 60 - time_remaining (seconds)
-      totalTimeSpent = session.time_limit * 60 - session.time_remaining
-    } else {
-      // Untimed session: calculate elapsed time from creation to now
-      const startTime = new Date(session.created_at).getTime()
-      const endTime = new Date().getTime()
-      totalTimeSpent = Math.floor((endTime - startTime) / 1000)
+    if (!result.success) {
+      return NextResponse.json({ error: "Failed to end session" }, { status: 500 })
     }
 
-    // Update session with completion data and metrics
-    const { error: updateError } = await supabase
-      .from("user_sessions")
-      .update({
-        is_active: false,
-        is_paused: false,
-        completed_at: new Date().toISOString(),
-        total_time_spent: totalTimeSpent,
-        correct_answers: correctAnswers,
-        incorrect_answers: incorrectAnswers,
-        unanswered_questions: unansweredQuestions,
-      })
-      .eq("id", sessionId)
+    // Clear the active_session_id from user's profile since session is now completed
+    const { error: profileError } = await supabase
+      .from("profiles")
+      .update({ active_session_id: null })
+      .eq("id", session.user_id)
 
-    if (updateError) {
-      console.error("Error updating session:", updateError)
-      return NextResponse.json({ error: "Failed to update session" }, { status: 500 })
+    if (profileError) {
+      console.error("Error clearing active session:", profileError)
+      // Don't fail the request - the session was ended successfully
     }
 
     return NextResponse.json({
       success: true,
-      metrics: {
-        correctAnswers,
-        incorrectAnswers,
-        unansweredQuestions,
-        totalTimeSpent,
+      metrics: result.metrics || {
+        correctAnswers: 0,
+        incorrectAnswers: 0,
+        unansweredQuestions: 0,
+        totalTimeSpent: 0,
       },
     })
   } catch (error) {

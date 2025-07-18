@@ -1,12 +1,27 @@
-"use client"
-
+import { Suspense } from 'react'
+import { verifySession } from "@/lib/auth"
+import { LoginForm } from "@/components/auth/login-form"
 import { EnhancedCreateTestInterface } from "@/components/test/enhanced-create-test-interface"
-import { AuthWrapper } from "@/components/auth/auth-wrapper"
+import { SessionRecovery } from "@/components/test/session-recovery"
+import { FullPageSpinner } from '@/components/ui/loading-spinner'
 
-export default function HomePage() {
+export const dynamic = 'force-dynamic'
+
+export default async function Page() {
+  const session = await verifySession()
+
+  if (!session) {
+    return (
+      <Suspense fallback={<FullPageSpinner />}>
+        <LoginForm />
+      </Suspense>
+    )
+  }
+
   return (
-    <AuthWrapper>
-      <EnhancedCreateTestInterface />
-    </AuthWrapper>
+    <div className="space-y-6">
+      <SessionRecovery />
+      <EnhancedCreateTestInterface userProfile={session.profile} />
+    </div>
   )
 }

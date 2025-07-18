@@ -7,6 +7,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Upload, Download, ArrowLeft, FileText, AlertCircle } from "lucide-react"
 import Link from "next/link"
+import { Tabs } from "@/components/ui/tabs"
 
 export function CSVUpload() {
   const [file, setFile] = useState<File | null>(null)

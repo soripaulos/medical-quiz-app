@@ -62,40 +62,13 @@ export function CreateTestInterface() {
   }, [filters, sessionMode])
 
   const generateSessionName = () => {
-    const now = new Date()
-    const timeStr = now.toLocaleTimeString("en-US", {
-      hour: "2-digit",
-      minute: "2-digit",
-      hour12: false,
-    })
-
-    let name = `${sessionMode === "practice" ? "Practice" : "Exam"} ${timeStr}`
-
-    // Add specialty if only one is selected
-    if (filters.specialties.length === 1) {
-      const specialty = filters.specialties[0]
-      const shortName = specialty
-        .split(" ")
-        .map((word) => word.charAt(0))
-        .join("")
-      name = `${shortName} ${name}`
+    if (sessionName && !sessionName.includes("Session")) {
+      return // Don't override user-set names
     }
 
-    // Add year if only one is selected
-    if (filters.years.length === 1) {
-      name = `${filters.years[0]} ${name}`
-    }
-
-    // Add difficulty range if specific difficulties selected
-    if (filters.difficulties.length > 0 && filters.difficulties.length < 5) {
-      const minDiff = Math.min(...filters.difficulties)
-      const maxDiff = Math.max(...filters.difficulties)
-      if (minDiff === maxDiff) {
-        name = `L${minDiff} ${name}`
-      } else {
-        name = `L${minDiff}-${maxDiff} ${name}`
-      }
-    }
+    // Start with session mode and add session number
+    const sessionCount = Math.floor(Math.random() * 99) + 1
+    const name = `${sessionMode === "practice" ? "Practice" : "Exam"} Session ${sessionCount.toString().padStart(2, '0')}`
 
     setSessionName(name)
   }
@@ -244,7 +217,7 @@ export function CreateTestInterface() {
       const data: any = isJson ? await res.json() : { ok: false }
 
       if (!res.ok || !isJson) {
-        // Log the raw error page/text so it’s visible in the console.
+        // Log the raw error page/text so it's visible in the console.
         const raw = isJson ? JSON.stringify(data) : await res.text()
         console.error("Create-session API error:", raw)
         throw new Error(data?.message || "Server error – check console")
@@ -260,13 +233,32 @@ export function CreateTestInterface() {
     }
   }
 
+  if (!user) {
+    return (
+      <div className="flex items-center justify-center h-full p-8 text-center bg-background">
+        <div className="max-w-md">
+          <div className="flex items-center justify-center mb-6">
+            <img src="/placeholder.svg" alt="App Logo" className="h-12 w-12" />
+          </div>
+          <h1 className="text-3xl font-bold text-gray-900">MedPrep ET</h1>
+          <p className="text-base text-gray-600">
+            Please sign in to create a test session.
+          </p>
+          <Link href="/signin">
+            <Button className="mt-4">Sign In</Button>
+          </Link>
+        </div>
+      </div>
+    )
+  }
+
   return (
-    <div className="min-h-screen bg-gray-50 p-6">
+    <div className="min-h-screen bg-background p-6">
       <div className="max-w-7xl mx-auto">
         {/* Header */}
         <div className="flex items-center justify-between mb-6">
           <div className="flex items-center gap-4">
-            <h1 className="text-3xl font-bold text-gray-900">Medical Quiz App</h1>
+            <h1 className="text-3xl font-bold text-gray-900">MedPrep ET</h1>
             <Badge variant="outline" className="text-sm">
               Create Test Session
             </Badge>

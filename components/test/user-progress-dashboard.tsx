@@ -19,8 +19,18 @@ import {
   Pie,
   Cell,
 } from "recharts"
-import { Trophy, Target, Clock, BookOpen, Eye, FileText } from "lucide-react"
+import { Trophy, Target, Clock, BookOpen, Eye, FileText, GraduationCap, Timer, BookOpenCheck, ChevronDown, ChevronUp } from "lucide-react"
+import { SourcesDisplay } from "@/components/ui/sources-display"
 import Link from "next/link"
+import { useRouter } from "next/navigation"
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table"
 
 interface UserStats {
   totalSessions: number
@@ -72,6 +82,11 @@ interface UserNote {
   noteText: string
   questionId: string
   questionText: string
+  questionPreview: string
+  choices: { letter: string; text: string }[]
+  correctAnswer: string
+  explanation?: string
+  sources?: string
   specialty: string
   createdAt: string
   updatedAt: string
@@ -83,12 +98,14 @@ export function UserProgressDashboard() {
   const [categoryPerformance, setCategoryPerformance] = useState<CategoryPerformance[]>([])
   const [progressData, setProgressData] = useState<ProgressData[]>([])
   const [userNotes, setUserNotes] = useState<UserNote[]>([])
+  const [expandedNotes, setExpandedNotes] = useState<Set<string>>(new Set())
   const [uniqueQuestions, setUniqueQuestions] = useState({
     uniqueQuestions: 0,
     totalQuestions: 0,
     percentageAttempted: 0,
   })
   const [loading, setLoading] = useState(true)
+  const router = useRouter()
 
   useEffect(() => {
     fetchAllData()
@@ -97,6 +114,16 @@ export function UserProgressDashboard() {
   const fetchAllData = async () => {
     try {
       setLoading(true)
+
+      // Clean up orphaned sessions first, but only if there's no active session in localStorage
+      const activeSession = localStorage.getItem('activeTestSession')
+      if (!activeSession) {
+        try {
+          await fetch("/api/sessions/cleanup", { method: "POST" })
+        } catch (error) {
+          console.error("Error cleaning up orphaned sessions:", error)
+        }
+      }
 
       // Fetch all data in parallel
       const [statsRes, historyRes, categoryRes, progressRes, notesRes, uniqueRes] = await Promise.all([
@@ -110,32 +137,44 @@ export function UserProgressDashboard() {
 
       if (statsRes.ok) {
         const data = await statsRes.json()
-        setStats(data.stats)
+        setStats(data)
+      } else {
+        console.error("Failed to fetch stats:", statsRes.status)
       }
 
       if (historyRes.ok) {
         const data = await historyRes.json()
-        setSessionHistory(data.sessions)
+        setSessionHistory(data.sessions || [])
+      } else {
+        console.error("Failed to fetch session history:", historyRes.status)
       }
 
       if (categoryRes.ok) {
         const data = await categoryRes.json()
-        setCategoryPerformance(data.categoryPerformance)
+        setCategoryPerformance(data.categoryPerformance || [])
+      } else {
+        console.error("Failed to fetch category performance:", categoryRes.status)
       }
 
       if (progressRes.ok) {
         const data = await progressRes.json()
-        setProgressData(data.progressData)
+        setProgressData(data.progressData || [])
+      } else {
+        console.error("Failed to fetch progress data:", progressRes.status)
       }
 
       if (notesRes.ok) {
         const data = await notesRes.json()
-        setUserNotes(data.notes)
+        setUserNotes(data.notes || [])
+      } else {
+        console.error("Failed to fetch notes:", notesRes.status)
       }
 
       if (uniqueRes.ok) {
         const data = await uniqueRes.json()
-        setUniqueQuestions(data)
+        setUniqueQuestions(data || { uniqueQuestions: 0, totalQuestions: 0, percentageAttempted: 0 })
+      } else {
+        console.error("Failed to fetch unique questions:", uniqueRes.status)
       }
     } catch (error) {
       console.error("Error fetching dashboard data:", error)
@@ -157,17 +196,48 @@ export function UserProgressDashboard() {
 
   const getScoreColor = (score: number) => {
     if (score >= 80) return "text-green-600"
-    if (score >= 60) return "text-yellow-600"
+    if (score >= 70) return "text-yellow-600"
     return "text-red-600"
   }
 
-  const pieData = stats
+  const toggleNoteExpansion = (noteId: string) => {
+    setExpandedNotes(prev => {
+      const newSet = new Set(prev)
+      if (newSet.has(noteId)) {
+        newSet.delete(noteId)
+      } else {
+        newSet.add(noteId)
+      }
+      return newSet
+    })
+  }
+
+  const getSessionTypeIcon = (type: string) => {
+    return type === 'exam' ? <Timer className="w-4 h-4 text-red-500" /> : <BookOpenCheck className="w-4 h-4 text-blue-500" />
+  }
+
+  const formatShortDate = (dateString: string) => {
+    const date = new Date(dateString)
+    return `${date.getDate().toString().padStart(2, '0')}/${(date.getMonth() + 1).toString().padStart(2, '0')}`
+  }
+
+  const pieData = stats && stats.answerDistribution
     ? [
         { name: "Correct", value: stats.answerDistribution.correct, color: "#10b981" },
         { name: "Incorrect", value: stats.answerDistribution.incorrect, color: "#ef4444" },
         { name: "Unanswered", value: stats.answerDistribution.unanswered, color: "#6b7280" },
       ]
     : []
+
+  // Check if we have valid data
+  const hasValidData = pieData.some(item => item.value > 0)
+
+  // Debug logging
+  if (process.env.NODE_ENV === 'development') {
+    console.log("Stats:", stats)
+    console.log("Answer Distribution:", stats?.answerDistribution)
+    console.log("Pie Data:", pieData)
+  }
 
   if (loading) {
     return (
@@ -181,12 +251,12 @@ export function UserProgressDashboard() {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50 p-6">
-      <div className="max-w-7xl mx-auto space-y-6">
+    <div className="min-h-screen bg-background p-2 sm:p-4 md:p-6">
+      <div className="w-full space-y-6">
         {/* Header */}
         <div className="text-center space-y-2">
-          <h1 className="text-3xl font-bold text-gray-900">My Progress Dashboard</h1>
-          <p className="text-gray-600">Track your learning journey and performance</p>
+          <h1 className="text-3xl font-bold text-foreground">My Progress Dashboard</h1>
+          <p className="text-muted-foreground">Track your learning journey and performance</p>
         </div>
 
         {/* Overview Cards */}
@@ -212,7 +282,7 @@ export function UserProgressDashboard() {
               <Clock className="h-4 w-4 text-muted-foreground" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold text-gray-900">{formatTime(stats?.totalTimeSpent || 0)}</div>
+              <div className="text-2xl font-bold text-foreground">{formatTime(stats?.totalTimeSpent || 0)}</div>
               <p className="text-xs text-muted-foreground">Across {stats?.totalSessions || 0} sessions</p>
             </CardContent>
           </Card>
@@ -223,7 +293,7 @@ export function UserProgressDashboard() {
               <BookOpen className="h-4 w-4 text-muted-foreground" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold text-gray-900">{uniqueQuestions.uniqueQuestions}</div>
+              <div className="text-2xl font-bold text-foreground">{uniqueQuestions.uniqueQuestions}</div>
               <p className="text-xs text-muted-foreground">
                 {uniqueQuestions.percentageAttempted.toFixed(1)}% of total questions
               </p>
@@ -236,20 +306,21 @@ export function UserProgressDashboard() {
               <Target className="h-4 w-4 text-muted-foreground" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold text-gray-900">{stats?.totalSessions || 0}</div>
+              <div className="text-2xl font-bold text-foreground">{stats?.totalSessions || 0}</div>
               <p className="text-xs text-muted-foreground">Total completed sessions</p>
             </CardContent>
           </Card>
         </div>
 
         <Tabs defaultValue="overview" className="space-y-6">
-          <TabsList className="grid w-full grid-cols-5">
-            <TabsTrigger value="overview">Overview</TabsTrigger>
-            <TabsTrigger value="history">Test History</TabsTrigger>
-            <TabsTrigger value="performance">Performance</TabsTrigger>
-            <TabsTrigger value="progress">Progress</TabsTrigger>
-            <TabsTrigger value="notes">Notes</TabsTrigger>
-          </TabsList>
+          <div className="flex flex-col sm:flex-row gap-2 sm:gap-0">
+            <TabsList className="grid w-full grid-cols-2 sm:grid-cols-4 h-auto sm:h-10">
+              <TabsTrigger value="overview" className="text-xs sm:text-sm py-2 sm:py-1">Overview</TabsTrigger>
+              <TabsTrigger value="history" className="text-xs sm:text-sm py-2 sm:py-1">Test History</TabsTrigger>
+              <TabsTrigger value="performance" className="text-xs sm:text-sm py-2 sm:py-1">Performance</TabsTrigger>
+              <TabsTrigger value="notes" className="text-xs sm:text-sm py-2 sm:py-1">Notes</TabsTrigger>
+            </TabsList>
+          </div>
 
           <TabsContent value="overview" className="space-y-6">
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
@@ -259,6 +330,8 @@ export function UserProgressDashboard() {
                   <CardTitle>Answer Distribution</CardTitle>
                 </CardHeader>
                 <CardContent>
+                  {hasValidData ? (
+                    <>
                   <ResponsiveContainer width="100%" height={300}>
                     <PieChart>
                       <Pie
@@ -288,6 +361,16 @@ export function UserProgressDashboard() {
                       </div>
                     ))}
                   </div>
+                    </>
+                  ) : (
+                    <div className="flex items-center justify-center h-[300px] text-gray-500">
+                      <div className="text-center">
+                        <BookOpen className="h-12 w-12 mx-auto mb-4 text-gray-400" />
+                        <p className="text-lg font-medium">No data available</p>
+                        <p className="text-sm">Start answering questions to see your distribution</p>
+                      </div>
+                    </div>
+                  )}
                 </CardContent>
               </Card>
 
@@ -327,55 +410,74 @@ export function UserProgressDashboard() {
               </CardHeader>
               <CardContent>
                 <div className="overflow-x-auto">
-                  <table className="w-full">
-                    <thead>
-                      <tr className="border-b">
-                        <th className="text-left p-2">Test Name</th>
-                        <th className="text-left p-2">Type</th>
-                        <th className="text-left p-2">Date</th>
-                        <th className="text-left p-2">Score</th>
-                        <th className="text-left p-2">Questions</th>
-                        <th className="text-left p-2">Time</th>
-                        <th className="text-left p-2">Actions</th>
-                      </tr>
-                    </thead>
-                    <tbody>
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead className="text-xs sm:text-sm">Test Name</TableHead>
+                        <TableHead className="text-xs sm:text-sm w-16">Date</TableHead>
+                        <TableHead className="text-xs sm:text-sm w-16">Score</TableHead>
+                        <TableHead className="text-xs sm:text-sm w-20">Q's</TableHead>
+                        <TableHead className="text-xs sm:text-sm w-8 hidden sm:table-cell">View</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
                       {sessionHistory.map((session) => (
-                        <tr key={session.id} className="border-b hover:bg-gray-50">
-                          <td className="p-2 font-medium">{session.name}</td>
-                          <td className="p-2">
-                            <Badge variant="outline">{session.type}</Badge>
-                          </td>
-                          <td className="p-2 text-sm text-gray-600">{new Date(session.date).toLocaleDateString()}</td>
-                          <td className="p-2">
-                            <span className={`font-bold ${getScoreColor(session.score)}`}>
-                              {session.score.toFixed(1)}%
-                            </span>
-                          </td>
-                          <td className="p-2">
+                        <TableRow 
+                          key={session.id}
+                          className="cursor-pointer hover:bg-muted/50"
+                          onClick={() => router.push(`/test/${session.id}/results`)}
+                        >
+                          <TableCell className="font-medium text-xs sm:text-sm">
+                            <div className="flex items-center justify-between">
+                              <div className="truncate max-w-[120px] sm:max-w-none">
+                                {session.name}
+                              </div>
+                              <Button 
+                                asChild 
+                                variant="ghost" 
+                                size="sm" 
+                                className="h-8 w-8 p-0 sm:hidden"
+                                onClick={(e) => e.stopPropagation()}
+                              >
+                                <Link href={`/test/${session.id}/results`}>
+                                  <Eye className="h-4 w-4" />
+                                </Link>
+                              </Button>
+                            </div>
+                          </TableCell>
+                          <TableCell className="text-xs sm:text-sm">
+                            {formatShortDate(session.date)}
+                          </TableCell>
+                          <TableCell className={`text-xs sm:text-sm font-bold ${getScoreColor(session.score)}`}>
+                            {session.score.toFixed(1)}%
+                          </TableCell>
+                          <TableCell className="text-xs sm:text-sm">
                             {session.correctAnswers}/{session.totalQuestions}
-                          </td>
-                          <td className="p-2">{session.timeSpent}m</td>
-                          <td className="p-2">
-                            {session.isCompleted && (
+                          </TableCell>
+                          <TableCell className="text-center hidden sm:table-cell">
+                            <Button 
+                              asChild 
+                              variant="ghost" 
+                              size="sm" 
+                              className="h-8 w-8 p-0"
+                              onClick={(e) => e.stopPropagation()}
+                            >
                               <Link href={`/test/${session.id}/results`}>
-                                <Button variant="ghost" size="sm">
-                                  <Eye className="w-4 h-4 mr-1" />
-                                  View
-                                </Button>
+                                <Eye className="h-4 w-4" />
                               </Link>
-                            )}
-                          </td>
-                        </tr>
+                            </Button>
+                          </TableCell>
+                        </TableRow>
                       ))}
-                    </tbody>
-                  </table>
+                    </TableBody>
+                  </Table>
                 </div>
               </CardContent>
             </Card>
           </TabsContent>
 
           <TabsContent value="performance" className="space-y-6">
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
             <Card>
               <CardHeader>
                 <CardTitle>Performance by Category</CardTitle>
@@ -392,9 +494,7 @@ export function UserProgressDashboard() {
                 </ResponsiveContainer>
               </CardContent>
             </Card>
-          </TabsContent>
 
-          <TabsContent value="progress" className="space-y-6">
             <Card>
               <CardHeader>
                 <CardTitle>Progress Over Time</CardTitle>
@@ -430,7 +530,10 @@ export function UserProgressDashboard() {
                 </ResponsiveContainer>
               </CardContent>
             </Card>
+            </div>
           </TabsContent>
+
+
 
           <TabsContent value="notes" className="space-y-6">
             <Card>
@@ -451,8 +554,81 @@ export function UserProgressDashboard() {
                           <Badge variant="outline">{note.specialty}</Badge>
                           <span className="text-sm text-gray-500">{new Date(note.updatedAt).toLocaleDateString()}</span>
                         </div>
-                        <p className="text-sm text-gray-600 mb-2">{note.questionText}</p>
-                        <p className="text-gray-900">{note.noteText}</p>
+                        
+                        {/* Question Preview with Toggle */}
+                        <div 
+                          className="cursor-pointer hover:bg-muted p-2 rounded mb-2"
+                          onClick={() => toggleNoteExpansion(note.id)}
+                        >
+                          <div className="flex items-center justify-between">
+                            <p className="text-sm text-muted-foreground flex-1">{note.questionPreview}</p>
+                            {expandedNotes.has(note.id) ? (
+                              <ChevronUp className="w-4 h-4 text-muted-foreground ml-2" />
+                            ) : (
+                              <ChevronDown className="w-4 h-4 text-muted-foreground ml-2" />
+                            )}
+                          </div>
+                        </div>
+
+                        {/* Expanded Question Details */}
+                        {expandedNotes.has(note.id) && (
+                          <div className="mb-4 p-3 bg-muted rounded border">
+                            <div className="space-y-3">
+                              {/* Full Question Text */}
+                              <div>
+                                <h4 className="font-medium text-sm mb-2">Question:</h4>
+                                <p className="text-sm text-foreground">{note.questionText}</p>
+                              </div>
+
+                              {/* Answer Choices */}
+                              {note.choices && note.choices.length > 0 && (
+                                <div>
+                                  <h4 className="font-medium text-sm mb-2">Answer Choices:</h4>
+                                  <div className="space-y-1">
+                                    {note.choices.map((choice) => (
+                                      <div 
+                                        key={choice.letter} 
+                                        className={`p-2 rounded text-sm ${
+                                          choice.letter === note.correctAnswer 
+                                            ? 'bg-green-100 dark:bg-green-900 border border-green-200 dark:border-green-800' 
+                                            : 'bg-background border border-border'
+                                        }`}
+                                      >
+                                        <span className="font-medium">{choice.letter}. </span>
+                                        <span>{choice.text}</span>
+                                        {choice.letter === note.correctAnswer && (
+                                          <span className="ml-2 text-green-600 dark:text-green-400 font-medium text-xs">(Correct)</span>
+                                        )}
+                                      </div>
+                                    ))}
+                                  </div>
+                                </div>
+                              )}
+
+                              {/* Explanation */}
+                              {note.explanation && (
+                                <div>
+                                  <h4 className="font-medium text-sm mb-2">Explanation:</h4>
+                                  <p className="text-sm text-foreground">{note.explanation}</p>
+                                </div>
+                              )}
+
+                              {/* Sources */}
+                              {note.sources && (
+                                <div>
+                                  <h4 className="font-medium text-sm mb-2">Sources:</h4>
+                                  <SourcesDisplay sources={note.sources} />
+                                </div>
+                              )}
+                            </div>
+                          </div>
+                        )}
+
+                        {/* User Note */}
+                        <div>
+                          <h4 className="font-medium text-sm mb-2">Your Note:</h4>
+                          <p className="text-foreground">{note.noteText}</p>
+                        </div>
                       </div>
                     ))
                   )}
