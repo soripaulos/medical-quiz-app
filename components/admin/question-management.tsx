@@ -11,6 +11,8 @@ import { Search, Filter, Edit, Trash2, Plus, ArrowLeft, Eye } from "lucide-react
 import Link from "next/link"
 import type { Question } from "@/lib/types"
 import { getAnswerChoices } from "@/lib/types"
+import { QuestionViewer } from "./question-viewer"
+import { QuestionEditor } from "./question-editor"
 
 export function QuestionManagement() {
   const [questions, setQuestions] = useState<Question[]>([])
@@ -21,12 +23,21 @@ export function QuestionManagement() {
   const [difficultyFilter, setDifficultyFilter] = useState("all")
   const [yearFilter, setYearFilter] = useState("all")
   const [examTypeFilter, setExamTypeFilter] = useState("all")
+  
+  // Modal states
+  const [viewerOpen, setViewerOpen] = useState(false)
+  const [editorOpen, setEditorOpen] = useState(false)
+  const [selectedQuestionId, setSelectedQuestionId] = useState<string | null>(null)
+
+  // Dynamic data
+  const [availableYears, setAvailableYears] = useState<number[]>([])
 
   const specialties = ["Internal Medicine", "Surgery", "Pediatrics", "OB/GYN", "Public Health", "Minor Specialties"]
   const examTypes = ["Exit Exam", "COC"]
 
   useEffect(() => {
     fetchQuestions()
+    fetchAvailableYears()
   }, [])
 
   useEffect(() => {
@@ -45,6 +56,19 @@ export function QuestionManagement() {
       console.error("Error fetching questions:", error)
     } finally {
       setLoading(false)
+    }
+  }
+
+  const fetchAvailableYears = async () => {
+    try {
+      const response = await fetch("/api/questions/years")
+      const data = await response.json()
+
+      if (data.years) {
+        setAvailableYears(data.years)
+      }
+    } catch (error) {
+      console.error("Error fetching years:", error)
     }
   }
 
@@ -92,6 +116,32 @@ export function QuestionManagement() {
         alert("Error deleting question. Please try again.")
       }
     }
+  }
+
+  const handleViewQuestion = (id: string) => {
+    setSelectedQuestionId(id)
+    setViewerOpen(true)
+  }
+
+  const handleEditQuestion = (id: string) => {
+    setSelectedQuestionId(id)
+    setEditorOpen(true)
+  }
+
+  const handleCloseViewer = () => {
+    setViewerOpen(false)
+    setSelectedQuestionId(null)
+  }
+
+  const handleCloseEditor = () => {
+    setEditorOpen(false)
+    setSelectedQuestionId(null)
+  }
+
+  const handleSaveQuestion = () => {
+    // Refresh the questions list and available years after saving
+    fetchQuestions()
+    fetchAvailableYears()
   }
 
   const difficultyColors = {
@@ -216,7 +266,7 @@ export function QuestionManagement() {
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="all">All Years</SelectItem>
-                  {Array.from({ length: 10 }, (_, i) => new Date().getFullYear() - i).map((year) => (
+                  {availableYears.map((year) => (
                     <SelectItem key={year} value={year.toString()}>
                       {year}
                     </SelectItem>
@@ -284,10 +334,20 @@ export function QuestionManagement() {
                       <TableCell className="text-sm text-gray-600">{formatDate(question.created_at)}</TableCell>
                       <TableCell>
                         <div className="flex items-center gap-2">
-                          <Button variant="outline" size="sm" title="View Question">
+                          <Button 
+                            variant="outline" 
+                            size="sm" 
+                            title="View Question"
+                            onClick={() => handleViewQuestion(question.id)}
+                          >
                             <Eye className="w-4 h-4" />
                           </Button>
-                          <Button variant="outline" size="sm" title="Edit Question">
+                          <Button 
+                            variant="outline" 
+                            size="sm" 
+                            title="Edit Question"
+                            onClick={() => handleEditQuestion(question.id)}
+                          >
                             <Edit className="w-4 h-4" />
                           </Button>
                           <Button
@@ -309,6 +369,21 @@ export function QuestionManagement() {
           </CardContent>
         </Card>
       </div>
+
+      {/* Question Viewer Modal */}
+      <QuestionViewer
+        questionId={selectedQuestionId}
+        open={viewerOpen}
+        onClose={handleCloseViewer}
+      />
+
+      {/* Question Editor Modal */}
+      <QuestionEditor
+        questionId={selectedQuestionId}
+        open={editorOpen}
+        onClose={handleCloseEditor}
+        onSave={handleSaveQuestion}
+      />
     </div>
   )
 }
