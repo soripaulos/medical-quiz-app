@@ -50,16 +50,8 @@ export async function POST(req: Request, context: { params: Promise<{ sessionId:
       // Don't fail the request - the session was paused successfully
     }
 
-    // Clear active session from user profile to prevent stubborn popups
-    try {
-      await supabase
-        .from("profiles")
-        .update({ active_session_id: null })
-        .eq("id", session.user_id)
-    } catch (error) {
-      console.error("Error clearing active session from profile:", error)
-      // Don't fail the request - the session was paused successfully
-    }
+    // Keep active session in user profile so it can be resumed
+    // Don't clear active_session_id - we want the session to remain "active" for resuming
 
     return NextResponse.json({ success: true })
   } catch (error) {

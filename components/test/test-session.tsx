@@ -199,15 +199,14 @@ export function TestSession({ sessionId }: TestSessionProps) {
         throw new Error("Failed to pause session")
       }
 
-      // Clear localStorage to prevent stubborn popups
-      localStorage.removeItem('activeTestSession')
+      // Keep session data in localStorage for resuming later
+      // Don't clear it - we want the active session to show up
       
       // Navigate to home
       router.push('/')
     } catch (error) {
       console.error("Error pausing session:", error)
       // Still navigate home even if pause failed
-      localStorage.removeItem('activeTestSession')
       router.push('/')
     }
   }
