@@ -95,13 +95,17 @@ export async function safelyEndSession(sessionId: string): Promise<{ success: bo
     })
 
     if (!endError) {
-      // Update session with metrics
+      // Update session with metrics and completion status
       await supabase
         .from("user_sessions")
         .update({
           correct_answers: metrics.correctAnswers,
           incorrect_answers: metrics.incorrectAnswers,
           unanswered_questions: metrics.unansweredQuestions,
+          total_active_time: finalActiveTime || 0,
+          completed_at: new Date().toISOString(),
+          is_active: false,
+          is_paused: false,
         })
         .eq("id", sessionId)
 

@@ -198,8 +198,17 @@ export function TestSession({ sessionId }: TestSessionProps) {
       if (!response.ok) {
         throw new Error("Failed to pause session")
       }
+
+      // Clear localStorage to prevent stubborn popups
+      localStorage.removeItem('activeTestSession')
+      
+      // Navigate to home
+      router.push('/')
     } catch (error) {
       console.error("Error pausing session:", error)
+      // Still navigate home even if pause failed
+      localStorage.removeItem('activeTestSession')
+      router.push('/')
     }
   }
 

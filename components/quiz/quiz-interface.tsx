@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet"
-import { Calculator, Flag, ChevronLeft, ChevronRight, Square, Beaker, StickyNote, Menu, Moon, Sun } from "lucide-react"
+import { Calculator, Flag, ChevronLeft, ChevronRight, Square, Beaker, StickyNote, Menu, Moon, Sun, Pause, Home } from "lucide-react"
 import { SourcesDisplay } from "@/components/ui/sources-display"
 import { QuestionSidebar } from "./question-sidebar"
 import { LabValuesModal } from "./lab-values-modal"
@@ -62,8 +62,10 @@ export function QuizInterface({
   const [activeTime, setActiveTime] = useState(0)
   const [noteText, setNoteText] = useState("")
   const [showSubmitPrompt, setShowSubmitPrompt] = useState(false)
+  const [showPausePrompt, setShowPausePrompt] = useState(false)
   const [localProgress, setLocalProgress] = useState<UserQuestionProgress[]>(userProgress)
   const [userNotes, setUserNotes] = useState<UserNote[]>([])
+  const [isSessionActive, setIsSessionActive] = useState(true)
 
   const router = useRouter()
   const { theme, setTheme } = useTheme()
@@ -331,7 +333,7 @@ export function QuizInterface({
     router.push(`/test/${session.id}/results`)
   }
 
-  // Timer effect for exam mode (countdown)
+  // Stable timer effect for exam mode (countdown) - prevent resets
   useEffect(() => {
     if (session.session_type === "exam" && session.time_limit && timeRemaining > 0) {
       const timer = setInterval(() => {
@@ -346,10 +348,10 @@ export function QuizInterface({
       }, 1000)
       return () => clearInterval(timer)
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [session.session_type, session.time_limit, timeRemaining])
+    // Removed timeRemaining from dependencies to prevent timer resets
+  }, [session.session_type, session.time_limit])
 
-  // Active time tracking for practice mode (stopwatch)
+  // Stable active time tracking for practice mode (stopwatch) - prevent resets  
   useEffect(() => {
     if (session.session_type === "practice") {
       const fetchActiveTime = async () => {
@@ -367,8 +369,8 @@ export function QuizInterface({
       // Initial fetch
       fetchActiveTime()
 
-      // Update active time every second
-      const timer = setInterval(fetchActiveTime, 1000)
+      // Update every 5 seconds instead of every second for better performance and stability
+      const timer = setInterval(fetchActiveTime, 5000)
       return () => clearInterval(timer)
     }
   }, [session.session_type, session.id])
@@ -444,32 +446,75 @@ export function QuizInterface({
         </div>
 
         <div className="flex items-center gap-1 sm:gap-2 flex-wrap justify-end">
+          {/* Primary actions - always visible */}
           <Button variant="ghost" size="icon" onClick={handleFlagQuestion}>
             <Flag
-              className={`h-5 w-5 ${currentProgress?.is_flagged ? "text-yellow-500 fill-current" : ""}`}
+              className={`h-4 w-4 sm:h-5 sm:w-5 ${currentProgress?.is_flagged ? "text-yellow-500 fill-current" : ""}`}
             />
             <span className="sr-only">Flag</span>
           </Button>
-          <Button variant="ghost" size="icon" onClick={() => setShowLabValues(true)}>
-            <Beaker className="h-5 w-5" />
-            <span className="sr-only">Lab Values</span>
+          <Button variant="ghost" size="icon" onClick={() => setShowPausePrompt(true)} className="text-yellow-300 hover:text-yellow-400">
+            <Pause className="h-4 w-4 sm:h-5 sm:w-5" />
+            <span className="sr-only">Pause Session</span>
           </Button>
-          <Button variant="ghost" size="icon" onClick={() => setShowNotes(!showNotes)} className="relative">
-            <StickyNote className="h-5 w-5" />
-            {currentNote && (
-              <div className="absolute -top-1 -right-1 w-3 h-3 bg-red-500 rounded-full border-2 border-white dark:border-gray-800"></div>
-            )}
-            <span className="sr-only">Notes</span>
-          </Button>
-          <Button variant="ghost" size="icon" onClick={toggleDarkMode}>
-            <Sun className="h-5 w-5 rotate-0 scale-100 transition-all dark:-rotate-90 dark:scale-0" />
-            <Moon className="absolute h-5 w-5 rotate-90 scale-0 transition-all dark:rotate-0 dark:scale-100" />
-            <span className="sr-only">Toggle theme</span>
-          </Button>
-          <Button variant="ghost" size="icon" onClick={() => setShowCalculator(true)}>
-            <Calculator className="h-5 w-5" />
-            <span className="sr-only">Calculator</span>
-          </Button>
+          
+          {/* Secondary actions - hidden on small screens, shown in menu */}
+          <div className="hidden sm:flex items-center gap-1">
+            <Button variant="ghost" size="icon" onClick={() => setShowLabValues(true)}>
+              <Beaker className="h-5 w-5" />
+              <span className="sr-only">Lab Values</span>
+            </Button>
+            <Button variant="ghost" size="icon" onClick={() => setShowNotes(!showNotes)} className="relative">
+              <StickyNote className="h-5 w-5" />
+              {currentNote && (
+                <div className="absolute -top-1 -right-1 w-3 h-3 bg-red-500 rounded-full border-2 border-white dark:border-gray-800"></div>
+              )}
+              <span className="sr-only">Notes</span>
+            </Button>
+            <Button variant="ghost" size="icon" onClick={toggleDarkMode}>
+              <Sun className="h-5 w-5 rotate-0 scale-100 transition-all dark:-rotate-90 dark:scale-0" />
+              <Moon className="absolute h-5 w-5 rotate-90 scale-0 transition-all dark:rotate-0 dark:scale-100" />
+              <span className="sr-only">Toggle theme</span>
+            </Button>
+            <Button variant="ghost" size="icon" onClick={() => setShowCalculator(true)}>
+              <Calculator className="h-5 w-5" />
+              <span className="sr-only">Calculator</span>
+            </Button>
+          </div>
+          
+          {/* Mobile menu for secondary actions */}
+          <Sheet>
+            <SheetTrigger asChild className="sm:hidden">
+              <Button variant="ghost" size="icon">
+                <Menu className="h-4 w-4" />
+                <span className="sr-only">More tools</span>
+              </Button>
+            </SheetTrigger>
+            <SheetContent side="right" className="w-64">
+              <div className="flex flex-col gap-4 pt-4">
+                <Button variant="outline" onClick={() => setShowLabValues(true)} className="justify-start">
+                  <Beaker className="h-4 w-4 mr-2" />
+                  Lab Values
+                </Button>
+                <Button variant="outline" onClick={() => setShowNotes(!showNotes)} className="justify-start relative">
+                  <StickyNote className="h-4 w-4 mr-2" />
+                  Notes
+                  {currentNote && (
+                    <div className="absolute right-2 w-2 h-2 bg-red-500 rounded-full"></div>
+                  )}
+                </Button>
+                <Button variant="outline" onClick={toggleDarkMode} className="justify-start">
+                  <Sun className="h-4 w-4 mr-2 rotate-0 scale-100 transition-all dark:-rotate-90 dark:scale-0" />
+                  <Moon className="absolute h-4 w-4 ml-2 rotate-90 scale-0 transition-all dark:rotate-0 dark:scale-100" />
+                  <span className="ml-6">Toggle Theme</span>
+                </Button>
+                <Button variant="outline" onClick={() => setShowCalculator(true)} className="justify-start">
+                  <Calculator className="h-4 w-4 mr-2" />
+                  Calculator
+                </Button>
+              </div>
+            </SheetContent>
+          </Sheet>
         </div>
       </header>
 
@@ -546,24 +591,34 @@ export function QuizInterface({
 
       {/* Footer */}
       <footer className="flex items-center justify-between p-2 border-t dark:bg-card bg-primary text-primary-foreground">
-        <Button variant="ghost" onClick={handlePreviousQuestion} disabled={currentQuestionIndex === 0}>
-          <ChevronLeft className="h-5 w-5 mr-1" />
-          Previous
-        </Button>
-        <Button variant="ghost" onClick={handleNextQuestion} disabled={currentQuestionIndex === questions.length - 1}>
-          Next
-          <ChevronRight className="h-5 w-5 ml-1" />
-        </Button>
-        <div className="flex items-center gap-4">
+        <div className="flex items-center gap-2">
+          <Button variant="ghost" size="sm" onClick={handlePreviousQuestion} disabled={currentQuestionIndex === 0}>
+            <ChevronLeft className="h-4 w-4 sm:h-5 sm:w-5 sm:mr-1" />
+            <span className="hidden sm:inline">Previous</span>
+          </Button>
+          <Button variant="ghost" size="sm" onClick={handleNextQuestion} disabled={currentQuestionIndex === questions.length - 1}>
+            <span className="hidden sm:inline">Next</span>
+            <ChevronRight className="h-4 w-4 sm:h-5 sm:w-5 sm:ml-1" />
+          </Button>
+        </div>
+        
+        <div className="flex items-center gap-2 sm:gap-4">
           {session.session_type === "exam" && session.time_limit && (
-            <span className="text-sm">Time remaining: {formatTime(timeRemaining)}</span>
+            <span className="text-xs sm:text-sm font-mono">
+              <span className="hidden sm:inline">Time: </span>
+              {formatTime(timeRemaining)}
+            </span>
           )}
           {session.session_type === "practice" && (
-            <span className="text-sm">Time spent: {formatTime(activeTime)}</span>
+            <span className="text-xs sm:text-sm font-mono">
+              <span className="hidden sm:inline">Time: </span>
+              {formatTime(activeTime)}
+            </span>
           )}
           <Button variant="destructive" size="sm" onClick={() => setShowSubmitPrompt(true)}>
-            <Square className="w-4 h-4 mr-1" />
-            End Block
+            <Square className="w-3 h-3 sm:w-4 sm:h-4 sm:mr-1" />
+            <span className="hidden sm:inline">End Block</span>
+            <span className="sm:hidden">End</span>
           </Button>
         </div>
       </footer>
@@ -577,6 +632,24 @@ export function QuizInterface({
           <AlertDialogFooter>
             <AlertDialogCancel>Cancel</AlertDialogCancel>
             <AlertDialogAction onClick={handleEndSession}>Submit</AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      <AlertDialog open={showPausePrompt} onOpenChange={setShowPausePrompt}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Pause Session?</AlertDialogTitle>
+            <AlertDialogDescription>
+              This will pause your test session and return you to the homepage. You can resume your session later from where you left off.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction onClick={onPauseSession} className="bg-yellow-600 hover:bg-yellow-700">
+              <Pause className="w-4 h-4 mr-2" />
+              Pause Session
+            </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>

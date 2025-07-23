@@ -143,22 +143,30 @@ export function EnhancedCreateTestInterface({ userProfile }: EnhancedCreateTestI
     checkForSessionRecovery()
   }, [])
 
-  // Check for session recovery on mount
-  const checkForSessionRecovery = () => {
+  // Check for session recovery on mount - less aggressive
+  const checkForSessionRecovery = async () => {
     const storedSession = localStorage.getItem('activeTestSession')
     if (storedSession) {
       try {
         const sessionData = JSON.parse(storedSession)
         const sessionAge = Date.now() - sessionData.startTime
         
-        // Only show recovery prompt if session is less than 24 hours old
-        if (sessionAge < 24 * 60 * 60 * 1000) {
-          setRecoverySession(sessionData)
-          setShowRecoveryPrompt(true)
-        } else {
-          // Remove old session data
-          localStorage.removeItem('activeTestSession')
+        // Only show recovery prompt if session is less than 4 hours old and verify it's still active
+        if (sessionAge < 4 * 60 * 60 * 1000) {
+          // Verify the session is still active on the server
+          const response = await fetch('/api/user/active-session')
+          if (response.ok) {
+            const data = await response.json()
+            if (data.activeSession && data.activeSession.id === sessionData.sessionId) {
+              setRecoverySession(sessionData)
+              setShowRecoveryPrompt(true)
+              return
+            }
+          }
         }
+        
+        // Remove stale session data
+        localStorage.removeItem('activeTestSession')
       } catch (error) {
         console.error('Error parsing stored session:', error)
         localStorage.removeItem('activeTestSession')
