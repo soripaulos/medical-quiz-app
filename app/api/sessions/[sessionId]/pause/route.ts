@@ -50,6 +50,9 @@ export async function POST(req: Request, context: { params: Promise<{ sessionId:
       // Don't fail the request - the session was paused successfully
     }
 
+    // Keep active session in user profile so it can be resumed
+    // Don't clear active_session_id - we want the session to remain "active" for resuming
+
     return NextResponse.json({ success: true })
   } catch (error) {
     console.error("Error pausing session:", error)

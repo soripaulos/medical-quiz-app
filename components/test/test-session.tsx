@@ -198,8 +198,16 @@ export function TestSession({ sessionId }: TestSessionProps) {
       if (!response.ok) {
         throw new Error("Failed to pause session")
       }
+
+      // Keep session data in localStorage for resuming later
+      // Don't clear it - we want the active session to show up
+      
+      // Navigate to home
+      router.push('/')
     } catch (error) {
       console.error("Error pausing session:", error)
+      // Still navigate home even if pause failed
+      router.push('/')
     }
   }
 

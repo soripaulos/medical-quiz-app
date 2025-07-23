@@ -36,12 +36,13 @@ export async function GET() {
       return NextResponse.json({ activeSession: null })
     }
 
-    // Fetch the active session details
+    // Fetch the active session details - include paused sessions for resuming
     const { data: activeSession, error: sessionError } = await supabase
       .from("user_sessions")
       .select("*")
       .eq("id", profile.active_session_id)
       .eq("is_active", true) // Only return if session is still active
+      // Include paused sessions so they can be resumed
       .single()
 
     if (sessionError) {
