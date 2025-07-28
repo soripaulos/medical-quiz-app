@@ -7,48 +7,31 @@ export async function POST(req: Request) {
   const supabase = await createClient()
 
   try {
-    // Build the base query for both count and data retrieval
-    const buildQuery = (supabase: any, selectClause: string) => {
-      let query = supabase.from("questions").select(selectClause)
-
-      // Apply specialty filters - if empty array, include all
-      if (filters.specialties && filters.specialties.length > 0) {
-        // We need to do a subquery for specialty filtering in count
-        const specialtyFilter = filters.specialties.map((s: string) => `specialties.name.eq.${s}`).join(',')
-        query = query.in('specialty_id', supabase.from('specialties').select('id').in('name', filters.specialties))
-      }
-
-      // Apply exam type filters - if empty array, include all
-      if (filters.examTypes && filters.examTypes.length > 0) {
-        query = query.in('exam_type_id', supabase.from('exam_types').select('id').in('name', filters.examTypes))
-      }
-
-      // Apply year filters - if empty array, include all
-      if (filters.years && filters.years.length > 0) {
-        query = query.in("year", filters.years)
-      }
-
-      // Apply difficulty filters - if empty array, include all
-      if (filters.difficulties && filters.difficulties.length > 0) {
-        query = query.in("difficulty", filters.difficulties)
-      }
-
-      return query
-    }
-
     // First, let's build the queries with proper filtering
     // For specialty filtering, we need to get the specialty IDs first
     let specialtyIds: number[] = []
     if (filters.specialties && filters.specialties.length > 0) {
-      const { data: specialtyData } = await supabase.from("specialties").select("id").in("name", filters.specialties)
-      specialtyIds = specialtyData?.map((s) => s.id) || []
+      const { data: specialtyData, error: specialtyError } = await supabase
+        .from("specialties")
+        .select("id")
+        .in("name", filters.specialties)
+      
+      if (!specialtyError && specialtyData) {
+        specialtyIds = specialtyData.map((s: any) => s.id) || []
+      }
     }
 
     // For exam type filtering, we need to get the exam type IDs first
     let examTypeIds: number[] = []
     if (filters.examTypes && filters.examTypes.length > 0) {
-      const { data: examTypeData } = await supabase.from("exam_types").select("id").in("name", filters.examTypes)
-      examTypeIds = examTypeData?.map((e) => e.id) || []
+      const { data: examTypeData, error: examTypeError } = await supabase
+        .from("exam_types")
+        .select("id")
+        .in("name", filters.examTypes)
+      
+      if (!examTypeError && examTypeData) {
+        examTypeIds = examTypeData.map((e: any) => e.id) || []
+      }
     }
 
     // Build the query for getting total count
@@ -135,7 +118,7 @@ export async function POST(req: Request) {
       // Create a map of question_id to most recent answer
       const latestAnswerMap = new Map<string, { is_correct: boolean; answered_at: string }>()
 
-      userAnswers.forEach((answer) => {
+      userAnswers.forEach((answer: any) => {
         if (!latestAnswerMap.has(answer.question_id)) {
           // Since answers are ordered by answered_at DESC, the first occurrence is the most recent
           latestAnswerMap.set(answer.question_id, {
@@ -145,8 +128,8 @@ export async function POST(req: Request) {
         }
       })
 
-      filteredQuestions = filteredQuestions.filter((question) => {
-        const progress = userProgress.find((p) => p.question_id === question.id)
+      filteredQuestions = filteredQuestions.filter((question: any) => {
+        const progress = userProgress.find((p: any) => p.question_id === question.id)
         const latestAnswer = latestAnswerMap.get(question.id)
 
         // Determine question status based on most recent answer
@@ -179,7 +162,7 @@ export async function POST(req: Request) {
       // Group questions by specialty to ensure diversity
       const questionsBySpecialty = new Map<string, any[]>()
       
-      filteredQuestions.forEach(question => {
+      filteredQuestions.forEach((question: any) => {
         const specialtyName = question.specialty?.name || 'Unknown'
         if (!questionsBySpecialty.has(specialtyName)) {
           questionsBySpecialty.set(specialtyName, [])

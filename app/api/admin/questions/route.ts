@@ -108,27 +108,27 @@ export async function GET(req: Request) {
 
     if (specialty && specialty !== 'all') {
       // Get specialty ID first
-      const { data: specialtyData } = await supabase
+      const { data: specialtyData, error: specialtyError } = await supabase
         .from("specialties")
         .select("id")
         .eq("name", specialty)
         .single()
       
-      if (specialtyData) {
-        query = query.eq('specialty_id', specialtyData.id)
+      if (!specialtyError && specialtyData) {
+        query = query.eq('specialty_id', (specialtyData as any).id)
       }
     }
 
     if (examType && examType !== 'all') {
       // Get exam type ID first
-      const { data: examTypeData } = await supabase
+      const { data: examTypeData, error: examTypeError } = await supabase
         .from("exam_types")
         .select("id")
         .eq("name", examType)
         .single()
       
-      if (examTypeData) {
-        query = query.eq('exam_type_id', examTypeData.id)
+      if (!examTypeError && examTypeData) {
+        query = query.eq('exam_type_id', (examTypeData as any).id)
       }
     }
 

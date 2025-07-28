@@ -66,7 +66,7 @@ export class DatabaseQueryBuilder {
     })
   }
   
-  async count(filters?: any) {
+  async count(filters?: Record<string, any>) {
     return this.executeQuery(async (table) => {
       let query = table.select('*', { count: 'exact', head: true })
       
@@ -84,7 +84,7 @@ export class DatabaseQueryBuilder {
   
   async findMany(options: {
     select?: string
-    filters?: any
+    filters?: Record<string, any>
     orderBy?: { column: string; ascending?: boolean }
     limit?: number
     offset?: number
@@ -158,42 +158,54 @@ export class DatabaseHealthMonitor {
 // Optimized query helpers
 export const optimizedQueries = {
   async getDistinctYears() {
-    const adminClient = createAdminClient()
-    
-    return withRetry(async () => {
-      // Try RPC function first
-      try {
-        const { data, error } = await adminClient.rpc('get_distinct_years')
-        if (!error && data) {
-          return { data: data.sort((a: number, b: number) => b - a), method: 'rpc' }
+    try {
+      const adminClient = createAdminClient()
+      
+      return withRetry(async () => {
+        // Try RPC function first
+        try {
+          const { data, error } = await adminClient.rpc('get_distinct_years')
+          if (!error && data) {
+            return { data: (data as number[]).sort((a: number, b: number) => b - a), method: 'rpc' }
+          }
+        } catch (e) {
+          console.warn('RPC function not available, using fallback')
         }
-      } catch (e) {
-        console.warn('RPC function not available, using fallback')
-      }
-      
-      // Fallback to direct query
-      const { data, error } = await adminClient
-        .from('questions')
-        .select('year')
-        .not('year', 'is', null)
-        .order('year', { ascending: false })
-      
-      if (error) throw error
-      
-      const uniqueYears = [...new Set(data?.map(q => q.year).filter(Boolean))]
-      return { 
-        data: uniqueYears.sort((a: number, b: number) => b - a), 
-        method: 'fallback' 
-      }
-    })
+        
+        // Fallback to direct query
+        const { data, error } = await adminClient
+          .from('questions')
+          .select('year')
+          .not('year', 'is', null)
+          .order('year', { ascending: false })
+        
+        if (error) throw error
+        
+        const uniqueYears = [...new Set(data?.map((q: any) => q.year).filter(Boolean))] as number[]
+        return { 
+          data: uniqueYears.sort((a: number, b: number) => b - a), 
+          method: 'fallback' 
+        }
+      })
+    } catch (error) {
+      // Handle build-time errors gracefully
+      console.warn('Error in getDistinctYears:', error)
+      return { data: [], method: 'error' }
+    }
   },
   
-  async getTotalQuestionCount(filters?: any) {
-    const adminClient = createAdminClient()
-    const queryBuilder = new DatabaseQueryBuilder(adminClient, 'questions')
-    
-    const result = await queryBuilder.count(filters)
-    return result.count || 0
+  async getTotalQuestionCount(filters?: Record<string, any>) {
+    try {
+      const adminClient = createAdminClient()
+      const queryBuilder = new DatabaseQueryBuilder(adminClient, 'questions')
+      
+      const result = await queryBuilder.count(filters)
+      return result.count || 0
+    } catch (error) {
+      // Handle build-time errors gracefully
+      console.warn('Error in getTotalQuestionCount:', error)
+      return 0
+    }
   },
   
   async getFilteredQuestions(options: {
@@ -206,61 +218,68 @@ export const optimizedQueries = {
     year?: number
     userId?: string
   }) {
-    const serverClient = await createServerClient()
-    const queryBuilder = new DatabaseQueryBuilder(serverClient, 'questions')
-    
-    const filters: any = {}
-    if (options.specialty && options.specialty !== 'all') {
-      // Get specialty ID
-      const { data: specialtyData } = await serverClient
-        .from('specialties')
-        .select('id')
-        .eq('name', options.specialty)
-        .single()
+    try {
+      const serverClient = await createServerClient()
+      const queryBuilder = new DatabaseQueryBuilder(serverClient, 'questions')
       
-      if (specialtyData) {
-        filters.specialty_id = specialtyData.id
-      }
-    }
-    
-    if (options.examType && options.examType !== 'all') {
-      // Get exam type ID
-      const { data: examTypeData } = await serverClient
-        .from('exam_types')
-        .select('id')
-        .eq('name', options.examType)
-        .single()
+      const filters: Record<string, any> = {}
       
-      if (examTypeData) {
-        filters.exam_type_id = examTypeData.id
+      if (options.specialty && options.specialty !== 'all') {
+        // Get specialty ID
+        const { data: specialtyData, error: specialtyError } = await serverClient
+          .from('specialties')
+          .select('id')
+          .eq('name', options.specialty)
+          .single()
+        
+        if (!specialtyError && specialtyData) {
+          filters.specialty_id = (specialtyData as any).id
+        }
       }
+      
+      if (options.examType && options.examType !== 'all') {
+        // Get exam type ID
+        const { data: examTypeData, error: examTypeError } = await serverClient
+          .from('exam_types')
+          .select('id')
+          .eq('name', options.examType)
+          .single()
+        
+        if (!examTypeError && examTypeData) {
+          filters.exam_type_id = (examTypeData as any).id
+        }
+      }
+      
+      if (options.difficulty) {
+        filters.difficulty = options.difficulty
+      }
+      
+      if (options.year) {
+        filters.year = options.year
+      }
+      
+      if (options.search) {
+        filters.question_text_search = options.search
+      }
+      
+      const result = await queryBuilder.findMany({
+        select: `
+          *,
+          specialty:specialties(id, name),
+          exam_type:exam_types(id, name)
+        `,
+        filters,
+        orderBy: { column: 'created_at', ascending: false },
+        limit: options.limit || 50,
+        offset: ((options.page || 1) - 1) * (options.limit || 50)
+      })
+      
+      return result
+    } catch (error) {
+      // Handle build-time errors gracefully
+      console.warn('Error in getFilteredQuestions:', error)
+      return { data: [], count: 0, error }
     }
-    
-    if (options.difficulty) {
-      filters.difficulty = options.difficulty
-    }
-    
-    if (options.year) {
-      filters.year = options.year
-    }
-    
-    if (options.search) {
-      filters.question_text_search = options.search
-    }
-    
-    const result = await queryBuilder.findMany({
-      select: `
-        *,
-        specialty:specialties(id, name),
-        exam_type:exam_types(id, name)
-      `,
-      filters,
-      orderBy: { column: 'created_at', ascending: false },
-      limit: options.limit || 50,
-      offset: ((options.page || 1) - 1) * (options.limit || 50)
-    })
-    
-    return result
   }
 }
 

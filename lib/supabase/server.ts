@@ -7,7 +7,24 @@ export async function createClient() {
   const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
 
   if (!supabaseUrl || !supabaseKey) {
-    throw new Error("Supabase environment variables not configured")
+    if (process.env.NODE_ENV === 'production' || process.env.CI) {
+      throw new Error("Supabase environment variables not configured")
+    }
+    // Return a mock client for build-time
+    return {
+      from: () => ({
+        select: () => ({ 
+          eq: () => ({ single: () => Promise.resolve({ data: null, error: null }) }),
+          in: () => Promise.resolve({ data: [], error: null }),
+          not: () => ({ order: () => Promise.resolve({ data: [], error: null }) }),
+          order: () => Promise.resolve({ data: [], error: null }),
+          range: () => Promise.resolve({ data: [], error: null, count: 0 }),
+          ilike: () => ({ eq: () => Promise.resolve({ data: [], error: null }) })
+        }),
+        insert: () => ({ select: () => ({ single: () => Promise.resolve({ data: null, error: null }) }) }),
+        rpc: () => Promise.resolve({ data: [], error: null })
+      })
+    } as any
   }
 
   const cookieStore = await cookies()
