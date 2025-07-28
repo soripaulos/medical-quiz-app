@@ -1,66 +1,81 @@
 import { NextResponse } from "next/server"
 import { createClient } from "@/lib/supabase/server"
-import { getUser } from "@/lib/auth"
+import { verifySession } from "@/lib/auth"
+
+export const dynamic = "force-dynamic"
 
 export async function GET() {
   try {
-    // Get current user using DAL
-    const user = await getUser()
-    if (!user) {
+    const userSession = await verifySession()
+    
+    if (!userSession) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
     }
 
     const supabase = await createClient()
-
-    // Get completed sessions with stored metrics, ordered by completion date
-    const { data: sessions, error: sessionsError } = await supabase
+    
+    // Get user sessions with performance data
+    const { data: sessions, error } = await supabase
       .from("user_sessions")
-      .select(`
-        id,
-        session_name,
-        total_questions,
-        correct_answers,
-        incorrect_answers,
-        completed_at
-      `)
-      .eq("user_id", user.id)
-      .not("completed_at", "is", null)
+      .select("*")
+      .eq("user_id", userSession.user.id)
+      .eq("is_completed", true)
       .order("completed_at", { ascending: true })
+      .limit(50) // Limit to last 50 sessions for performance
 
-    if (sessionsError) {
-      console.error("Sessions error:", sessionsError)
-      return NextResponse.json({ error: "Failed to fetch sessions" }, { status: 500 })
+    if (error) {
+      console.error("Error fetching sessions:", error)
+      return NextResponse.json({ error: "Failed to fetch progress data" }, { status: 500 })
     }
 
-    // Calculate cumulative progress over time
-    let cumulativeCorrect = 0
-    let cumulativeTotal = 0
+    if (!sessions || sessions.length === 0) {
+      return NextResponse.json({
+        progressData: [],
+        totalSessions: 0,
+        averageScore: 0,
+        trend: "stable"
+      })
+    }
 
     const progressData =
-      sessions?.map((session, index) => {
+      sessions?.map((session: any, index: number) => {
         const sessionCorrect = session.correct_answers || 0
         const sessionTotal = (session.correct_answers || 0) + (session.incorrect_answers || 0)
 
-        cumulativeCorrect += sessionCorrect
-        cumulativeTotal += sessionTotal
-
-        const sessionAccuracy = sessionTotal > 0 ? (sessionCorrect / sessionTotal) * 100 : 0
-        const cumulativeAccuracy = cumulativeTotal > 0 ? (cumulativeCorrect / cumulativeTotal) * 100 : 0
-
         return {
           sessionNumber: index + 1,
-          sessionName: session.session_name,
           date: session.completed_at,
-          sessionAccuracy: Math.round(sessionAccuracy * 10) / 10,
-          cumulativeAccuracy: Math.round(cumulativeAccuracy * 10) / 10,
-          questionsAnswered: sessionTotal,
-          totalQuestionsAnswered: cumulativeTotal,
+          score: sessionTotal > 0 ? Math.round((sessionCorrect / sessionTotal) * 100) : 0,
+          correct: sessionCorrect,
+          total: sessionTotal,
+          sessionName: session.session_name,
+          timeSpent: session.active_time_seconds || 0,
         }
       }) || []
 
-    return NextResponse.json({ progressData })
+    // Calculate trend (comparing first half vs second half)
+    const midpoint = Math.floor(progressData.length / 2)
+    const firstHalfAvg = progressData.slice(0, midpoint).reduce((sum: number, session: any) => sum + session.score, 0) / midpoint || 0
+    const secondHalfAvg = progressData.slice(midpoint).reduce((sum: number, session: any) => sum + session.score, 0) / (progressData.length - midpoint) || 0
+    
+    let trend = "stable"
+    if (secondHalfAvg > firstHalfAvg + 5) {
+      trend = "improving"
+    } else if (secondHalfAvg < firstHalfAvg - 5) {
+      trend = "declining"
+    }
+
+    const averageScore = progressData.reduce((sum: number, session: any) => sum + session.score, 0) / progressData.length || 0
+
+    return NextResponse.json({
+      progressData,
+      totalSessions: sessions.length,
+      averageScore: Math.round(averageScore),
+      trend
+    })
+
   } catch (error) {
-    console.error("Error fetching progress over time:", error)
+    console.error("Error in progress-over-time:", error)
     return NextResponse.json({ error: "Internal server error" }, { status: 500 })
   }
 }

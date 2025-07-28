@@ -201,29 +201,52 @@ export function EnhancedCreateTestInterface({ userProfile }: EnhancedCreateTestI
 
   const fetchFilterOptions = async () => {
     try {
-      // Fetch specialties
-      const specialtiesRes = await fetch("/api/specialties")
-      const specialtiesData = (await safeJson(specialtiesRes)) as any
-      if (specialtiesData?.specialties) {
-        setSpecialties(specialtiesData.specialties.map((s: { name: string }) => s.name))
-      }
-
-      // Fetch exam types
-      const examTypesRes = await fetch("/api/exam-types")
-      const examTypesData = (await safeJson(examTypesRes)) as any
-      if (examTypesData?.examTypes) {
-        setExamTypes(examTypesData.examTypes.map((e: { name: string }) => e.name))
-      }
-
-      // Fetch available years
-      const yearsRes = await fetch("/api/questions/years")
-      const yearsData = (await safeJson(yearsRes)) as any
-      if (yearsData?.years) {
-        setAvailableYears(yearsData.years.sort((a: number, b: number) => b - a))
+      // Use the new optimized filter options API that returns everything in one request
+      const filterOptionsRes = await fetch("/api/questions/filter-options")
+      const filterData = (await safeJson(filterOptionsRes)) as any
+      
+      if (filterData) {
+        // Set all filter options from the single response
+        if (filterData.specialties) {
+          setSpecialties(filterData.specialties)
+        }
+        if (filterData.examTypes) {
+          setExamTypes(filterData.examTypes)
+        }
+        if (filterData.years) {
+          setAvailableYears(filterData.years)
+        }
+        
+        console.log(`Filter options loaded: ${filterData.counts?.years || 0} years, ${filterData.cached ? 'from cache' : 'fresh'} (${filterData.responseTime})`)
       }
     } catch (error) {
-      // This will catch network errors or JSON parsing failures
-      console.error("Error fetching filter options:", error)
+      // Fallback to individual API calls if the combined endpoint fails
+      console.warn("Combined filter options failed, falling back to individual calls:", error)
+      
+      try {
+        // Fetch specialties
+        const specialtiesRes = await fetch("/api/specialties")
+        const specialtiesData = (await safeJson(specialtiesRes)) as any
+        if (specialtiesData?.specialties) {
+          setSpecialties(specialtiesData.specialties.map((s: { name: string }) => s.name))
+        }
+
+        // Fetch exam types
+        const examTypesRes = await fetch("/api/exam-types")
+        const examTypesData = (await safeJson(examTypesRes)) as any
+        if (examTypesData?.examTypes) {
+          setExamTypes(examTypesData.examTypes.map((e: { name: string }) => e.name))
+        }
+
+        // Fetch available years
+        const yearsRes = await fetch("/api/questions/years")
+        const yearsData = (await safeJson(yearsRes)) as any
+        if (yearsData?.years) {
+          setAvailableYears(yearsData.years.sort((a: number, b: number) => b - a))
+        }
+      } catch (fallbackError) {
+        console.error("Error fetching filter options (fallback):", fallbackError)
+      }
     }
   }
 
@@ -487,190 +510,8 @@ export function EnhancedCreateTestInterface({ userProfile }: EnhancedCreateTestI
             <>
               <TabsContent value="custom" className="space-y-6">
                 <div className="grid gap-4 sm:gap-6 grid-cols-1 lg:grid-cols-3">
-                  {/* Test Settings Panel - First in mobile, last in desktop */}
-                  <div className="space-y-6 order-1 lg:order-2">
-                    {/* Active Session Card */}
-                    <ActiveSessionCard compact={true} />
-                    
-                    <Card>
-                      <CardHeader className="dark:bg-card bg-primary text-primary-foreground">
-                        <CardTitle className="flex items-center gap-2">
-                          <Settings className="w-5 h-5" />
-                          Test Configuration
-                        </CardTitle>
-                      </CardHeader>
-                      <CardContent className="space-y-4">
-                        <div>
-                          <Label htmlFor="sessionName">Test Name</Label>
-                          <Input
-                            id="sessionName"
-                            value={sessionName}
-                            onChange={(e) => setSessionName(e.target.value)}
-                            placeholder="Auto-generated name..."
-                            className="mt-1"
-                          />
-                          <p className="text-xs text-gray-500 mt-1">Name is auto-generated based on your settings</p>
-                        </div>
-
-                        <div>
-                          <Label htmlFor="sessionMode">Test Mode</Label>
-                          <Select value={sessionMode} onValueChange={(value: "practice" | "exam") => setSessionMode(value)}>
-                            <SelectTrigger className="mt-1">
-                              <SelectValue />
-                            </SelectTrigger>
-                            <SelectContent>
-                              <SelectItem value="practice">Practice Mode</SelectItem>
-                              <SelectItem value="exam">Exam Mode</SelectItem>
-                            </SelectContent>
-                          </Select>
-                          <p className="text-xs text-gray-500 mt-1">
-                            {sessionMode === "practice"
-                              ? "Get immediate feedback after each question"
-                              : "Review answers only at the end"}
-                          </p>
-                        </div>
-
-                        {sessionMode === "practice" && (
-                          <div className="border border-blue-200 rounded-lg p-4 bg-transparent">
-                            <div className="flex items-start space-x-3">
-                              <TrendingUp className="w-5 h-5 text-blue-600 mt-0.5" />
-                              <div className="flex-1">
-                                <div className="flex items-center space-x-2 mb-2">
-                                  <Checkbox
-                                    id="trackProgress"
-                                    checked={trackProgress}
-                                    onCheckedChange={(checked) => setTrackProgress(checked as boolean)}
-                                  />
-                                  <Label htmlFor="trackProgress" className="text-sm font-medium">
-                                    Track my progress
-                                  </Label>
-                                </div>
-                                <p className="text-xs text-gray-600">
-                                  {trackProgress
-                                    ? "Your answers will be recorded and used to track your performance over time. This helps with filtering questions by status (answered, correct, incorrect)."
-                                    : "Your answers will not be saved to your progress history. Use this for casual practice without affecting your statistics."}
-                                </p>
-                              </div>
-                            </div>
-                          </div>
-                        )}
-
-                        <div>
-                          <Label htmlFor="maxQuestions">Number of Questions</Label>
-                          <Input
-                            id="maxQuestions"
-                            type="number"
-                            value={maxQuestions || ""}
-                            onChange={(e) => setMaxQuestions(e.target.value ? Number.parseInt(e.target.value) : null)}
-                            placeholder={`All ${questionCount} questions`}
-                            className="mt-1"
-                            min="1"
-                            max={Math.min(questionCount, 200)}
-                          />
-                          <p className="text-xs text-gray-500 mt-1">
-                            Limit the number of questions in your test (max 200 per session)
-                          </p>
-                        </div>
-
-                        {sessionMode === "exam" && (
-                          <div>
-                            <Label htmlFor="timeLimit">Time Limit (minutes) *</Label>
-                            <Input
-                              id="timeLimit"
-                              type="number"
-                              value={timeLimit || ""}
-                              onChange={(e) => setTimeLimit(e.target.value ? Number.parseInt(e.target.value) : null)}
-                              placeholder="Required for exam mode"
-                              className="mt-1"
-                              min="1"
-                              required
-                            />
-                            <p className="text-xs text-gray-500 mt-1">Estimated time: {getEstimatedTime()} minutes</p>
-                          </div>
-                        )}
-
-                        <div className="flex items-center space-x-2">
-                          <Checkbox
-                            id="randomizeOrder"
-                            checked={randomizeOrder}
-                            onCheckedChange={(checked) => setRandomizeOrder(checked as boolean)}
-                          />
-                          <Label htmlFor="randomizeOrder" className="text-sm">
-                            Randomize question order
-                          </Label>
-                        </div>
-
-                        <Separator className="my-4" />
-
-                        {validationErrors.length > 0 && (
-                          <Alert className="mb-4">
-                            <AlertCircle className="h-4 w-4" />
-                            <AlertDescription>
-                              <ul className="list-disc list-inside space-y-1">
-                                {validationErrors.map((error, index) => (
-                                  <li key={index} className="text-sm">
-                                    {error}
-                                  </li>
-                                ))}
-                              </ul>
-                            </AlertDescription>
-                          </Alert>
-                        )}
-
-                        <Button
-                          onClick={createSession}
-                          disabled={creating || validationErrors.length > 0 || !sessionName.trim()}
-                          className="w-full"
-                          size="lg"
-                        >
-                          <Play className="w-4 h-4 mr-2" />
-                          {creating ? "Creating Test..." : "Start Test"}
-                        </Button>
-                      </CardContent>
-                    </Card>
-
-                    {/* Quick Stats Card */}
-                    <Card>
-                      <CardHeader>
-                        <CardTitle>Quick Stats</CardTitle>
-                      </CardHeader>
-                      <CardContent className="space-y-4">
-                        <div className="flex items-center justify-between">
-                          <span className="text-sm text-gray-600">Questions Available:</span>
-                          <Badge variant="secondary" className="text-lg font-bold">
-                            {loading ? (
-                              <div className="flex items-center gap-1">
-                                <Loader2 className="w-3 h-3 animate-spin" />
-                                Loading...
-                              </div>
-                            ) : (
-                              questionCount.toLocaleString()
-                            )}
-                          </Badge>
-                        </div>
-
-                        <div>
-                          <span className="text-sm text-gray-600 block mb-2">Active Filters:</span>
-                          {getSelectedFiltersCount() === 0 ? (
-                            <span className="text-sm text-green-600">All questions included</span>
-                          ) : (
-                            <div className="flex flex-wrap gap-1">
-                              {Object.entries(filters).map(([key, values]) =>
-                                values.map((value: string | number) => (
-                                  <Badge key={`${key}-${value}`} variant="outline" className="text-xs">
-                                    {String(value)}
-                                  </Badge>
-                                )),
-                              )}
-                            </div>
-                          )}
-                        </div>
-                      </CardContent>
-                    </Card>
-                  </div>
-
-                  {/* Left Column: Question Filters - Second in mobile, first in desktop */}
-                  <Card className="lg:col-span-2 order-2 lg:order-1">
+                  {/* Question Filters - First in mobile, spans 2 columns in desktop */}
+                  <Card className="lg:col-span-2 order-1 lg:order-1">
                     <CardHeader className="dark:bg-card bg-primary text-primary-foreground">
                       <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2">
                         <div className="flex items-center gap-3">
@@ -932,6 +773,228 @@ export function EnhancedCreateTestInterface({ userProfile }: EnhancedCreateTestI
                             ))}
                           </div>
                         </div>
+                      </div>
+                    </CardContent>
+                  </Card>
+
+                  {/* Test Configuration Panel - Second in mobile, grouped with Quick Stats in desktop */}
+                  <div className="space-y-6 order-2 lg:order-2 lg:col-span-1">
+                    {/* Active Session Card */}
+                    <ActiveSessionCard compact={true} />
+                    
+                    {/* Test Configuration Card */}
+                    <Card>
+                      <CardHeader className="dark:bg-card bg-primary text-primary-foreground">
+                        <CardTitle className="flex items-center gap-2">
+                          <Settings className="w-5 h-5" />
+                          Test Configuration
+                        </CardTitle>
+                      </CardHeader>
+                      <CardContent className="space-y-4">
+                        <div>
+                          <Label htmlFor="sessionName">Test Name</Label>
+                          <Input
+                            id="sessionName"
+                            value={sessionName}
+                            onChange={(e) => setSessionName(e.target.value)}
+                            placeholder="Auto-generated name..."
+                            className="mt-1"
+                          />
+                          <p className="text-xs text-gray-500 mt-1">Name is auto-generated based on your settings</p>
+                        </div>
+
+                        <div>
+                          <Label htmlFor="sessionMode">Test Mode</Label>
+                          <Select value={sessionMode} onValueChange={(value: "practice" | "exam") => setSessionMode(value)}>
+                            <SelectTrigger className="mt-1">
+                              <SelectValue />
+                            </SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="practice">Practice Mode</SelectItem>
+                              <SelectItem value="exam">Exam Mode</SelectItem>
+                            </SelectContent>
+                          </Select>
+                          <p className="text-xs text-gray-500 mt-1">
+                            {sessionMode === "practice"
+                              ? "Get immediate feedback after each question"
+                              : "Review answers only at the end"}
+                          </p>
+                        </div>
+
+                        {sessionMode === "practice" && (
+                          <div className="border border-blue-200 rounded-lg p-4 bg-transparent">
+                            <div className="flex items-start space-x-3">
+                              <TrendingUp className="w-5 h-5 text-blue-600 mt-0.5" />
+                              <div className="flex-1">
+                                <div className="flex items-center space-x-2 mb-2">
+                                  <Checkbox
+                                    id="trackProgress"
+                                    checked={trackProgress}
+                                    onCheckedChange={(checked) => setTrackProgress(checked as boolean)}
+                                  />
+                                  <Label htmlFor="trackProgress" className="text-sm font-medium">
+                                    Track my progress
+                                  </Label>
+                                </div>
+                                <p className="text-xs text-gray-600">
+                                  {trackProgress
+                                    ? "Your answers will be recorded and used to track your performance over time. This helps with filtering questions by status (answered, correct, incorrect)."
+                                    : "Your answers will not be saved to your progress history. Use this for casual practice without affecting your statistics."}
+                                </p>
+                              </div>
+                            </div>
+                          </div>
+                        )}
+
+                        <div>
+                          <Label htmlFor="maxQuestions">Number of Questions</Label>
+                          <Input
+                            id="maxQuestions"
+                            type="number"
+                            value={maxQuestions || ""}
+                            onChange={(e) => setMaxQuestions(e.target.value ? Number.parseInt(e.target.value) : null)}
+                            placeholder={`All ${questionCount} questions`}
+                            className="mt-1"
+                            min="1"
+                            max={Math.min(questionCount, 200)}
+                          />
+                          <p className="text-xs text-gray-500 mt-1">
+                            Limit the number of questions in your test (max 200 per session)
+                          </p>
+                        </div>
+
+                        {sessionMode === "exam" && (
+                          <div>
+                            <Label htmlFor="timeLimit">Time Limit (minutes) *</Label>
+                            <Input
+                              id="timeLimit"
+                              type="number"
+                              value={timeLimit || ""}
+                              onChange={(e) => setTimeLimit(e.target.value ? Number.parseInt(e.target.value) : null)}
+                              placeholder="Required for exam mode"
+                              className="mt-1"
+                              min="1"
+                              required
+                            />
+                            <p className="text-xs text-gray-500 mt-1">Estimated time: {getEstimatedTime()} minutes</p>
+                          </div>
+                        )}
+
+                        <div className="flex items-center space-x-2">
+                          <Checkbox
+                            id="randomizeOrder"
+                            checked={randomizeOrder}
+                            onCheckedChange={(checked) => setRandomizeOrder(checked as boolean)}
+                          />
+                          <Label htmlFor="randomizeOrder" className="text-sm">
+                            Randomize question order
+                          </Label>
+                        </div>
+
+                        <Separator className="my-4" />
+
+                        {validationErrors.length > 0 && (
+                          <Alert className="mb-4">
+                            <AlertCircle className="h-4 w-4" />
+                            <AlertDescription>
+                              <ul className="list-disc list-inside space-y-1">
+                                {validationErrors.map((error, index) => (
+                                  <li key={index} className="text-sm">
+                                    {error}
+                                  </li>
+                                ))}
+                              </ul>
+                            </AlertDescription>
+                          </Alert>
+                        )}
+
+                        <Button
+                          onClick={createSession}
+                          disabled={creating || validationErrors.length > 0 || !sessionName.trim()}
+                          className="w-full"
+                          size="lg"
+                        >
+                          <Play className="w-4 h-4 mr-2" />
+                          {creating ? "Creating Test..." : "Start Test"}
+                        </Button>
+                      </CardContent>
+                    </Card>
+
+                    {/* Quick Stats Card - Hidden on mobile, shown in desktop as part of right column */}
+                    <Card className="hidden lg:block">
+                      <CardHeader>
+                        <CardTitle>Quick Stats</CardTitle>
+                      </CardHeader>
+                      <CardContent className="space-y-4">
+                        <div className="flex items-center justify-between">
+                          <span className="text-sm text-gray-600">Questions Available:</span>
+                          <Badge variant="secondary" className="text-lg font-bold">
+                            {loading ? (
+                              <div className="flex items-center gap-1">
+                                <Loader2 className="w-3 h-3 animate-spin" />
+                                Loading...
+                              </div>
+                            ) : (
+                              questionCount.toLocaleString()
+                            )}
+                          </Badge>
+                        </div>
+
+                        <div>
+                          <span className="text-sm text-gray-600 block mb-2">Active Filters:</span>
+                          {getSelectedFiltersCount() === 0 ? (
+                            <span className="text-sm text-green-600">All questions included</span>
+                          ) : (
+                            <div className="flex flex-wrap gap-1">
+                              {Object.entries(filters).map(([key, values]) =>
+                                values.map((value: string | number) => (
+                                  <Badge key={`${key}-${value}`} variant="outline" className="text-xs">
+                                    {String(value)}
+                                  </Badge>
+                                )),
+                              )}
+                            </div>
+                          )}
+                        </div>
+                      </CardContent>
+                    </Card>
+                  </div>
+
+                  {/* Quick Stats Card - Third in mobile, hidden in desktop */}
+                  <Card className="lg:hidden order-3">
+                    <CardHeader>
+                      <CardTitle>Quick Stats</CardTitle>
+                    </CardHeader>
+                    <CardContent className="space-y-4">
+                      <div className="flex items-center justify-between">
+                        <span className="text-sm text-gray-600">Questions Available:</span>
+                        <Badge variant="secondary" className="text-lg font-bold">
+                          {loading ? (
+                            <div className="flex items-center gap-1">
+                              <Loader2 className="w-3 h-3 animate-spin" />
+                              Loading...
+                            </div>
+                          ) : (
+                            questionCount.toLocaleString()
+                          )}
+                        </Badge>
+                      </div>
+
+                      <div>
+                        <span className="text-sm text-gray-600 block mb-2">Active Filters:</span>
+                        {getSelectedFiltersCount() === 0 ? (
+                          <span className="text-sm text-green-600">All questions included</span>
+                        ) : (
+                          <div className="flex flex-wrap gap-1">
+                            {Object.entries(filters).map(([key, values]) =>
+                              values.map((value: string | number) => (
+                                <Badge key={`${key}-${value}`} variant="outline" className="text-xs">
+                                  {String(value)}
+                                </Badge>
+                              )),
+                            )}
+                          </div>
+                        )}
                       </div>
                     </CardContent>
                   </Card>

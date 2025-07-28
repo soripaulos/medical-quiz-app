@@ -1,13 +1,13 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState, useEffect, useCallback } from "react"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Badge } from "@/components/ui/badge"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
-import { Search, Filter, Edit, Trash2, Plus, ArrowLeft, Eye } from "lucide-react"
+import { Search, Filter, Edit, Trash2, Plus, ArrowLeft, Eye, ChevronLeft, ChevronRight, Loader2 } from "lucide-react"
 import Link from "next/link"
 import type { Question } from "@/lib/types"
 import { getAnswerChoices } from "@/lib/types"
@@ -16,13 +16,16 @@ import { QuestionEditor } from "./question-editor"
 
 export function QuestionManagement() {
   const [questions, setQuestions] = useState<Question[]>([])
-  const [filteredQuestions, setFilteredQuestions] = useState<Question[]>([])
   const [loading, setLoading] = useState(true)
+  const [totalCount, setTotalCount] = useState(0)
+  const [currentPage, setCurrentPage] = useState(1)
+  const [totalPages, setTotalPages] = useState(1)
   const [searchTerm, setSearchTerm] = useState("")
   const [specialtyFilter, setSpecialtyFilter] = useState("all")
   const [difficultyFilter, setDifficultyFilter] = useState("all")
   const [yearFilter, setYearFilter] = useState("all")
   const [examTypeFilter, setExamTypeFilter] = useState("all")
+  const [loadingFilters, setLoadingFilters] = useState(false)
   
   // Modal states
   const [viewerOpen, setViewerOpen] = useState(false)
@@ -31,72 +34,108 @@ export function QuestionManagement() {
 
   // Dynamic data
   const [availableYears, setAvailableYears] = useState<number[]>([])
+  const [availableSpecialties, setAvailableSpecialties] = useState<string[]>([])
+  const [availableExamTypes, setAvailableExamTypes] = useState<string[]>([])
 
-  const specialties = ["Internal Medicine", "Surgery", "Pediatrics", "OB/GYN", "Public Health", "Minor Specialties"]
-  const examTypes = ["Exit Exam", "COC"]
+  const ITEMS_PER_PAGE = 50
 
-  useEffect(() => {
-    fetchQuestions()
-    fetchAvailableYears()
-  }, [])
+  // Debounced search function
+  const [searchTimeout, setSearchTimeout] = useState<NodeJS.Timeout | null>(null)
 
-  useEffect(() => {
-    filterQuestions()
-  }, [questions, searchTerm, specialtyFilter, difficultyFilter, yearFilter, examTypeFilter])
-
-  const fetchQuestions = async () => {
+  const fetchQuestions = useCallback(async (page = 1, resetPage = false) => {
+    if (resetPage) {
+      page = 1
+      setCurrentPage(1)
+    }
+    
+    setLoadingFilters(true)
     try {
-      const response = await fetch("/api/admin/questions")
+      const params = new URLSearchParams({
+        page: page.toString(),
+        limit: ITEMS_PER_PAGE.toString(),
+        search: searchTerm,
+        specialty: specialtyFilter,
+        examType: examTypeFilter,
+        difficulty: difficultyFilter,
+        year: yearFilter,
+      })
+
+      const response = await fetch(`/api/admin/questions?${params}`)
       const data = await response.json()
 
       if (data.questions) {
         setQuestions(data.questions)
+        setTotalCount(data.totalCount || 0)
+        setTotalPages(data.totalPages || 1)
+        setCurrentPage(page)
+      } else {
+        console.error("Error fetching questions:", data.message)
+        setQuestions([])
+        setTotalCount(0)
       }
     } catch (error) {
       console.error("Error fetching questions:", error)
+      setQuestions([])
+      setTotalCount(0)
     } finally {
       setLoading(false)
+      setLoadingFilters(false)
     }
-  }
+  }, [searchTerm, specialtyFilter, difficultyFilter, yearFilter, examTypeFilter])
 
-  const fetchAvailableYears = async () => {
+  const fetchFilterOptions = async () => {
     try {
-      const response = await fetch("/api/questions/years")
-      const data = await response.json()
+      // Fetch available years
+      const yearsResponse = await fetch("/api/questions/years")
+      const yearsData = await yearsResponse.json()
+      if (yearsData.years) {
+        setAvailableYears(yearsData.years)
+      }
 
-      if (data.years) {
-        setAvailableYears(data.years)
+      // Fetch available specialties
+      const specialtiesResponse = await fetch("/api/specialties")
+      const specialtiesData = await specialtiesResponse.json()
+      if (specialtiesData.specialties) {
+        setAvailableSpecialties(specialtiesData.specialties.map((s: any) => s.name))
+      }
+
+      // Fetch available exam types
+      const examTypesResponse = await fetch("/api/exam-types")
+      const examTypesData = await examTypesResponse.json()
+      if (examTypesData.examTypes) {
+        setAvailableExamTypes(examTypesData.examTypes.map((e: any) => e.name))
       }
     } catch (error) {
-      console.error("Error fetching years:", error)
+      console.error("Error fetching filter options:", error)
     }
   }
 
-  const filterQuestions = () => {
-    let filtered = questions
+  useEffect(() => {
+    fetchFilterOptions()
+  }, [])
 
-    if (searchTerm) {
-      filtered = filtered.filter((q) => q.question_text.toLowerCase().includes(searchTerm.toLowerCase()))
+  useEffect(() => {
+    fetchQuestions(1, true)
+  }, [specialtyFilter, difficultyFilter, yearFilter, examTypeFilter])
+
+  // Debounced search effect
+  useEffect(() => {
+    if (searchTimeout) {
+      clearTimeout(searchTimeout)
     }
 
-    if (specialtyFilter !== "all") {
-      filtered = filtered.filter((q) => q.specialty?.name === specialtyFilter)
-    }
+    const timeout = setTimeout(() => {
+      fetchQuestions(1, true)
+    }, 500) // 500ms debounce
 
-    if (examTypeFilter !== "all") {
-      filtered = filtered.filter((q) => q.exam_type?.name === examTypeFilter)
-    }
+    setSearchTimeout(timeout)
 
-    if (difficultyFilter !== "all") {
-      filtered = filtered.filter((q) => q.difficulty === Number.parseInt(difficultyFilter))
+    return () => {
+      if (timeout) {
+        clearTimeout(timeout)
+      }
     }
-
-    if (yearFilter !== "all") {
-      filtered = filtered.filter((q) => q.year === Number.parseInt(yearFilter))
-    }
-
-    setFilteredQuestions(filtered)
-  }
+  }, [searchTerm])
 
   const deleteQuestion = async (id: string) => {
     if (confirm("Are you sure you want to delete this question?")) {
@@ -106,7 +145,8 @@ export function QuestionManagement() {
         })
 
         if (response.ok) {
-          setQuestions(questions.filter((q) => q.id !== id))
+          // Refresh the current page
+          fetchQuestions(currentPage)
           alert("Question deleted successfully!")
         } else {
           throw new Error("Failed to delete question")
@@ -139,9 +179,23 @@ export function QuestionManagement() {
   }
 
   const handleSaveQuestion = () => {
-    // Refresh the questions list and available years after saving
-    fetchQuestions()
-    fetchAvailableYears()
+    // Refresh the current page and filter options after saving
+    fetchQuestions(currentPage)
+    fetchFilterOptions()
+  }
+
+  const handlePageChange = (newPage: number) => {
+    if (newPage >= 1 && newPage <= totalPages) {
+      fetchQuestions(newPage)
+    }
+  }
+
+  const clearAllFilters = () => {
+    setSearchTerm("")
+    setSpecialtyFilter("all")
+    setDifficultyFilter("all")
+    setYearFilter("all")
+    setExamTypeFilter("all")
   }
 
   const difficultyColors = {
@@ -170,7 +224,14 @@ export function QuestionManagement() {
   }
 
   if (loading) {
-    return <div className="flex items-center justify-center h-64">Loading questions...</div>
+    return (
+      <div className="flex items-center justify-center h-64">
+        <div className="flex items-center gap-2">
+          <Loader2 className="w-6 h-6 animate-spin" />
+          <span>Loading questions...</span>
+        </div>
+      </div>
+    )
   }
 
   return (
@@ -187,7 +248,9 @@ export function QuestionManagement() {
             </Link>
             <div>
               <h1 className="text-3xl font-bold text-foreground">Question Management</h1>
-              <p className="text-muted-foreground">Manage and organize all questions</p>
+              <p className="text-muted-foreground">
+                Manage and organize all questions ({totalCount.toLocaleString()} total)
+              </p>
             </div>
           </div>
           <Link href="/admin/questions/create">
@@ -201,10 +264,16 @@ export function QuestionManagement() {
         {/* Filters */}
         <Card>
           <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <Filter className="w-5 h-5" />
-              Filters
-            </CardTitle>
+            <div className="flex items-center justify-between">
+              <CardTitle className="flex items-center gap-2">
+                <Filter className="w-5 h-5" />
+                Filters
+                {loadingFilters && <Loader2 className="w-4 h-4 animate-spin" />}
+              </CardTitle>
+              <Button variant="outline" size="sm" onClick={clearAllFilters}>
+                Clear All
+              </Button>
+            </div>
           </CardHeader>
           <CardContent>
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
@@ -224,7 +293,7 @@ export function QuestionManagement() {
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="all">All Specialties</SelectItem>
-                  {specialties.map((specialty) => (
+                  {availableSpecialties.map((specialty) => (
                     <SelectItem key={specialty} value={specialty}>
                       {specialty}
                     </SelectItem>
@@ -238,7 +307,7 @@ export function QuestionManagement() {
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="all">All Exam Types</SelectItem>
-                  {examTypes.map((examType) => (
+                  {availableExamTypes.map((examType) => (
                     <SelectItem key={examType} value={examType}>
                       {examType}
                     </SelectItem>
@@ -280,9 +349,14 @@ export function QuestionManagement() {
         {/* Questions Table */}
         <Card>
           <CardHeader>
-            <CardTitle>
-              Questions ({filteredQuestions.length} of {questions.length})
-            </CardTitle>
+            <div className="flex items-center justify-between">
+              <CardTitle>
+                Questions ({questions.length} of {totalCount.toLocaleString()})
+              </CardTitle>
+              <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                Page {currentPage} of {totalPages}
+              </div>
+            </div>
           </CardHeader>
           <CardContent>
             <div className="overflow-x-auto">
@@ -301,7 +375,7 @@ export function QuestionManagement() {
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {filteredQuestions.map((question) => (
+                  {questions.map((question) => (
                     <TableRow key={question.id}>
                       <TableCell className="max-w-md">
                         <p className="truncate font-medium">{question.question_text}</p>
@@ -366,6 +440,65 @@ export function QuestionManagement() {
                 </TableBody>
               </Table>
             </div>
+
+            {/* Pagination */}
+            {totalPages > 1 && (
+              <div className="flex items-center justify-between mt-6">
+                <div className="text-sm text-muted-foreground">
+                  Showing {((currentPage - 1) * ITEMS_PER_PAGE) + 1} to {Math.min(currentPage * ITEMS_PER_PAGE, totalCount)} of {totalCount.toLocaleString()} questions
+                </div>
+                <div className="flex items-center gap-2">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => handlePageChange(currentPage - 1)}
+                    disabled={currentPage <= 1 || loadingFilters}
+                  >
+                    <ChevronLeft className="w-4 h-4" />
+                    Previous
+                  </Button>
+                  
+                  <div className="flex items-center gap-1">
+                    {/* Show page numbers */}
+                    {Array.from({ length: Math.min(5, totalPages) }, (_, i) => {
+                      let pageNum: number
+                      if (totalPages <= 5) {
+                        pageNum = i + 1
+                      } else if (currentPage <= 3) {
+                        pageNum = i + 1
+                      } else if (currentPage >= totalPages - 2) {
+                        pageNum = totalPages - 4 + i
+                      } else {
+                        pageNum = currentPage - 2 + i
+                      }
+                      
+                      return (
+                        <Button
+                          key={pageNum}
+                          variant={currentPage === pageNum ? "default" : "outline"}
+                          size="sm"
+                          onClick={() => handlePageChange(pageNum)}
+                          disabled={loadingFilters}
+                          className="w-8 h-8 p-0"
+                        >
+                          {pageNum}
+                        </Button>
+                      )
+                    })}
+                  </div>
+
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => handlePageChange(currentPage + 1)}
+                    disabled={currentPage >= totalPages || loadingFilters}
+                  >
+                    Next
+                    <ChevronRight className="w-4 h-4" />
+                  </Button>
+                </div>
+              </div>
+            )}
           </CardContent>
         </Card>
       </div>
