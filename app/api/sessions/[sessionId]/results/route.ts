@@ -88,7 +88,7 @@ export async function GET(_req: Request, context: { params: Promise<{ sessionId:
       .eq("user_id", session.user_id)
       .in(
         "question_id",
-        questions.map((q) => q.id),
+        questions.map((q: any) => q.id),
       )
 
     if (progressError) {
@@ -101,125 +101,192 @@ export async function GET(_req: Request, context: { params: Promise<{ sessionId:
     })
 
     if (timeError) {
-      console.error("Error calculating active time:", timeError)
+      console.error("Time calculation error:", timeError)
     }
 
-    const finalTimeSpent = activeTime || session.total_active_time || 0
+    // Use the calculated active time from the database function, fallback to stored value
+    const finalActiveTime = activeTime || session.active_time_seconds || 0
 
-    // Use stored metrics from session with fresh time data
-    const performance = {
-      totalQuestions: session.total_questions,
-      correctAnswers: session.correct_answers || 0,
-      incorrectAnswers: session.incorrect_answers || 0,
-      unansweredQuestions: session.unanswered_questions || 0,
-      accuracy: session.total_questions > 0 ? ((session.correct_answers || 0) / session.total_questions) * 100 : 0,
-      timeSpent: finalTimeSpent,
-      averageTimePerQuestion:
-        session.total_questions > 0 ? Math.floor(finalTimeSpent / session.total_questions) : 0,
-    }
+    // Calculate statistics
+    const totalQuestions = questions.length
+    const answeredQuestions = userAnswers?.length || 0
+    const correctAnswers = userAnswers?.filter((answer: any) => answer.is_correct).length || 0
+    const incorrectAnswers = answeredQuestions - correctAnswers
+    const unansweredQuestions = totalQuestions - answeredQuestions
+    const scorePercentage = totalQuestions > 0 ? Math.round((correctAnswers / totalQuestions) * 100) : 0
 
-    // Category breakdown
-    const categoryMap = new Map()
-    questions.forEach((q) => {
-      const specialty = q.specialty?.name || "Unknown"
-      if (!categoryMap.has(specialty)) {
-        categoryMap.set(specialty, { total: 0, correct: 0 })
+    // Group questions by specialty for detailed breakdown
+    const specialtyBreakdown = questions.reduce((acc: any, question: any) => {
+      const specialtyName = question.specialty?.name || "Unknown"
+      if (!acc[specialtyName]) {
+        acc[specialtyName] = {
+          total: 0,
+          correct: 0,
+          incorrect: 0,
+          unanswered: 0,
+        }
       }
-      const stats = categoryMap.get(specialty)
-      stats.total++
+      acc[specialtyName].total++
 
-      const userAnswer = userAnswers?.find((a) => a.question_id === q.id)
-      if (userAnswer?.is_correct) {
-        stats.correct++
+      const userAnswer = userAnswers?.find((answer: any) => answer.question_id === question.id)
+      if (userAnswer) {
+        if (userAnswer.is_correct) {
+          acc[specialtyName].correct++
+        } else {
+          acc[specialtyName].incorrect++
+        }
+      } else {
+        acc[specialtyName].unanswered++
       }
-    })
 
-    const categoryBreakdown = Array.from(categoryMap.entries()).map(([specialty, stats]) => ({
-      specialty,
-      total: stats.total,
-      correct: stats.correct,
-      accuracy: stats.total > 0 ? (stats.correct / stats.total) * 100 : 0,
-    }))
+      return acc
+    }, {})
 
-    // Difficulty breakdown
-    const difficultyMap = new Map()
-    questions.forEach((q) => {
-      const level = q.difficulty || 1
-      if (!difficultyMap.has(level)) {
-        difficultyMap.set(level, { total: 0, correct: 0 })
+    // Group questions by difficulty for analysis
+    const difficultyBreakdown = questions.reduce((acc: any, question: any) => {
+      const difficulty = question.difficulty || "Unknown"
+      if (!acc[difficulty]) {
+        acc[difficulty] = {
+          total: 0,
+          correct: 0,
+          incorrect: 0,
+          unanswered: 0,
+        }
       }
-      const stats = difficultyMap.get(level)
-      stats.total++
+      acc[difficulty].total++
 
-      const userAnswer = userAnswers?.find((a) => a.question_id === q.id)
-      if (userAnswer?.is_correct) {
-        stats.correct++
+      const userAnswer = userAnswers?.find((answer: any) => answer.question_id === question.id)
+      if (userAnswer) {
+        if (userAnswer.is_correct) {
+          acc[difficulty].correct++
+        } else {
+          acc[difficulty].incorrect++
+        }
+      } else {
+        acc[difficulty].unanswered++
       }
-    })
 
-    const difficultyBreakdown = Array.from(difficultyMap.entries())
-      .map(([level, stats]) => ({
-        level,
-        total: stats.total,
-        correct: stats.correct,
-        accuracy: stats.total > 0 ? (stats.correct / stats.total) * 100 : 0,
-      }))
-      .sort((a, b) => a.level - b.level)
+      return acc
+    }, {})
 
-    // Question details
-    const questionDetails = questions.map((q) => {
-      const userAnswer = userAnswers?.find((a) => a.question_id === q.id)
-      const progress = userProgress?.find((p) => p.question_id === q.id)
-
-      // Get answer choices
-      const choices = []
-      if (q.choice_a) choices.push({ letter: "A", text: q.choice_a })
-      if (q.choice_b) choices.push({ letter: "B", text: q.choice_b })
-      if (q.choice_c) choices.push({ letter: "C", text: q.choice_c })
-      if (q.choice_d) choices.push({ letter: "D", text: q.choice_d })
-      if (q.choice_e) choices.push({ letter: "E", text: q.choice_e })
-      if (q.choice_f) choices.push({ letter: "F", text: q.choice_f })
-
-      const userAnswerText = userAnswer?.selected_choice_letter 
-        ? choices.find(c => c.letter === userAnswer.selected_choice_letter)?.text || userAnswer.selected_choice_letter
-        : null
-
-      const correctAnswerText = q.correct_answer 
-        ? choices.find(c => c.letter === q.correct_answer)?.text || q.correct_answer
-        : null
+    // Prepare question details with user answers and progress
+    const questionsWithAnswers = questions.map((question: any) => {
+      const userAnswer = userAnswers?.find((answer: any) => answer.question_id === question.id)
+      const progress = userProgress?.find((p: any) => p.question_id === question.id)
 
       return {
-        questionId: q.id,
-        questionText: q.question_text,
-        choices,
-        userAnswer: userAnswer?.selected_choice_letter || null,
-        userAnswerText,
-        correctAnswer: q.correct_answer,
-        correctAnswerText,
-        isCorrect: userAnswer?.is_correct || false,
-        timeSpent: Math.floor(finalTimeSpent / session.total_questions), // Simple distribution
-        difficulty: q.difficulty || 1,
-        specialty: q.specialty?.name || "Unknown",
+        ...question,
+        userAnswer: userAnswer || null,
         isFlagged: progress?.is_flagged || false,
-        explanation: q.explanation,
-        sources: q.sources,
+        timeSpent: userAnswer?.time_spent || 0,
       }
     })
 
-    const results = {
-      session,
-      questions,
-      userAnswers: userAnswers || [],
-      userProgress: userProgress || [],
-      performance,
-      categoryBreakdown,
-      difficultyBreakdown,
-      questionDetails,
-    }
+    // Calculate time-based metrics
+    const averageTimePerQuestion = answeredQuestions > 0 ? Math.round(finalActiveTime / answeredQuestions) : 0
+    const totalTimeFormatted = formatTime(finalActiveTime)
 
-    return NextResponse.json({ results })
+    // Performance insights
+    const insights = generatePerformanceInsights({
+      scorePercentage,
+      averageTimePerQuestion,
+      specialtyBreakdown,
+      difficultyBreakdown,
+      session,
+    })
+
+    return NextResponse.json({
+      session: {
+        ...session,
+        active_time_seconds: finalActiveTime,
+        formatted_time: totalTimeFormatted,
+      },
+      statistics: {
+        totalQuestions,
+        answeredQuestions,
+        correctAnswers,
+        incorrectAnswers,
+        unansweredQuestions,
+        scorePercentage,
+        averageTimePerQuestion,
+        totalTimeSeconds: finalActiveTime,
+        totalTimeFormatted,
+      },
+      breakdown: {
+        bySpecialty: specialtyBreakdown,
+        byDifficulty: difficultyBreakdown,
+      },
+      questions: questionsWithAnswers,
+      insights,
+    })
   } catch (error) {
-    console.error("Error fetching results:", error)
+    console.error("Error fetching session results:", error)
     return NextResponse.json({ error: "Internal server error" }, { status: 500 })
   }
+}
+
+function formatTime(seconds: number): string {
+  const hours = Math.floor(seconds / 3600)
+  const minutes = Math.floor((seconds % 3600) / 60)
+  const remainingSeconds = seconds % 60
+
+  if (hours > 0) {
+    return `${hours}h ${minutes}m ${remainingSeconds}s`
+  } else if (minutes > 0) {
+    return `${minutes}m ${remainingSeconds}s`
+  } else {
+    return `${remainingSeconds}s`
+  }
+}
+
+function generatePerformanceInsights(data: {
+  scorePercentage: number
+  averageTimePerQuestion: number
+  specialtyBreakdown: any
+  difficultyBreakdown: any
+  session: any
+}): string[] {
+  const insights: string[] = []
+  const { scorePercentage, averageTimePerQuestion, specialtyBreakdown, difficultyBreakdown } = data
+
+  // Score-based insights
+  if (scorePercentage >= 80) {
+    insights.push("Excellent performance! You demonstrated strong knowledge across the topics.")
+  } else if (scorePercentage >= 60) {
+    insights.push("Good performance with room for improvement in some areas.")
+  } else {
+    insights.push("Consider reviewing the topics covered to strengthen your understanding.")
+  }
+
+  // Time-based insights
+  if (averageTimePerQuestion < 60) {
+    insights.push("You answered questions quickly. Consider taking more time to carefully read each question.")
+  } else if (averageTimePerQuestion > 180) {
+    insights.push("You took time to carefully consider each question, which is good for learning.")
+  }
+
+  // Specialty-based insights
+  const specialties = Object.entries(specialtyBreakdown)
+  const weakSpecialties = specialties.filter(([_, data]: [string, any]) => {
+    const accuracy = data.total > 0 ? (data.correct / data.total) * 100 : 0
+    return accuracy < 50 && data.total >= 3
+  })
+
+  if (weakSpecialties.length > 0) {
+    const specialtyNames = weakSpecialties.map(([name]) => name).join(", ")
+    insights.push(`Focus on improving in: ${specialtyNames}`)
+  }
+
+  // Difficulty-based insights
+  const difficulties = Object.entries(difficultyBreakdown)
+  const strugglingDifficulties = difficulties.filter(([_, data]: [string, any]) => {
+    const accuracy = data.total > 0 ? (data.correct / data.total) * 100 : 0
+    return accuracy < 40 && data.total >= 2
+  })
+
+  if (strugglingDifficulties.length > 0) {
+    insights.push("Consider practicing more challenging questions to improve your problem-solving skills.")
+  }
+
+  return insights
 }

@@ -1,13 +1,13 @@
 import { NextResponse } from "next/server"
 import { createClient } from "@/lib/supabase/server"
-import { safelyEndSession } from "@/lib/session-utils"
+import { completeSession } from "@/lib/session-utils"
 
 export async function POST(req: Request, context: { params: Promise<{ sessionId: string }> }) {
   try {
-    const supabase = await createClient()
     const { sessionId } = await context.params
 
-    // Get current session data
+    // Verify session exists and user has access
+    const supabase = await createClient()
     const { data: session, error: sessionError } = await supabase
       .from("user_sessions")
       .select("*")
@@ -18,33 +18,18 @@ export async function POST(req: Request, context: { params: Promise<{ sessionId:
       return NextResponse.json({ error: "Session not found" }, { status: 404 })
     }
 
-    // Use the utility function to safely end the session
-    const result = await safelyEndSession(sessionId)
+    // Complete the session
+    const success = await completeSession(sessionId)
 
-    if (!result.success) {
+    if (!success) {
       return NextResponse.json({ error: "Failed to end session" }, { status: 500 })
     }
 
-    // Clear the active_session_id from user's profile since session is now completed
-    const { error: profileError } = await supabase
-      .from("profiles")
-      .update({ active_session_id: null })
-      .eq("id", session.user_id)
-
-    if (profileError) {
-      console.error("Error clearing active session:", profileError)
-      // Don't fail the request - the session was ended successfully
-    }
-
-    return NextResponse.json({
+    return NextResponse.json({ 
       success: true,
-      metrics: result.metrics || {
-        correctAnswers: 0,
-        incorrectAnswers: 0,
-        unansweredQuestions: 0,
-        totalTimeSpent: 0,
-      },
+      message: "Session ended successfully"
     })
+
   } catch (error) {
     console.error("Error ending session:", error)
     return NextResponse.json({ error: "Internal server error" }, { status: 500 })
