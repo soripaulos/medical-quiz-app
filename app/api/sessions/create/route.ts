@@ -20,6 +20,8 @@ export async function POST(req: Request) {
     const supabase = await createClient()
 
     // Shuffle questions if randomization is enabled
+    // Note: Questions are already randomized with better distribution in the filtered API
+    // This provides an additional shuffle if requested
     const finalQuestionIds = randomizeOrder ? [...questionIds].sort(() => Math.random() - 0.5) : questionIds
 
     // Create the session

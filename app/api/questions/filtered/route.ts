@@ -2,12 +2,12 @@ import { NextResponse } from "next/server"
 import { createClient } from "@/lib/supabase/server"
 
 export async function POST(req: Request) {
-  const { filters, userId } = await req.json()
+  const { filters, userId, limit = 5000, offset = 0 } = await req.json()
 
   const supabase = await createClient()
 
   try {
-    // Build the base query
+    // Build the base query with explicit limit to override Supabase's default 1000 limit
     let query = supabase.from("questions").select(`
         *,
         specialty:specialties(id, name),
@@ -47,6 +47,10 @@ export async function POST(req: Request) {
     if (filters.difficulties && filters.difficulties.length > 0) {
       query = query.in("difficulty", filters.difficulties)
     }
+
+    // Add explicit limit and offset to handle large datasets properly
+    // Use a high limit (5000) to get most questions, but allow pagination if needed
+    query = query.range(offset, offset + limit - 1)
 
     const { data: questions, error } = await query
 
@@ -116,9 +120,53 @@ export async function POST(req: Request) {
       })
     }
 
+    // Implement better randomization that ensures diversity across specialties
+    if (filteredQuestions.length > 0) {
+      // Group questions by specialty to ensure diversity
+      const questionsBySpecialty = new Map<string, any[]>()
+      
+      filteredQuestions.forEach(question => {
+        const specialtyName = question.specialty?.name || 'Unknown'
+        if (!questionsBySpecialty.has(specialtyName)) {
+          questionsBySpecialty.set(specialtyName, [])
+        }
+        questionsBySpecialty.get(specialtyName)!.push(question)
+      })
+
+      // Shuffle questions within each specialty
+      questionsBySpecialty.forEach((questions, specialty) => {
+        for (let i = questions.length - 1; i > 0; i--) {
+          const j = Math.floor(Math.random() * (i + 1));
+          [questions[i], questions[j]] = [questions[j], questions[i]]
+        }
+      })
+
+      // Interleave questions from different specialties for better distribution
+      const shuffledQuestions: any[] = []
+      const specialtyNames = Array.from(questionsBySpecialty.keys())
+      let maxQuestionsPerSpecialty = Math.max(...Array.from(questionsBySpecialty.values()).map(arr => arr.length))
+
+      for (let i = 0; i < maxQuestionsPerSpecialty; i++) {
+        // Shuffle specialty order for each round to avoid patterns
+        const shuffledSpecialties = [...specialtyNames].sort(() => Math.random() - 0.5)
+        
+        shuffledSpecialties.forEach(specialty => {
+          const questions = questionsBySpecialty.get(specialty)!
+          if (i < questions.length) {
+            shuffledQuestions.push(questions[i])
+          }
+        })
+      }
+
+      filteredQuestions = shuffledQuestions
+    }
+
     return NextResponse.json({
       questions: filteredQuestions,
       count: filteredQuestions.length,
+      hasMore: filteredQuestions.length === limit, // Indicate if there might be more questions
+      offset: offset,
+      limit: limit
     })
   } catch (err) {
     console.error("Error filtering questions:", err)

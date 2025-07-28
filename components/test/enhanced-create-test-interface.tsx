@@ -233,7 +233,12 @@ export function EnhancedCreateTestInterface({ userProfile }: EnhancedCreateTestI
       const res = await fetch("/api/questions/filtered", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ filters, userId: user?.id }),
+        body: JSON.stringify({ 
+          filters, 
+          userId: user?.id,
+          limit: 5000, // Request up to 5000 questions to overcome the 1000 default limit
+          offset: 0 
+        }),
       })
 
       const data = await safeJson(res)
@@ -245,6 +250,11 @@ export function EnhancedCreateTestInterface({ userProfile }: EnhancedCreateTestI
       if (data?.questions) {
         setAvailableQuestions(data.questions)
         setQuestionCount(data.count)
+        
+        // Log if we might have more questions available
+        if (data.hasMore) {
+          console.log(`Loaded ${data.count} questions. More questions may be available in the database.`)
+        }
       } else {
         setAvailableQuestions([])
         setQuestionCount(0)
@@ -628,7 +638,14 @@ export function EnhancedCreateTestInterface({ userProfile }: EnhancedCreateTestI
                         <div className="flex items-center justify-between">
                           <span className="text-sm text-gray-600">Questions Available:</span>
                           <Badge variant="secondary" className="text-lg font-bold">
-                            {loading ? "..." : questionCount}
+                            {loading ? (
+                              <div className="flex items-center gap-1">
+                                <Loader2 className="w-3 h-3 animate-spin" />
+                                Loading...
+                              </div>
+                            ) : (
+                              questionCount.toLocaleString()
+                            )}
                           </Badge>
                         </div>
 
