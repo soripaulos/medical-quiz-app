@@ -74,11 +74,23 @@ export async function POST(req: Request) {
   }
 }
 
-export async function GET() {
+export async function GET(req: Request) {
   const supabase = createAdminClient()
+  const { searchParams } = new URL(req.url)
+  
+  // Parse query parameters for pagination and filtering
+  const page = parseInt(searchParams.get('page') || '1')
+  const limit = parseInt(searchParams.get('limit') || '50')
+  const search = searchParams.get('search') || ''
+  const specialty = searchParams.get('specialty') || ''
+  const examType = searchParams.get('examType') || ''
+  const difficulty = searchParams.get('difficulty') || ''
+  const year = searchParams.get('year') || ''
+  const loadAll = searchParams.get('loadAll') === 'true'
 
   try {
-    const { data: questions, error } = await supabase
+    // Build the base query
+    let query = supabase
       .from("questions")
       .select(
         `
@@ -86,14 +98,79 @@ export async function GET() {
         specialty:specialties(id, name),
         exam_type:exam_types(id, name)
       `,
+        { count: 'exact' }
       )
-      .order("created_at", { ascending: false })
 
-    if (error) throw error
+    // Apply server-side filtering for better performance
+    if (search) {
+      query = query.ilike('question_text', `%${search}%`)
+    }
 
-    return NextResponse.json({ questions })
+    if (specialty && specialty !== 'all') {
+      // Get specialty ID first
+      const { data: specialtyData } = await supabase
+        .from("specialties")
+        .select("id")
+        .eq("name", specialty)
+        .single()
+      
+      if (specialtyData) {
+        query = query.eq('specialty_id', specialtyData.id)
+      }
+    }
+
+    if (examType && examType !== 'all') {
+      // Get exam type ID first
+      const { data: examTypeData } = await supabase
+        .from("exam_types")
+        .select("id")
+        .eq("name", examType)
+        .single()
+      
+      if (examTypeData) {
+        query = query.eq('exam_type_id', examTypeData.id)
+      }
+    }
+
+    if (difficulty && difficulty !== 'all') {
+      query = query.eq('difficulty', parseInt(difficulty))
+    }
+
+    if (year && year !== 'all') {
+      query = query.eq('year', parseInt(year))
+    }
+
+    // Apply pagination unless loadAll is requested
+    if (!loadAll) {
+      const offset = (page - 1) * limit
+      query = query.range(offset, offset + limit - 1)
+    }
+
+    // Order by created_at descending
+    query = query.order("created_at", { ascending: false })
+
+    const { data: questions, error, count } = await query
+
+    if (error) {
+      console.error("Database error:", error)
+      throw error
+    }
+
+    return NextResponse.json({ 
+      questions: questions || [],
+      totalCount: count || 0,
+      page,
+      limit,
+      totalPages: loadAll ? 1 : Math.ceil((count || 0) / limit),
+      hasMore: loadAll ? false : (count || 0) > page * limit
+    })
   } catch (err) {
     console.error("Error fetching questions:", err)
-    return NextResponse.json({ ok: false, message: String(err) }, { status: 400 })
+    return NextResponse.json({ 
+      ok: false, 
+      message: String(err),
+      questions: [],
+      totalCount: 0 
+    }, { status: 500 })
   }
 }
