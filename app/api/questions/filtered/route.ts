@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server"
 import { createClient } from "@/lib/supabase/server"
+import { questionCache } from "@/lib/cache/question-cache"
 
 export async function POST(req: Request) {
   const { filters, userId, limit = 5000, offset = 0 } = await req.json()
@@ -7,21 +8,67 @@ export async function POST(req: Request) {
   const supabase = await createClient()
 
   try {
-    // Optimize by combining specialty and exam type lookups in parallel
-    const [specialtyLookup, examTypeLookup] = await Promise.all([
-      // Get specialty IDs if needed
-      filters.specialties && filters.specialties.length > 0
-        ? supabase.from("specialties").select("id, name").in("name", filters.specialties)
-        : Promise.resolve({ data: [], error: null }),
-      
-      // Get exam type IDs if needed
-      filters.examTypes && filters.examTypes.length > 0
-        ? supabase.from("exam_types").select("id, name").in("name", filters.examTypes)
-        : Promise.resolve({ data: [], error: null })
-    ])
+    // Check cache first for exact match
+    const cachedResult = questionCache.getFilteredQuestions(filters, userId, limit, offset)
+    if (cachedResult) {
+      return NextResponse.json({
+        questions: cachedResult.questions,
+        count: cachedResult.count,
+        hasMore: cachedResult.questions.length === limit,
+        offset: offset,
+        limit: limit,
+        performance: {
+          totalFromDB: cachedResult.totalFromDB,
+          afterFiltering: cachedResult.questions.length,
+          statusFilteringApplied: !!(filters.questionStatus && filters.questionStatus.length > 0),
+          cached: true,
+          responseTime: '<10ms'
+        }
+      })
+    }
 
-    const specialtyIds = specialtyLookup.data?.map((s: any) => s.id) || []
-    const examTypeIds = examTypeLookup.data?.map((e: any) => e.id) || []
+    // Optimize by combining specialty and exam type lookups in parallel with caching
+    const [specialtyIds, examTypeIds] = await Promise.all([
+      // Get specialty IDs with caching
+      filters.specialties && filters.specialties.length > 0
+        ? (async () => {
+            const cached = questionCache.getSpecialtyIds(filters.specialties)
+            if (cached) return cached
+            
+            const { data: specialtyData, error: specialtyError } = await supabase
+              .from("specialties")
+              .select("id, name")
+              .in("name", filters.specialties)
+            
+            if (!specialtyError && specialtyData) {
+              const ids = specialtyData.map((s: any) => s.id) || []
+              questionCache.setSpecialtyIds(filters.specialties, ids)
+              return ids
+            }
+            return []
+          })()
+        : Promise.resolve([]),
+      
+      // Get exam type IDs with caching
+      filters.examTypes && filters.examTypes.length > 0
+        ? (async () => {
+            const cached = questionCache.getExamTypeIds(filters.examTypes)
+            if (cached) return cached
+            
+            const { data: examTypeData, error: examTypeError } = await supabase
+              .from("exam_types")
+              .select("id, name")
+              .in("name", filters.examTypes)
+            
+            if (!examTypeError && examTypeData) {
+              const ids = examTypeData.map((e: any) => e.id) || []
+              questionCache.setExamTypeIds(filters.examTypes, ids)
+              return ids
+            }
+            return []
+          })()
+        : Promise.resolve([])
+    ])
 
     // Build optimized base query using indexes
     const buildBaseQuery = (selectClause: string, includeCount = false) => {
@@ -191,6 +238,14 @@ export async function POST(req: Request) {
       ? questions.length  // If status filtering is applied, use the filtered count
       : totalCount        // Otherwise, use the total count from the database
 
+    // Cache the result for future requests
+    const cacheData = {
+      questions,
+      count: finalCount,
+      totalFromDB: totalCount
+    }
+    questionCache.setFilteredQuestions(filters, userId, limit, offset, cacheData)
+
     return NextResponse.json({
       questions,
       count: finalCount,
@@ -200,7 +255,9 @@ export async function POST(req: Request) {
       performance: {
         totalFromDB: totalCount,
         afterFiltering: questions.length,
-        statusFilteringApplied: !!(filters.questionStatus && filters.questionStatus.length > 0)
+        statusFilteringApplied: !!(filters.questionStatus && filters.questionStatus.length > 0),
+        cached: false,
+        responseTime: 'optimized'
       }
     })
 

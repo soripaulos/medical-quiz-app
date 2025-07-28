@@ -201,29 +201,52 @@ export function EnhancedCreateTestInterface({ userProfile }: EnhancedCreateTestI
 
   const fetchFilterOptions = async () => {
     try {
-      // Fetch specialties
-      const specialtiesRes = await fetch("/api/specialties")
-      const specialtiesData = (await safeJson(specialtiesRes)) as any
-      if (specialtiesData?.specialties) {
-        setSpecialties(specialtiesData.specialties.map((s: { name: string }) => s.name))
-      }
-
-      // Fetch exam types
-      const examTypesRes = await fetch("/api/exam-types")
-      const examTypesData = (await safeJson(examTypesRes)) as any
-      if (examTypesData?.examTypes) {
-        setExamTypes(examTypesData.examTypes.map((e: { name: string }) => e.name))
-      }
-
-      // Fetch available years
-      const yearsRes = await fetch("/api/questions/years")
-      const yearsData = (await safeJson(yearsRes)) as any
-      if (yearsData?.years) {
-        setAvailableYears(yearsData.years.sort((a: number, b: number) => b - a))
+      // Use the new optimized filter options API that returns everything in one request
+      const filterOptionsRes = await fetch("/api/questions/filter-options")
+      const filterData = (await safeJson(filterOptionsRes)) as any
+      
+      if (filterData) {
+        // Set all filter options from the single response
+        if (filterData.specialties) {
+          setSpecialties(filterData.specialties)
+        }
+        if (filterData.examTypes) {
+          setExamTypes(filterData.examTypes)
+        }
+        if (filterData.years) {
+          setAvailableYears(filterData.years)
+        }
+        
+        console.log(`Filter options loaded: ${filterData.counts?.years || 0} years, ${filterData.cached ? 'from cache' : 'fresh'} (${filterData.responseTime})`)
       }
     } catch (error) {
-      // This will catch network errors or JSON parsing failures
-      console.error("Error fetching filter options:", error)
+      // Fallback to individual API calls if the combined endpoint fails
+      console.warn("Combined filter options failed, falling back to individual calls:", error)
+      
+      try {
+        // Fetch specialties
+        const specialtiesRes = await fetch("/api/specialties")
+        const specialtiesData = (await safeJson(specialtiesRes)) as any
+        if (specialtiesData?.specialties) {
+          setSpecialties(specialtiesData.specialties.map((s: { name: string }) => s.name))
+        }
+
+        // Fetch exam types
+        const examTypesRes = await fetch("/api/exam-types")
+        const examTypesData = (await safeJson(examTypesRes)) as any
+        if (examTypesData?.examTypes) {
+          setExamTypes(examTypesData.examTypes.map((e: { name: string }) => e.name))
+        }
+
+        // Fetch available years
+        const yearsRes = await fetch("/api/questions/years")
+        const yearsData = (await safeJson(yearsRes)) as any
+        if (yearsData?.years) {
+          setAvailableYears(yearsData.years.sort((a: number, b: number) => b - a))
+        }
+      } catch (fallbackError) {
+        console.error("Error fetching filter options (fallback):", fallbackError)
+      }
     }
   }
 

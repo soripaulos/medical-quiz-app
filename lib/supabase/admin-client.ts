@@ -11,15 +11,22 @@ export function createAdminClient() {
     if (process.env.NODE_ENV === 'production' || process.env.CI) {
       throw new Error('Missing required Supabase environment variables')
     }
-    // Return a mock client for build-time
+    // Return a comprehensive mock client for build-time
     return {
       from: () => ({
-        select: () => ({ 
+        select: () => ({
           eq: () => ({ single: () => Promise.resolve({ data: null, error: null }) }),
-          not: () => ({ order: () => Promise.resolve({ data: [], error: null }) }),
+          not: () => ({ 
+            order: () => Promise.resolve({ data: [], error: null })
+          }),
           order: () => Promise.resolve({ data: [], error: null }),
-          range: () => Promise.resolve({ data: [], error: null, count: 0 }),
-          single: () => Promise.resolve({ data: null, error: null })
+          range: () => ({ 
+            order: () => Promise.resolve({ data: [], error: null, count: 0 })
+          }),
+          single: () => Promise.resolve({ data: null, error: null }),
+          in: () => ({
+            order: () => Promise.resolve({ data: [], error: null })
+          })
         }),
         insert: () => ({ select: () => ({ single: () => Promise.resolve({ data: null, error: null }) }) }),
       }),
