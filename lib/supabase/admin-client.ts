@@ -14,10 +14,16 @@ export function createAdminClient() {
     // Return a mock client for build-time
     return {
       from: () => ({
-        select: () => ({ eq: () => ({ single: () => Promise.resolve({ data: null, error: null }) }) }),
+        select: () => ({ 
+          eq: () => ({ single: () => Promise.resolve({ data: null, error: null }) }),
+          not: () => ({ order: () => Promise.resolve({ data: [], error: null }) }),
+          order: () => Promise.resolve({ data: [], error: null }),
+          range: () => Promise.resolve({ data: [], error: null, count: 0 }),
+          single: () => Promise.resolve({ data: null, error: null })
+        }),
         insert: () => ({ select: () => ({ single: () => Promise.resolve({ data: null, error: null }) }) }),
-        rpc: () => Promise.resolve({ data: [], error: null })
-      })
+      }),
+      rpc: () => Promise.resolve({ data: [], error: null })
     } as any
   }
 

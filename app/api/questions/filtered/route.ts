@@ -7,212 +7,210 @@ export async function POST(req: Request) {
   const supabase = await createClient()
 
   try {
-    // First, let's build the queries with proper filtering
-    // For specialty filtering, we need to get the specialty IDs first
-    let specialtyIds: number[] = []
-    if (filters.specialties && filters.specialties.length > 0) {
-      const { data: specialtyData, error: specialtyError } = await supabase
-        .from("specialties")
-        .select("id")
-        .in("name", filters.specialties)
+    // Optimize by combining specialty and exam type lookups in parallel
+    const [specialtyLookup, examTypeLookup] = await Promise.all([
+      // Get specialty IDs if needed
+      filters.specialties && filters.specialties.length > 0
+        ? supabase.from("specialties").select("id, name").in("name", filters.specialties)
+        : Promise.resolve({ data: [], error: null }),
       
-      if (!specialtyError && specialtyData) {
-        specialtyIds = specialtyData.map((s: any) => s.id) || []
+      // Get exam type IDs if needed
+      filters.examTypes && filters.examTypes.length > 0
+        ? supabase.from("exam_types").select("id, name").in("name", filters.examTypes)
+        : Promise.resolve({ data: [], error: null })
+    ])
+
+    const specialtyIds = specialtyLookup.data?.map((s: any) => s.id) || []
+    const examTypeIds = examTypeLookup.data?.map((e: any) => e.id) || []
+
+    // Build optimized base query using indexes
+    const buildBaseQuery = (selectClause: string, includeCount = false) => {
+      let query = supabase.from("questions").select(selectClause, includeCount ? { count: "exact", head: true } : {})
+
+      // Apply filters in order of selectivity (most selective first)
+      // Years are usually most selective
+      if (filters.years && filters.years.length > 0) {
+        query = query.in("year", filters.years)
       }
+
+      // Difficulty is usually quite selective
+      if (filters.difficulties && filters.difficulties.length > 0) {
+        query = query.in("difficulty", filters.difficulties)
+      }
+
+      // Specialty filtering (use IDs for better index performance)
+      if (filters.specialties && filters.specialties.length > 0 && specialtyIds.length > 0) {
+        query = query.in("specialty_id", specialtyIds)
+      }
+
+      // Exam type filtering (use IDs for better index performance)
+      if (filters.examTypes && filters.examTypes.length > 0 && examTypeIds.length > 0) {
+        query = query.in("exam_type_id", examTypeIds)
+      }
+
+      return query
     }
 
-    // For exam type filtering, we need to get the exam type IDs first
-    let examTypeIds: number[] = []
-    if (filters.examTypes && filters.examTypes.length > 0) {
-      const { data: examTypeData, error: examTypeError } = await supabase
-        .from("exam_types")
-        .select("id")
-        .in("name", filters.examTypes)
+    // Get count and data in parallel for better performance
+    const [countResult, questionsResult] = await Promise.all([
+      // Get total count
+      buildBaseQuery("*", true),
       
-      if (!examTypeError && examTypeData) {
-        examTypeIds = examTypeData.map((e: any) => e.id) || []
-      }
-    }
-
-    // Build the query for getting total count
-    let countQuery = supabase.from("questions").select("*", { count: "exact", head: true })
-
-    // Apply specialty filters
-    if (filters.specialties && filters.specialties.length > 0 && specialtyIds.length > 0) {
-      countQuery = countQuery.in("specialty_id", specialtyIds)
-    }
-
-    // Apply exam type filters
-    if (filters.examTypes && filters.examTypes.length > 0 && examTypeIds.length > 0) {
-      countQuery = countQuery.in("exam_type_id", examTypeIds)
-    }
-
-    // Apply year filters
-    if (filters.years && filters.years.length > 0) {
-      countQuery = countQuery.in("year", filters.years)
-    }
-
-    // Apply difficulty filters
-    if (filters.difficulties && filters.difficulties.length > 0) {
-      countQuery = countQuery.in("difficulty", filters.difficulties)
-    }
-
-    // Get the total count of questions matching the filters (before question status filtering)
-    const { count: totalCount, error: countError } = await countQuery
-
-    if (countError) throw countError
-
-    // Build the query for getting actual questions with full data
-    let dataQuery = supabase.from("questions").select(`
+      // Get actual questions with joins
+      buildBaseQuery(`
         *,
         specialty:specialties(id, name),
         exam_type:exam_types(id, name)
-      `)
+      `).range(offset, offset + limit - 1).order('created_at', { ascending: false })
+    ])
 
-    // Apply the same filters to the data query
-    if (filters.specialties && filters.specialties.length > 0 && specialtyIds.length > 0) {
-      dataQuery = dataQuery.in("specialty_id", specialtyIds)
-    }
+    if (countResult.error) throw countResult.error
+    if (questionsResult.error) throw questionsResult.error
 
-    if (filters.examTypes && filters.examTypes.length > 0 && examTypeIds.length > 0) {
-      dataQuery = dataQuery.in("exam_type_id", examTypeIds)
-    }
+    const totalCount = countResult.count || 0
+    let questions = questionsResult.data || []
 
-    if (filters.years && filters.years.length > 0) {
-      dataQuery = dataQuery.in("year", filters.years)
-    }
-
-    if (filters.difficulties && filters.difficulties.length > 0) {
-      dataQuery = dataQuery.in("difficulty", filters.difficulties)
-    }
-
-    // Add explicit limit and offset to handle large datasets properly
-    dataQuery = dataQuery.range(offset, offset + limit - 1)
-
-    const { data: questions, error } = await dataQuery
-
-    if (error) throw error
-
-    // Get user progress and answers for filtering by question status
+    // Optimize user data fetching - only fetch if status filtering is needed
     let userProgress: any[] = []
     let userAnswers: any[] = []
+    let latestAnswerMap = new Map<string, { is_correct: boolean; answered_at: string }>()
 
-    if (userId && userId !== "temp-user-id") {
-      const { data: progressData } = await supabase.from("user_question_progress").select("*").eq("user_id", userId)
+    if (userId && userId !== "temp-user-id" && filters.questionStatus && filters.questionStatus.length > 0) {
+      // Extract question IDs for targeted queries
+      const questionIds = questions.map(q => q.id)
+      
+      if (questionIds.length > 0) {
+        // Fetch user data only for the questions we're working with
+        const [progressResult, answersResult] = await Promise.all([
+          // Only fetch progress if flagged status is requested
+          filters.questionStatus.includes("flagged")
+            ? supabase.from("user_question_progress")
+                .select("question_id, is_flagged")
+                .eq("user_id", userId)
+                .in("question_id", questionIds)
+            : Promise.resolve({ data: [], error: null }),
+          
+          // Fetch answers for status filtering
+          supabase.from("user_answers")
+            .select("question_id, is_correct, answered_at")
+            .eq("user_id", userId)
+            .in("question_id", questionIds)
+            .order("answered_at", { ascending: false })
+        ])
 
-      // Get all user answers with question_id, is_correct, and answered_at
-      const { data: answersData } = await supabase
-        .from("user_answers")
-        .select("question_id, is_correct, answered_at")
-        .eq("user_id", userId)
-        .order("answered_at", { ascending: false }) // Most recent first
+        userProgress = progressResult.data || []
+        userAnswers = answersResult.data || []
 
-      userProgress = progressData || []
-      userAnswers = answersData || []
+        // Build answer map more efficiently
+        userAnswers.forEach((answer: any) => {
+          if (!latestAnswerMap.has(answer.question_id)) {
+            latestAnswerMap.set(answer.question_id, {
+              is_correct: answer.is_correct,
+              answered_at: answer.answered_at,
+            })
+          }
+        })
+      }
     }
 
-    // Filter questions based on status - if empty array, include all
-    let filteredQuestions = questions || []
-
+    // Apply status filtering more efficiently
     if (filters.questionStatus && filters.questionStatus.length > 0) {
-      // Create a map of question_id to most recent answer
-      const latestAnswerMap = new Map<string, { is_correct: boolean; answered_at: string }>()
+      // Create progress map for faster lookups
+      const progressMap = new Map(userProgress.map((p: any) => [p.question_id, p]))
+      
+      // Pre-compute status checks to avoid repeated calculations
+      const statusChecks = {
+        answered: filters.questionStatus.includes("answered"),
+        unanswered: filters.questionStatus.includes("unanswered"),
+        correct: filters.questionStatus.includes("correct"),
+        incorrect: filters.questionStatus.includes("incorrect"),
+        flagged: filters.questionStatus.includes("flagged")
+      }
 
-      userAnswers.forEach((answer: any) => {
-        if (!latestAnswerMap.has(answer.question_id)) {
-          // Since answers are ordered by answered_at DESC, the first occurrence is the most recent
-          latestAnswerMap.set(answer.question_id, {
-            is_correct: answer.is_correct,
-            answered_at: answer.answered_at,
-          })
-        }
-      })
-
-      filteredQuestions = filteredQuestions.filter((question: any) => {
-        const progress = userProgress.find((p: any) => p.question_id === question.id)
+      questions = questions.filter((question: any) => {
         const latestAnswer = latestAnswerMap.get(question.id)
+        const progress = progressMap.get(question.id)
 
-        // Determine question status based on most recent answer
         const hasAnswered = !!latestAnswer
         const isCorrect = hasAnswered && latestAnswer.is_correct
         const isIncorrect = hasAnswered && !latestAnswer.is_correct
         const isFlagged = progress?.is_flagged || false
 
-        return filters.questionStatus.some((status: string) => {
-          switch (status) {
-            case "answered":
-              return hasAnswered
-            case "unanswered":
-              return !hasAnswered
-            case "correct":
-              return isCorrect
-            case "incorrect":
-              return isIncorrect
-            case "flagged":
-              return isFlagged
-            default:
-              return false
-          }
-        })
+        return (
+          (statusChecks.answered && hasAnswered) ||
+          (statusChecks.unanswered && !hasAnswered) ||
+          (statusChecks.correct && isCorrect) ||
+          (statusChecks.incorrect && isIncorrect) ||
+          (statusChecks.flagged && isFlagged)
+        )
       })
     }
 
-    // Implement better randomization that ensures diversity across specialties
-    if (filteredQuestions.length > 0) {
-      // Group questions by specialty to ensure diversity
-      const questionsBySpecialty = new Map<string, any[]>()
-      
-      filteredQuestions.forEach((question: any) => {
-        const specialtyName = question.specialty?.name || 'Unknown'
-        if (!questionsBySpecialty.has(specialtyName)) {
-          questionsBySpecialty.set(specialtyName, [])
-        }
-        questionsBySpecialty.get(specialtyName)!.push(question)
-      })
-
-      // Shuffle questions within each specialty
-      questionsBySpecialty.forEach((questions, specialty) => {
-        for (let i = questions.length - 1; i > 0; i--) {
-          const j = Math.floor(Math.random() * (i + 1));
-          [questions[i], questions[j]] = [questions[j], questions[i]]
-        }
-      })
-
-      // Interleave questions from different specialties for better distribution
-      const shuffledQuestions: any[] = []
-      const specialtyNames = Array.from(questionsBySpecialty.keys())
-      let maxQuestionsPerSpecialty = Math.max(...Array.from(questionsBySpecialty.values()).map(arr => arr.length))
-
-      for (let i = 0; i < maxQuestionsPerSpecialty; i++) {
-        // Shuffle specialty order for each round to avoid patterns
-        const shuffledSpecialties = [...specialtyNames].sort(() => Math.random() - 0.5)
-        
-        shuffledSpecialties.forEach(specialty => {
-          const questions = questionsBySpecialty.get(specialty)!
-          if (i < questions.length) {
-            shuffledQuestions.push(questions[i])
-          }
-        })
+    // Optimized randomization with better performance
+    if (questions.length > 0) {
+      // Simple Fisher-Yates shuffle for better performance
+      for (let i = questions.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [questions[i], questions[j]] = [questions[j], questions[i]]
       }
 
-      filteredQuestions = shuffledQuestions
+      // If we need specialty diversity, do a secondary sort
+      if (questions.length > 100) { // Only for larger sets
+        // Group by specialty and interleave
+        const specialtyGroups = new Map<string, any[]>()
+        
+        questions.forEach((question: any) => {
+          const specialtyName = question.specialty?.name || 'Unknown'
+          if (!specialtyGroups.has(specialtyName)) {
+            specialtyGroups.set(specialtyName, [])
+          }
+          specialtyGroups.get(specialtyName)!.push(question)
+        })
+
+        // Interleave if we have multiple specialties
+        if (specialtyGroups.size > 1) {
+          const interleavedQuestions: any[] = []
+          const specialtyArrays = Array.from(specialtyGroups.values())
+          const maxLength = Math.max(...specialtyArrays.map(arr => arr.length))
+
+          for (let i = 0; i < maxLength; i++) {
+            specialtyArrays.forEach(arr => {
+              if (i < arr.length) {
+                interleavedQuestions.push(arr[i])
+              }
+            })
+          }
+
+          questions = interleavedQuestions
+        }
+      }
     }
 
-    // Return the total count from the database query, not the filtered count
-    // This gives users the actual number of questions matching their base filters
+    // Return appropriate count
     const finalCount = filters.questionStatus && filters.questionStatus.length > 0 
-      ? filteredQuestions.length  // If status filtering is applied, use the filtered count
-      : totalCount || 0           // Otherwise, use the total count from the database
+      ? questions.length  // If status filtering is applied, use the filtered count
+      : totalCount        // Otherwise, use the total count from the database
 
     return NextResponse.json({
-      questions: filteredQuestions,
+      questions,
       count: finalCount,
-      hasMore: filteredQuestions.length === limit, // Indicate if there might be more questions
+      hasMore: questions.length === limit,
       offset: offset,
-      limit: limit
+      limit: limit,
+      performance: {
+        totalFromDB: totalCount,
+        afterFiltering: questions.length,
+        statusFilteringApplied: !!(filters.questionStatus && filters.questionStatus.length > 0)
+      }
     })
+
   } catch (err) {
     console.error("Error filtering questions:", err)
-    return NextResponse.json({ ok: false, message: String(err) }, { status: 400 })
+    return NextResponse.json({ 
+      ok: false, 
+      message: String(err),
+      questions: [],
+      count: 0
+    }, { status: 500 })
   }
 }
