@@ -12,22 +12,22 @@ export async function POST(req: Request) {
       // Get specialty IDs using optimized function if available
       filters.specialties && filters.specialties.length > 0
         ? supabase.rpc('get_specialty_ids', { specialty_names: filters.specialties })
-            .then(({ data, error }) => error ? [] : (data || []))
+            .then(({ data, error }: { data: any; error: any }) => error ? [] : (data || []))
             .catch(() => 
               // Fallback to direct query
               supabase.from("specialties").select("id").in("name", filters.specialties)
-                .then(({ data }) => data?.map((s: any) => s.id) || [])
+                .then(({ data }: { data: any }) => data?.map((s: any) => s.id) || [])
             )
         : Promise.resolve([]),
       
       // Get exam type IDs using optimized function if available
       filters.examTypes && filters.examTypes.length > 0
         ? supabase.rpc('get_exam_type_ids', { exam_type_names: filters.examTypes })
-            .then(({ data, error }) => error ? [] : (data || []))
+            .then(({ data, error }: { data: any; error: any }) => error ? [] : (data || []))
             .catch(() => 
               // Fallback to direct query
               supabase.from("exam_types").select("id").in("name", filters.examTypes)
-                .then(({ data }) => data?.map((e: any) => e.id) || [])
+                .then(({ data }: { data: any }) => data?.map((e: any) => e.id) || [])
             )
         : Promise.resolve([])
     ])
@@ -107,7 +107,7 @@ export async function POST(req: Request) {
 
     // Handle user status filtering if needed
     if (userId && userId !== "temp-user-id" && filters.questionStatus && filters.questionStatus.length > 0) {
-      const questionIds = questions.map(q => q.id)
+      const questionIds = questions.map((q: any) => q.id)
       
       if (questionIds.length > 0) {
         // Optimized user data fetching
@@ -164,7 +164,7 @@ export async function POST(req: Request) {
         // Filter questions based on status
         questions = questions.filter((question: any) => {
           const latestAnswer = latestAnswerMap.get(question.id)
-          const progress = progressMap.get(question.id)
+          const progress = progressMap.get(question.id) as any
 
           const hasAnswered = !!latestAnswer
           const isCorrect = hasAnswered && latestAnswer.is_correct

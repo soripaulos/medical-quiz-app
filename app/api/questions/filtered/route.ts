@@ -77,7 +77,7 @@ export async function POST(req: Request) {
 
     if (userId && userId !== "temp-user-id" && filters.questionStatus && filters.questionStatus.length > 0) {
       // Extract question IDs for targeted queries
-      const questionIds = questions.map(q => q.id)
+      const questionIds = questions.map((q: any) => q.id)
       
       if (questionIds.length > 0) {
         // Fetch user data only for the questions we're working with
