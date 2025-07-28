@@ -7,52 +7,106 @@ export async function POST(req: Request) {
   const supabase = await createClient()
 
   try {
-    // Build the base query with explicit limit to override Supabase's default 1000 limit
-    let query = supabase.from("questions").select(`
+    // Build the base query for both count and data retrieval
+    const buildQuery = (supabase: any, selectClause: string) => {
+      let query = supabase.from("questions").select(selectClause)
+
+      // Apply specialty filters - if empty array, include all
+      if (filters.specialties && filters.specialties.length > 0) {
+        // We need to do a subquery for specialty filtering in count
+        const specialtyFilter = filters.specialties.map((s: string) => `specialties.name.eq.${s}`).join(',')
+        query = query.in('specialty_id', supabase.from('specialties').select('id').in('name', filters.specialties))
+      }
+
+      // Apply exam type filters - if empty array, include all
+      if (filters.examTypes && filters.examTypes.length > 0) {
+        query = query.in('exam_type_id', supabase.from('exam_types').select('id').in('name', filters.examTypes))
+      }
+
+      // Apply year filters - if empty array, include all
+      if (filters.years && filters.years.length > 0) {
+        query = query.in("year", filters.years)
+      }
+
+      // Apply difficulty filters - if empty array, include all
+      if (filters.difficulties && filters.difficulties.length > 0) {
+        query = query.in("difficulty", filters.difficulties)
+      }
+
+      return query
+    }
+
+    // First, let's build the queries with proper filtering
+    // For specialty filtering, we need to get the specialty IDs first
+    let specialtyIds: number[] = []
+    if (filters.specialties && filters.specialties.length > 0) {
+      const { data: specialtyData } = await supabase.from("specialties").select("id").in("name", filters.specialties)
+      specialtyIds = specialtyData?.map((s) => s.id) || []
+    }
+
+    // For exam type filtering, we need to get the exam type IDs first
+    let examTypeIds: number[] = []
+    if (filters.examTypes && filters.examTypes.length > 0) {
+      const { data: examTypeData } = await supabase.from("exam_types").select("id").in("name", filters.examTypes)
+      examTypeIds = examTypeData?.map((e) => e.id) || []
+    }
+
+    // Build the query for getting total count
+    let countQuery = supabase.from("questions").select("*", { count: "exact", head: true })
+
+    // Apply specialty filters
+    if (filters.specialties && filters.specialties.length > 0 && specialtyIds.length > 0) {
+      countQuery = countQuery.in("specialty_id", specialtyIds)
+    }
+
+    // Apply exam type filters
+    if (filters.examTypes && filters.examTypes.length > 0 && examTypeIds.length > 0) {
+      countQuery = countQuery.in("exam_type_id", examTypeIds)
+    }
+
+    // Apply year filters
+    if (filters.years && filters.years.length > 0) {
+      countQuery = countQuery.in("year", filters.years)
+    }
+
+    // Apply difficulty filters
+    if (filters.difficulties && filters.difficulties.length > 0) {
+      countQuery = countQuery.in("difficulty", filters.difficulties)
+    }
+
+    // Get the total count of questions matching the filters (before question status filtering)
+    const { count: totalCount, error: countError } = await countQuery
+
+    if (countError) throw countError
+
+    // Build the query for getting actual questions with full data
+    let dataQuery = supabase.from("questions").select(`
         *,
         specialty:specialties(id, name),
         exam_type:exam_types(id, name)
       `)
 
-    // Apply specialty filters - if empty array, include all
-    if (filters.specialties && filters.specialties.length > 0) {
-      const { data: specialtyIds } = await supabase.from("specialties").select("id").in("name", filters.specialties)
-
-      if (specialtyIds && specialtyIds.length > 0) {
-        query = query.in(
-          "specialty_id",
-          specialtyIds.map((s) => s.id),
-        )
-      }
+    // Apply the same filters to the data query
+    if (filters.specialties && filters.specialties.length > 0 && specialtyIds.length > 0) {
+      dataQuery = dataQuery.in("specialty_id", specialtyIds)
     }
 
-    // Apply exam type filters - if empty array, include all
-    if (filters.examTypes && filters.examTypes.length > 0) {
-      const { data: examTypeIds } = await supabase.from("exam_types").select("id").in("name", filters.examTypes)
-
-      if (examTypeIds && examTypeIds.length > 0) {
-        query = query.in(
-          "exam_type_id",
-          examTypeIds.map((e) => e.id),
-        )
-      }
+    if (filters.examTypes && filters.examTypes.length > 0 && examTypeIds.length > 0) {
+      dataQuery = dataQuery.in("exam_type_id", examTypeIds)
     }
 
-    // Apply year filters - if empty array, include all
     if (filters.years && filters.years.length > 0) {
-      query = query.in("year", filters.years)
+      dataQuery = dataQuery.in("year", filters.years)
     }
 
-    // Apply difficulty filters - if empty array, include all
     if (filters.difficulties && filters.difficulties.length > 0) {
-      query = query.in("difficulty", filters.difficulties)
+      dataQuery = dataQuery.in("difficulty", filters.difficulties)
     }
 
     // Add explicit limit and offset to handle large datasets properly
-    // Use a high limit (5000) to get most questions, but allow pagination if needed
-    query = query.range(offset, offset + limit - 1)
+    dataQuery = dataQuery.range(offset, offset + limit - 1)
 
-    const { data: questions, error } = await query
+    const { data: questions, error } = await dataQuery
 
     if (error) throw error
 
@@ -161,9 +215,15 @@ export async function POST(req: Request) {
       filteredQuestions = shuffledQuestions
     }
 
+    // Return the total count from the database query, not the filtered count
+    // This gives users the actual number of questions matching their base filters
+    const finalCount = filters.questionStatus && filters.questionStatus.length > 0 
+      ? filteredQuestions.length  // If status filtering is applied, use the filtered count
+      : totalCount || 0           // Otherwise, use the total count from the database
+
     return NextResponse.json({
       questions: filteredQuestions,
-      count: filteredQuestions.length,
+      count: finalCount,
       hasMore: filteredQuestions.length === limit, // Indicate if there might be more questions
       offset: offset,
       limit: limit

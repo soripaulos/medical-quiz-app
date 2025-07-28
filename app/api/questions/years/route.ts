@@ -5,8 +5,7 @@ export async function GET() {
   const supabase = await createClient()
 
   try {
-    // Use a more efficient query to get distinct years
-    // This is more efficient than loading all questions and then filtering
+    // Try to use the RPC function first for better performance
     const { data, error } = await supabase
       .rpc('get_distinct_years')
 
@@ -14,11 +13,12 @@ export async function GET() {
       // Fallback to the original method if the RPC function doesn't exist
       console.warn("RPC function 'get_distinct_years' not found, using fallback method")
       
+      // Use a direct query to get distinct years without any limit
+      // This is more efficient than loading all questions
       const { data: questions, error: fallbackError } = await supabase
         .from("questions")
         .select("year")
         .not("year", "is", null)
-        .limit(10000) // High limit to ensure we get all questions
         .order("year", { ascending: false })
 
       if (fallbackError) throw fallbackError
@@ -29,7 +29,8 @@ export async function GET() {
 
       return NextResponse.json({ 
         years: uniqueYears,
-        count: uniqueYears.length 
+        count: uniqueYears.length,
+        method: 'fallback'
       })
     }
 
@@ -38,7 +39,8 @@ export async function GET() {
 
     return NextResponse.json({ 
       years: sortedYears,
-      count: sortedYears.length 
+      count: sortedYears.length,
+      method: 'rpc'
     })
   } catch (err) {
     console.error("Error fetching years:", err)
