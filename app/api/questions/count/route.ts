@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server"
 import { createClient } from "@/lib/supabase/server"
-import { questionCache } from "@/lib/cache/question-cache"
+import { ultraFastFilterCache } from "@/lib/cache/ultra-fast-filter-cache"
 
 export async function POST(req: Request) {
   const startTime = Date.now()
@@ -9,18 +9,10 @@ export async function POST(req: Request) {
   const supabase = await createClient()
 
   try {
-    // Check cache first for exact match
-    const cacheKey = JSON.stringify({ filters, userId, type: 'count' })
-    const cachedResult = questionCache.get(cacheKey)
+    // Check ultra-fast cache first
+    const cachedResult = ultraFastFilterCache.getQuestionCount(filters, userId)
     if (cachedResult) {
-      return NextResponse.json({
-        count: cachedResult.count,
-        performance: {
-          cached: true,
-          responseTime: '<10ms',
-          method: 'cache'
-        }
-      })
+      return NextResponse.json(cachedResult)
     }
 
     // Optimize by combining specialty and exam type lookups in parallel with caching
@@ -28,7 +20,7 @@ export async function POST(req: Request) {
       // Get specialty IDs with caching
       filters.specialties && filters.specialties.length > 0
         ? (async () => {
-            const cached = questionCache.getSpecialtyIds(filters.specialties)
+            const cached = ultraFastFilterCache.getSpecialtyIds(filters.specialties)
             if (cached) return cached
             
             const { data: specialtyData, error: specialtyError } = await supabase
@@ -38,7 +30,7 @@ export async function POST(req: Request) {
             
             if (!specialtyError && specialtyData) {
               const ids = specialtyData.map((s: any) => s.id) || []
-              questionCache.setSpecialtyIds(filters.specialties, ids)
+              ultraFastFilterCache.setSpecialtyIds(filters.specialties, ids)
               return ids
             }
             return []
@@ -48,7 +40,7 @@ export async function POST(req: Request) {
       // Get exam type IDs with caching
       filters.examTypes && filters.examTypes.length > 0
         ? (async () => {
-            const cached = questionCache.getExamTypeIds(filters.examTypes)
+            const cached = ultraFastFilterCache.getExamTypeIds(filters.examTypes)
             if (cached) return cached
             
             const { data: examTypeData, error: examTypeError } = await supabase
@@ -58,7 +50,7 @@ export async function POST(req: Request) {
             
             if (!examTypeError && examTypeData) {
               const ids = examTypeData.map((e: any) => e.id) || []
-              questionCache.setExamTypeIds(filters.examTypes, ids)
+              ultraFastFilterCache.setExamTypeIds(filters.examTypes, ids)
               return ids
             }
             return []
@@ -192,7 +184,7 @@ export async function POST(req: Request) {
       }
     }
     
-    questionCache.set(cacheKey, result, 60000) // Cache for 1 minute
+    ultraFastFilterCache.setQuestionCount(filters, result, userId)
 
     return NextResponse.json(result)
 

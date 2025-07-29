@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback, useRef } from 'react'
 import type { QuestionFilters } from '@/lib/types'
+import { ultraFastFilterCache } from '@/lib/cache/ultra-fast-filter-cache'
 
 interface FilterOptions {
   specialties: string[]
@@ -78,8 +79,10 @@ export function useOptimizedFiltering({
   
   // Optimized filter options loading with caching
   const loadFilterOptions = useCallback(async () => {
-    if (optionsCache.current) {
-      setFilterOptions(optionsCache.current)
+    // Check ultra-fast cache first
+    const cached = ultraFastFilterCache.getFilterOptions()
+    if (cached) {
+      setFilterOptions(cached)
       return
     }
     
@@ -96,10 +99,15 @@ export function useOptimizedFiltering({
           difficulties: [1, 2, 3, 4, 5]
         }
         
+        // Cache in both places for redundancy
         optionsCache.current = options
+        ultraFastFilterCache.setFilterOptions(options)
         setFilterOptions(options)
         
         console.log(`Filter options loaded: ${options.specialties.length} specialties, ${options.years.length} years (${data.method})`)
+        
+        // Preload common filter combinations in background
+        ultraFastFilterCache.preloadCommonFilters().catch(console.warn)
       }
     } catch (error) {
       console.error('Error loading filter options:', error)
@@ -110,10 +118,8 @@ export function useOptimizedFiltering({
   
   // Fast count-only API call
   const fetchQuestionCount = useCallback(async (filters: QuestionFilters, signal?: AbortSignal) => {
-    const cacheKey = getCacheKey(filters, userId)
-    
-    // Check cache first
-    const cached = countCache.current.get(cacheKey)
+    // Check ultra-fast cache first
+    const cached = ultraFastFilterCache.getQuestionCount(filters, userId)
     if (cached) {
       setQuestionCount(cached.count)
       return cached
@@ -135,8 +141,8 @@ export function useOptimizedFiltering({
         performance: data.performance
       }
       
-      // Cache the result
-      countCache.current.set(cacheKey, result)
+      // Cache the result in both places
+      ultraFastFilterCache.setQuestionCount(filters, result, userId)
       setQuestionCount(result.count)
       
       return result
@@ -149,10 +155,8 @@ export function useOptimizedFiltering({
   
   // Full questions loading (only when needed)
   const fetchQuestions = useCallback(async (filters: QuestionFilters, limit = 5000) => {
-    const cacheKey = `${getCacheKey(filters, userId)}_${limit}`
-    
-    // Check cache first
-    const cached = questionsCache.current.get(cacheKey)
+    // Check ultra-fast cache first
+    const cached = ultraFastFilterCache.getQuestions(filters, userId, limit)
     if (cached) {
       setAvailableQuestions(cached)
       return cached
@@ -176,8 +180,8 @@ export function useOptimizedFiltering({
       const data = await response.json()
       const questions = data.questions || []
       
-      // Cache the result
-      questionsCache.current.set(cacheKey, questions)
+      // Cache the result in both places
+      ultraFastFilterCache.setQuestions(filters, questions, userId, limit)
       setAvailableQuestions(questions)
       setQuestionCount(data.count || 0)
       
