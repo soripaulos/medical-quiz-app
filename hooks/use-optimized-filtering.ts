@@ -61,8 +61,8 @@ export function useOptimizedFiltering({
   const optionsCache = useRef<FilterOptions | null>(null)
   
   // Debouncing
-  const debounceTimer = useRef<NodeJS.Timeout>()
-  const abortController = useRef<AbortController>()
+  const debounceTimer = useRef<NodeJS.Timeout | null>(null)
+  const abortController = useRef<AbortController | null>(null)
   
   // Generate cache key for filters
   const getCacheKey = useCallback((filters: QuestionFilters, userId?: string) => {
@@ -215,7 +215,7 @@ export function useOptimizedFiltering({
       abortController.current = new AbortController()
       
       try {
-        await fetchQuestionCount(filters, abortController.current.signal)
+        await fetchQuestionCount(filters, abortController.current?.signal)
       } finally {
         setIsLoadingCount(false)
       }

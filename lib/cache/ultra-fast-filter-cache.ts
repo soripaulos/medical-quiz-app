@@ -124,9 +124,9 @@ class UltraFastFilterCache {
     return {
       ...entry.data,
       performance: {
-        ...entry.data.performance,
         cached: true,
-        responseTime: '<10ms'
+        responseTime: '<10ms',
+        method: entry.data.performance?.method || 'cache'
       }
     }
   }
@@ -293,15 +293,25 @@ class UltraFastFilterCache {
 
     for (const filters of commonCombinations) {
       try {
+        // Convert to full QuestionFilters format
+        const fullFilters: QuestionFilters = {
+          specialties: [],
+          years: [],
+          difficulties: [],
+          examTypes: [],
+          questionStatus: [],
+          ...filters
+        }
+        
         const response = await fetch('/api/questions/count', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ filters })
+          body: JSON.stringify({ filters: fullFilters })
         })
         
         if (response.ok) {
           const data = await response.json()
-          this.setQuestionCount(filters as QuestionFilters, data)
+          this.setQuestionCount(fullFilters, data)
         }
       } catch (error) {
         console.warn('Failed to preload filter combination:', filters, error)
@@ -445,7 +455,7 @@ class UltraFastFilterCache {
                         this.specialtyIdCache.size + this.examTypeIdCache.size +
                         (this.filterOptionsCache ? 1 : 0)
     
-    const allEntries = [
+    const allEntries: { timestamp: number }[] = [
       ...Array.from(this.countCache.values()),
       ...Array.from(this.questionsCache.values()),
       ...Array.from(this.specialtyIdCache.values()),

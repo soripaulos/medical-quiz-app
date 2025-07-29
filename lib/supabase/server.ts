@@ -6,7 +6,8 @@ export async function createClient() {
   const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
   const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
 
-  if (!supabaseUrl || !supabaseKey) {
+  if (!supabaseUrl || !supabaseKey || 
+      supabaseUrl.includes('your_supabase') || supabaseKey.includes('your_')) {
     // Check if we're in a build environment
     const isBuildTime = process.env.NODE_ENV === 'production' && 
                        (process.env.VERCEL || process.env.CI || process.env.BUILD_PHASE)

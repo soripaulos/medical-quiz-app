@@ -8,7 +8,8 @@ export function createAdminClient() {
   const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY
   
   // Handle missing environment variables during build
-  if (!supabaseUrl || !supabaseServiceKey) {
+  if (!supabaseUrl || !supabaseServiceKey || 
+      supabaseUrl.includes('your_supabase') || supabaseServiceKey.includes('your_')) {
     // Check if we're in a build environment
     const isBuildTime = process.env.NODE_ENV === 'production' && 
                        (process.env.VERCEL || process.env.CI || process.env.BUILD_PHASE)
