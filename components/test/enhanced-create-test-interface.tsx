@@ -238,11 +238,12 @@ export function EnhancedCreateTestInterface({ userProfile }: EnhancedCreateTestI
           setExamTypes(examTypesData.examTypes.map((e: { name: string }) => e.name))
         }
 
-        // Fetch available years
-        const yearsRes = await fetch("/api/questions/years")
+        // Fetch available years using optimized endpoint
+        const yearsRes = await fetch("/api/questions/years-optimized")
         const yearsData = (await safeJson(yearsRes)) as any
         if (yearsData?.years) {
           setAvailableYears(yearsData.years.sort((a: number, b: number) => b - a))
+          console.log(`Years loaded: ${yearsData.count} years via ${yearsData.method} (${yearsData.responseTime || 'unknown'})`)
         }
       } catch (fallbackError) {
         console.error("Error fetching filter options (fallback):", fallbackError)

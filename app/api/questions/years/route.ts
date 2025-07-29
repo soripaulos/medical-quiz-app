@@ -1,16 +1,16 @@
 import { NextResponse } from "next/server"
 import { createAdminClient } from "@/lib/supabase/admin-client"
-import { questionCache } from "@/lib/cache/question-cache"
+import { enhancedQuestionCache } from "@/lib/cache/enhanced-question-cache"
 
 export async function GET() {
   try {
-    // Check cache first
-    const cachedYears = questionCache.getYears()
+    // Check enhanced cache first
+    const cachedYears = enhancedQuestionCache.getYears()
     if (cachedYears && cachedYears.length > 0) {
       return NextResponse.json({ 
         years: cachedYears,
         count: cachedYears.length,
-        method: 'cache'
+        method: 'enhanced_cache'
       })
     }
 
@@ -24,7 +24,7 @@ export async function GET() {
         const sortedYears = rpcData.sort((a: number, b: number) => b - a)
         
         // Cache the result
-        questionCache.setYears(sortedYears)
+        enhancedQuestionCache.setYears(sortedYears)
         
         return NextResponse.json({ 
           years: sortedYears,
@@ -54,7 +54,7 @@ export async function GET() {
       ]
       
       // Cache fallback for short duration
-      questionCache.setYears(fallbackYears)
+      enhancedQuestionCache.setYears(fallbackYears)
       
       return NextResponse.json({ 
         years: fallbackYears,
@@ -80,7 +80,7 @@ export async function GET() {
       ]
       
       // Cache fallback
-      questionCache.setYears(fallbackYears)
+      enhancedQuestionCache.setYears(fallbackYears)
       
       return NextResponse.json({ 
         years: fallbackYears,
@@ -90,7 +90,7 @@ export async function GET() {
     }
     
     // Cache the successful result
-    questionCache.setYears(sortedYears)
+    enhancedQuestionCache.setYears(sortedYears)
     
     return NextResponse.json({ 
       years: sortedYears,
@@ -102,7 +102,7 @@ export async function GET() {
     console.error("Error fetching years:", err)
     
     // Check if we have any cached data as last resort
-    const cachedYears = questionCache.getYears()
+    const cachedYears = enhancedQuestionCache.getYears()
     if (cachedYears && cachedYears.length > 0) {
       return NextResponse.json({ 
         years: cachedYears,
@@ -120,7 +120,7 @@ export async function GET() {
     ]
     
     // Cache fallback for short duration
-    questionCache.setYears(fallbackYears)
+    enhancedQuestionCache.setYears(fallbackYears)
     
     return NextResponse.json({ 
       years: fallbackYears,

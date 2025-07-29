@@ -1,11 +1,11 @@
 import { NextResponse } from "next/server"
 import { createAdminClient } from "@/lib/supabase/admin-client"
-import { questionCache } from "@/lib/cache/question-cache"
+import { enhancedQuestionCache } from "@/lib/cache/enhanced-question-cache"
 
 export async function GET() {
   try {
-    // Check cache first
-    const cachedOptions = questionCache.getFilterOptions()
+    // Check enhanced cache first
+    const cachedOptions = enhancedQuestionCache.getFilterOptions()
     if (cachedOptions) {
       return NextResponse.json({
         ...cachedOptions,
@@ -88,10 +88,10 @@ export async function GET() {
     }
 
     // Cache the result
-    questionCache.setFilterOptions(filterOptions)
+    enhancedQuestionCache.setFilterOptions(filterOptions)
     
     // Also cache individual components
-    questionCache.setYears(years)
+    enhancedQuestionCache.setYears(years)
 
     return NextResponse.json({
       ...filterOptions,
@@ -109,7 +109,7 @@ export async function GET() {
     console.error("Error fetching filter options:", error)
     
     // Check if we have any cached data as fallback
-    const cachedOptions = questionCache.getFilterOptions()
+    const cachedOptions = enhancedQuestionCache.getFilterOptions()
     if (cachedOptions) {
       return NextResponse.json({
         ...cachedOptions,
@@ -140,8 +140,8 @@ export async function GET() {
     }
 
     // Cache fallback for short duration
-    questionCache.setFilterOptions(fallbackOptions)
-    questionCache.setYears(fallbackOptions.years)
+    enhancedQuestionCache.setFilterOptions(fallbackOptions)
+    enhancedQuestionCache.setYears(fallbackOptions.years)
 
     return NextResponse.json({
       ...fallbackOptions,
