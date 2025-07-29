@@ -1,14 +1,13 @@
 import { NextResponse } from "next/server"
-import { createClient } from "@supabase/supabase-js"
+import { createAdminClient } from "@/lib/supabase/admin-client"
 
 export async function GET() {
   try {
-    // Get environment variables
-    const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
-    const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
+    // Use centralized admin client
+    const supabase = createAdminClient()
     
-    // If no real database connection, return mock data
-    if (!supabaseUrl || !supabaseKey || supabaseUrl.includes('your_supabase') || supabaseKey.includes('your_')) {
+    // Check if we have a valid connection
+    if (!supabase) {
       console.log('No real database connection, returning mock filter options')
       
       return NextResponse.json({
@@ -20,9 +19,6 @@ export async function GET() {
         method: 'mock'
       })
     }
-
-    // Create direct Supabase client
-    const supabase = createClient(supabaseUrl, supabaseKey)
 
     // Fetch all filter options in parallel
     const [specialtiesResult, examTypesResult, yearsResult, difficultiesResult] = await Promise.all([
