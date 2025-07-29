@@ -94,12 +94,12 @@ export async function GET() {
       console.error('Database error:', error)
       
       // Try to get from cache as fallback
-      const fallbackYears = enhancedQuestionCache.getYears()
-      if (fallbackYears && fallbackYears.length > 0) {
+      const cachedFallbackYears = enhancedQuestionCache.getYears()
+      if (cachedFallbackYears && cachedFallbackYears.length > 0) {
         const responseTime = Date.now() - startTime
         return NextResponse.json({ 
-          years: fallbackYears,
-          count: fallbackYears.length,
+          years: cachedFallbackYears,
+          count: cachedFallbackYears.length,
           method: 'cache_fallback',
           cached: true,
           responseTime: `${responseTime}ms`,
