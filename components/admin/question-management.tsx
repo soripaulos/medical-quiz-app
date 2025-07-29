@@ -86,10 +86,11 @@ export function QuestionManagement() {
   const fetchFilterOptions = async () => {
     try {
       // Fetch available years
-      const yearsResponse = await fetch("/api/questions/years")
+      const yearsResponse = await fetch("/api/questions/years-simple")
       const yearsData = await yearsResponse.json()
       if (yearsData.years) {
         setAvailableYears(yearsData.years)
+        console.log(`Admin years loaded: ${yearsData.count} years via ${yearsData.method}`, yearsData.years)
       }
 
       // Fetch available specialties

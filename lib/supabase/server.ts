@@ -7,7 +7,11 @@ export async function createClient() {
   const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
 
   if (!supabaseUrl || !supabaseKey) {
-    if (process.env.NODE_ENV === 'production' || process.env.CI) {
+    // Check if we're in a build environment
+    const isBuildTime = process.env.NODE_ENV === 'production' && 
+                       (process.env.VERCEL || process.env.CI || process.env.BUILD_PHASE)
+    
+    if (!isBuildTime && process.env.NODE_ENV === 'production') {
       throw new Error("Supabase environment variables not configured")
     }
     // Return a comprehensive mock client for build-time

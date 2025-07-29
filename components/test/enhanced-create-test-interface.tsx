@@ -215,6 +215,7 @@ export function EnhancedCreateTestInterface({ userProfile }: EnhancedCreateTestI
         }
         if (filterData.years) {
           setAvailableYears(filterData.years)
+          console.log(`Years from filter-options: ${filterData.years.length} years`, filterData.years)
         }
         
         console.log(`Filter options loaded: ${filterData.counts?.years || 0} years, ${filterData.cached ? 'from cache' : 'fresh'} (${filterData.responseTime})`)
@@ -238,11 +239,12 @@ export function EnhancedCreateTestInterface({ userProfile }: EnhancedCreateTestI
           setExamTypes(examTypesData.examTypes.map((e: { name: string }) => e.name))
         }
 
-        // Fetch available years
-        const yearsRes = await fetch("/api/questions/years")
+        // Fetch available years using simple endpoint
+        const yearsRes = await fetch("/api/questions/years-simple")
         const yearsData = (await safeJson(yearsRes)) as any
         if (yearsData?.years) {
           setAvailableYears(yearsData.years.sort((a: number, b: number) => b - a))
+          console.log(`Years loaded: ${yearsData.count} years via ${yearsData.method}`, yearsData)
         }
       } catch (fallbackError) {
         console.error("Error fetching filter options (fallback):", fallbackError)
