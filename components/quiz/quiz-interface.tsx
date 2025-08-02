@@ -58,8 +58,12 @@ export function QuizInterface({
   const [showCalculator, setShowCalculator] = useState(false)
   const [showNotes, setShowNotes] = useState(false)
   const [sidebarOpen, setSidebarOpen] = useState(false)
+  
+  // Stable timer states
   const [timeRemaining, setTimeRemaining] = useState(session.time_remaining || 0)
-  const [activeTime, setActiveTime] = useState(0)
+  const [activeTime, setActiveTime] = useState(session.active_time_seconds || 0)
+  const [lastSyncTime, setLastSyncTime] = useState(Date.now())
+  
   const [noteText, setNoteText] = useState("")
   const [showSubmitPrompt, setShowSubmitPrompt] = useState(false)
   const [localProgress, setLocalProgress] = useState<UserQuestionProgress[]>(userProgress)
@@ -364,47 +368,75 @@ export function QuizInterface({
     router.push(`/test/${session.id}/results`)
   }
 
-  // Timer effect for exam mode (countdown)
+  // Stable unified timer system
   useEffect(() => {
-    if (session.session_type === "exam" && session.time_limit && timeRemaining > 0) {
-      const timer = setInterval(() => {
+    if (!session.is_active || session.completed_at) return
+
+    const isExamMode = session.session_type === "exam"
+    const startTime = Date.now()
+    setLastSyncTime(startTime)
+
+    // Single timer for both modes
+    const timer = setInterval(() => {
+      const now = Date.now()
+      const elapsed = Math.floor((now - lastSyncTime) / 1000)
+
+      if (isExamMode && session.time_limit) {
+        // Countdown timer for exam mode
         setTimeRemaining((prev) => {
-          if (prev <= 1) {
+          const newTime = Math.max(0, prev - elapsed)
+          if (newTime <= 0) {
             clearInterval(timer)
             handleEndSession()
             return 0
           }
-          return prev - 1
+          return newTime
         })
-      }, 1000)
-      return () => clearInterval(timer)
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [session.session_type, session.time_limit, timeRemaining])
-
-  // Active time tracking for practice mode (stopwatch)
-  useEffect(() => {
-    if (session.session_type === "practice") {
-      const fetchActiveTime = async () => {
-        try {
-          const response = await fetch(`/api/sessions/${session.id}/active-time`)
-          if (response.ok) {
-            const data = await response.json()
-            setActiveTime(data.activeTime || 0)
-          }
-        } catch (error) {
-          console.error("Error fetching active time:", error)
-        }
+      } else {
+        // Stopwatch for practice mode
+        setActiveTime((prev) => prev + elapsed)
       }
 
-      // Initial fetch
-      fetchActiveTime()
+      setLastSyncTime(now)
+    }, 1000)
 
-      // Update active time every second
-      const timer = setInterval(fetchActiveTime, 1000)
-      return () => clearInterval(timer)
+    return () => clearInterval(timer)
+  }, [session.is_active, session.completed_at, session.session_type, session.time_limit])
+
+  // Periodic server sync (every 30 seconds instead of every second)
+  useEffect(() => {
+    if (!session.is_active || session.completed_at) return
+
+    const syncTimer = setInterval(async () => {
+      try {
+        const isExamMode = session.session_type === "exam"
+        const syncData = {
+          elapsedTime: isExamMode ? undefined : activeTime,
+          timeRemaining: isExamMode ? timeRemaining : undefined
+        }
+
+        await fetch(`/api/sessions/${session.id}/active-time`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(syncData)
+        })
+      } catch (error) {
+        console.warn("Timer sync failed:", error)
+      }
+    }, 30000) // Sync every 30 seconds
+
+    return () => clearInterval(syncTimer)
+  }, [session.id, session.is_active, session.completed_at, session.session_type, activeTime, timeRemaining])
+
+  // Initialize timer from session data on mount/resume
+  useEffect(() => {
+    if (session.session_type === "exam") {
+      setTimeRemaining(session.time_remaining || 0)
+    } else {
+      setActiveTime(session.active_time_seconds || 0)
     }
-  }, [session.session_type, session.id])
+    setLastSyncTime(Date.now())
+  }, [session.time_remaining, session.active_time_seconds, session.session_type])
 
   const answeredQuestionIds = new Set([...userAnswers.map((a) => a.question_id), ...Object.keys(selectedAnswers)])
   const allQuestionsAnswered = questions.length > 0 && answeredQuestionIds.size >= questions.length
@@ -416,9 +448,29 @@ export function QuizInterface({
   }, [allQuestionsAnswered])
 
   const handlePauseSession = () => {
-    onPauseSession()
-    // Redirect to homepage after pausing
-    router.push('/')
+    // Sync time before pausing
+    const syncTimeBeforePause = async () => {
+      try {
+        const isExamMode = session.session_type === "exam"
+        const syncData = {
+          elapsedTime: isExamMode ? undefined : activeTime,
+          timeRemaining: isExamMode ? timeRemaining : undefined
+        }
+
+        await fetch(`/api/sessions/${session.id}/active-time`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(syncData)
+        })
+      } catch (error) {
+        console.warn("Failed to sync time before pause:", error)
+      }
+      
+      onPauseSession()
+      router.push('/')
+    }
+
+    syncTimeBeforePause()
   }
 
   if (!currentQuestion) {

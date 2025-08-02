@@ -476,13 +476,11 @@ export function EnhancedCreateTestInterface({ userProfile }: EnhancedCreateTestI
           {userProfile ? (
             <>
               <TabsContent value="custom" className="space-y-6">
-                <div className="grid gap-4 sm:gap-6 grid-cols-1 lg:grid-cols-3">
+                <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
                   {/* Left Column - Test Configuration */}
                   <div className="lg:col-span-2 space-y-6 order-2 lg:order-1">
-                    {/* Unified Session Manager - Compact for mobile, above filters */}
-                    <div className="lg:hidden">
-                      <UnifiedSessionManager compact={true} />
-                    </div>
+                    {/* Session Manager - Full version for all screens */}
+                    <UnifiedSessionManager />
 
                     {/* Question Filters */}
                     <Card>
@@ -878,54 +876,10 @@ export function EnhancedCreateTestInterface({ userProfile }: EnhancedCreateTestI
                         </Button>
                       </CardContent>
                     </Card>
-
-                    {/* Quick Stats Card - Hidden on mobile, shown in desktop as part of right column */}
-                    <Card className="hidden lg:block">
-                      <CardHeader>
-                        <CardTitle>Quick Stats</CardTitle>
-                      </CardHeader>
-                      <CardContent className="space-y-4">
-                        <div className="flex items-center justify-between">
-                          <span className="text-sm text-gray-600">Questions Available:</span>
-                          <Badge variant="secondary" className="text-lg font-bold">
-                            {loading ? (
-                              <div className="flex items-center gap-1">
-                                <Loader2 className="w-3 h-3 animate-spin" />
-                                Loading...
-                              </div>
-                            ) : (
-                              questionCount.toLocaleString()
-                            )}
-                          </Badge>
-                        </div>
-
-                        <div>
-                          <span className="text-sm text-gray-600 block mb-2">Active Filters:</span>
-                          {getSelectedFiltersCount() === 0 ? (
-                            <span className="text-sm text-green-600">All questions included</span>
-                          ) : (
-                            <div className="flex flex-wrap gap-1">
-                              {Object.entries(filters).map(([key, values]) =>
-                                values.map((value: string | number) => (
-                                  <Badge key={`${key}-${value}`} variant="outline" className="text-xs">
-                                    {String(value)}
-                                  </Badge>
-                                )),
-                              )}
-                            </div>
-                          )}
-                        </div>
-                      </CardContent>
-                    </Card>
                   </div>
 
-                  {/* Right Column - Session Management */}
+                  {/* Right Column - Test Settings and Quick Stats */}
                   <div className="order-1 lg:order-2 space-y-6">
-                    {/* Unified Session Manager - Full size for desktop */}
-                    <div className="hidden lg:block">
-                      <UnifiedSessionManager />
-                    </div>
-
                     {/* Test Settings */}
                     <Card>
                       <CardHeader className="dark:bg-card bg-primary text-primary-foreground">
@@ -1065,7 +1019,7 @@ export function EnhancedCreateTestInterface({ userProfile }: EnhancedCreateTestI
                     </Card>
                   </div>
 
-                  {/* Quick Stats Card - Third in mobile, hidden in desktop */}
+                  {/* Quick Stats Card - Show on mobile after test settings */}
                   <Card className="lg:hidden order-3">
                     <CardHeader>
                       <CardTitle>Quick Stats</CardTitle>

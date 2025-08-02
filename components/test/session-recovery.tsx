@@ -3,10 +3,10 @@
 import { useEffect, useState } from "react"
 import { useRouter } from "next/navigation"
 import { Button } from "@/components/ui/button"
-import { Card, CardContent } from "@/components/ui/card"
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Progress } from "@/components/ui/progress"
-import { Play, Clock, BookOpen, AlertCircle } from "lucide-react"
+import { Play, Clock, BookOpen, AlertCircle, Target, CheckCircle2, Brain } from "lucide-react"
 
 interface SessionData {
   sessionId: string
@@ -19,17 +19,17 @@ interface SessionData {
   lastActivity: number
   isActive: boolean
   isPaused: boolean
+  completedAt?: string
   correctAnswers?: number
   incorrectAnswers?: number
 }
 
 interface UnifiedSessionManagerProps {
-  compact?: boolean
   onRecover?: () => void
   onDismiss?: () => void
 }
 
-export function UnifiedSessionManager({ compact = false, onRecover, onDismiss }: UnifiedSessionManagerProps) {
+export function UnifiedSessionManager({ onRecover, onDismiss }: UnifiedSessionManagerProps) {
   const [sessionData, setSessionData] = useState<SessionData | null>(null)
   const [loading, setLoading] = useState(true)
   const [isRecovering, setIsRecovering] = useState(false)
@@ -50,7 +50,10 @@ export function UnifiedSessionManager({ compact = false, onRecover, onDismiss }:
       // Use the most recent session or merge data
       const activeSession = selectActiveSession(localSession, dbSession)
       
-      setSessionData(activeSession)
+      // Don't show sessions that have ended
+      if (activeSession && !activeSession.completedAt && activeSession.isActive) {
+        setSessionData(activeSession)
+      }
     } catch (error) {
       console.error('Error checking for active session:', error)
     } finally {
@@ -69,7 +72,6 @@ export function UnifiedSessionManager({ compact = false, onRecover, onDismiss }:
       // Only consider sessions active within the last 2 hours
       if (timeSinceLastActivity > 2 * 60 * 60 * 1000) {
         localStorage.removeItem('activeTestSession')
-        localStorage.removeItem(`session_${sessionData.sessionId}_backup`)
         return null
       }
 
@@ -101,6 +103,10 @@ export function UnifiedSessionManager({ compact = false, onRecover, onDismiss }:
       if (!data.activeSession) return null
 
       const session = data.activeSession
+      
+      // Don't return completed sessions
+      if (session.completed_at) return null
+
       return {
         sessionId: session.id,
         sessionName: session.session_name,
@@ -112,6 +118,7 @@ export function UnifiedSessionManager({ compact = false, onRecover, onDismiss }:
         lastActivity: Date.now(),
         isActive: session.is_active,
         isPaused: session.is_paused,
+        completedAt: session.completed_at,
         correctAnswers: session.correct_answers,
         incorrectAnswers: session.incorrect_answers,
       }
@@ -151,7 +158,6 @@ export function UnifiedSessionManager({ compact = false, onRecover, onDismiss }:
       if (response.ok) {
         // Clean up localStorage since we're resuming
         localStorage.removeItem('activeTestSession')
-        localStorage.removeItem(`session_${sessionData.sessionId}_backup`)
         
         // Navigate to session
         router.push(`/test/${sessionData.sessionId}`)
@@ -172,9 +178,6 @@ export function UnifiedSessionManager({ compact = false, onRecover, onDismiss }:
   const handleStartNewTest = () => {
     // Clean up all session data
     localStorage.removeItem('activeTestSession')
-    if (sessionData?.sessionId) {
-      localStorage.removeItem(`session_${sessionData.sessionId}_backup`)
-    }
     
     setSessionData(null)
     onDismiss?.()
@@ -193,13 +196,17 @@ export function UnifiedSessionManager({ compact = false, onRecover, onDismiss }:
   }
 
   if (loading) {
-    return compact ? (
-      <div className="h-16 bg-gray-100 dark:bg-gray-800 rounded-lg animate-pulse" />
-    ) : (
-      <Card className="animate-pulse">
-        <CardContent className="p-4">
-          <div className="h-4 bg-gray-200 dark:bg-gray-700 rounded w-1/2 mb-2"></div>
-          <div className="h-2 bg-gray-200 dark:bg-gray-700 rounded w-full"></div>
+    return (
+      <Card className="w-full animate-pulse">
+        <CardHeader className="pb-3">
+          <div className="h-5 bg-gray-200 dark:bg-gray-700 rounded w-1/2"></div>
+        </CardHeader>
+        <CardContent className="pb-4">
+          <div className="space-y-2">
+            <div className="h-3 bg-gray-200 dark:bg-gray-700 rounded w-1/3"></div>
+            <div className="h-2 bg-gray-200 dark:bg-gray-700 rounded w-full"></div>
+            <div className="h-8 bg-gray-200 dark:bg-gray-700 rounded w-full"></div>
+          </div>
         </CardContent>
       </Card>
     )
@@ -210,117 +217,108 @@ export function UnifiedSessionManager({ compact = false, onRecover, onDismiss }:
   const progressPercentage = getProgressPercentage()
   const isExamMode = sessionData.sessionType === 'exam'
 
-  if (compact) {
-    return (
-      <Card className="border-blue-200 bg-gradient-to-r from-blue-50 to-blue-100 dark:from-blue-950/30 dark:to-blue-900/30 dark:border-blue-800">
-        <CardContent className="p-3">
-          <div className="flex items-center justify-between gap-3">
-            <div className="flex-1 min-w-0">
-              <div className="flex items-center gap-2 mb-1">
-                <BookOpen className="h-4 w-4 text-blue-600 dark:text-blue-400 flex-shrink-0" />
-                <h3 className="font-semibold text-sm text-gray-900 dark:text-gray-100 truncate">
-                  Continue Test
-                </h3>
-                <Badge className="text-xs px-1 py-0 bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200">
-                  {sessionData.sessionType}
-                </Badge>
-              </div>
-              
-              <div className="flex items-center gap-3 mb-2">
-                <div className="flex items-center gap-1 text-xs text-gray-600 dark:text-gray-400">
-                  <span>{sessionData.currentQuestionIndex}/{sessionData.totalQuestions}</span>
-                </div>
-                {(sessionData.timeRemaining || sessionData.activeTimeSeconds) && (
-                  <div className="flex items-center gap-1 text-xs text-gray-600 dark:text-gray-400">
-                    <Clock className="h-3 w-3" />
-                    <span>
-                      {isExamMode ? formatTime(sessionData.timeRemaining) : formatTime(sessionData.activeTimeSeconds)}
-                    </span>
-                  </div>
-                )}
-              </div>
-              
-              <Progress value={progressPercentage} className="h-1.5" />
-            </div>
-            
-            <div className="flex gap-2">
-              <Button 
-                size="sm" 
-                onClick={handleResumeSession} 
-                disabled={isRecovering}
-                className="bg-blue-600 hover:bg-blue-700 text-white px-3 py-1 h-8"
-              >
-                {isRecovering ? (
-                  <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
-                ) : (
-                  <Play className="h-3 w-3" />
-                )}
-              </Button>
-              <Button 
-                size="sm" 
-                variant="outline" 
-                onClick={handleStartNewTest}
-                className="px-2 py-1 h-8 text-xs"
-              >
-                New
-              </Button>
-            </div>
-          </div>
-        </CardContent>
-      </Card>
-    )
-  }
-
   return (
-    <Card className="border-blue-200 bg-blue-50 dark:bg-blue-950 dark:border-blue-800">
-      <CardContent className="p-4">
-        <div className="space-y-4">
-          <div className="flex items-start justify-between">
-            <div>
-              <div className="flex items-center gap-2 mb-1">
-                <AlertCircle className="w-5 h-5 text-blue-600 dark:text-blue-400" />
-                <h3 className="font-semibold text-blue-800 dark:text-blue-200">Resume Test Session?</h3>
+    <Card className="w-full border-l-4 border-l-blue-500 bg-gradient-to-br from-blue-50 via-white to-indigo-50 dark:from-blue-950/20 dark:via-background dark:to-indigo-950/20 dark:bg-card">
+      <CardHeader className="pb-3">
+        <div className="flex items-start justify-between">
+          <div className="space-y-1">
+            <CardTitle className="text-lg font-bold text-gray-900 dark:text-gray-100 flex items-center space-x-2">
+              <Brain className="h-5 w-5 text-blue-600 dark:text-blue-400" />
+              <span>Continue Your Test</span>
+            </CardTitle>
+            <p className="text-sm text-gray-600 dark:text-gray-300 font-medium">{sessionData.sessionName}</p>
+          </div>
+          <Badge className={`${isExamMode ? 'bg-red-100 text-red-800 border-red-200 dark:bg-red-900/20 dark:text-red-400 dark:border-red-800' : 'bg-blue-100 text-blue-800 border-blue-200 dark:bg-blue-900/20 dark:text-blue-400 dark:border-blue-800'} font-semibold px-2 py-1 text-xs`}>
+            {sessionData.sessionType.charAt(0).toUpperCase() + sessionData.sessionType.slice(1)} Mode
+          </Badge>
+        </div>
+      </CardHeader>
+      
+      <CardContent className="space-y-3">
+        {/* Progress Section */}
+        <div className="space-y-2">
+          <div className="flex justify-between items-center">
+            <span className="text-sm font-medium text-gray-700 dark:text-gray-300">Progress</span>
+            <span className="text-sm text-gray-600 dark:text-gray-400">
+              {sessionData.currentQuestionIndex} of {sessionData.totalQuestions} questions
+            </span>
+          </div>
+          <Progress value={progressPercentage} className="h-2" />
+        </div>
+
+        {/* Stats and Action Row */}
+        <div className="flex items-center justify-between">
+          {/* Performance Stats */}
+          <div className="flex items-center space-x-4">
+            <div className="flex items-center space-x-2">
+              <Target className="h-4 w-4 text-green-500" />
+              <span className="text-sm font-medium text-gray-700 dark:text-gray-300">Performance</span>
+            </div>
+            {!isExamMode && (sessionData.correctAnswers !== undefined || sessionData.incorrectAnswers !== undefined) ? (
+              <div className="flex items-center space-x-3">
+                <div className="flex items-center space-x-1">
+                  <CheckCircle2 className="h-4 w-4 text-green-500" />
+                  <span className="text-sm font-bold text-green-600 dark:text-green-400">{sessionData.correctAnswers || 0}</span>
+                </div>
+                <div className="flex items-center space-x-1">
+                  <AlertCircle className="h-4 w-4 text-red-500" />
+                  <span className="text-sm font-bold text-red-600 dark:text-red-400">{sessionData.incorrectAnswers || 0}</span>
+                </div>
               </div>
-              <p className="text-sm text-blue-700 dark:text-blue-300">
-                Continue your {sessionData.isPaused ? 'paused' : 'active'} test session.
-              </p>
-            </div>
-            <Badge className="bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200">
-              {sessionData.sessionType}
-            </Badge>
+            ) : (
+              <div className="flex items-center space-x-1">
+                <span className="text-base font-bold text-gray-600 dark:text-gray-400">{sessionData.currentQuestionIndex}</span>
+                <span className="text-sm text-gray-500 dark:text-gray-400">answered</span>
+              </div>
+            )}
           </div>
-          
-          <div className="space-y-2">
-            <div className="flex justify-between text-sm">
-              <span className="text-blue-700 dark:text-blue-300">Progress</span>
-              <span className="text-blue-600 dark:text-blue-400">
-                {sessionData.currentQuestionIndex}/{sessionData.totalQuestions}
-              </span>
-            </div>
-            <Progress value={progressPercentage} className="h-2" />
-          </div>
-          
-          <div className="flex gap-2">
+
+          {/* Time and Action */}
+          <div className="flex items-center space-x-3">
+            {(sessionData.timeRemaining || sessionData.activeTimeSeconds) && (
+              <div className="flex items-center space-x-1 text-sm text-gray-600 dark:text-gray-400">
+                <Clock className="h-4 w-4" />
+                <span>
+                  {isExamMode ? formatTime(sessionData.timeRemaining) : formatTime(sessionData.activeTimeSeconds)}
+                </span>
+              </div>
+            )}
+            
             <Button 
               onClick={handleResumeSession} 
               disabled={isRecovering}
-              className="bg-blue-600 hover:bg-blue-700 dark:bg-blue-700 dark:hover:bg-blue-600"
+              className="bg-blue-600 hover:bg-blue-700 dark:bg-blue-500 dark:hover:bg-blue-600 text-white font-semibold"
+              size="sm"
             >
               {isRecovering ? (
                 <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin mr-2" />
               ) : (
-                <Play className="w-4 h-4 mr-2" />
+                <Play className="h-4 w-4 mr-2" />
               )}
-              {isRecovering ? 'Resuming...' : 'Resume Session'}
+              {isRecovering ? 'Resuming...' : 'Resume Test'}
             </Button>
             
             <Button 
               onClick={handleStartNewTest} 
               variant="outline"
-              className="border-blue-300 text-blue-700 hover:bg-blue-100 dark:border-blue-600 dark:text-blue-300 dark:hover:bg-blue-900"
+              size="sm"
             >
-              Start New Test
+              New Test
             </Button>
+          </div>
+        </div>
+
+        {/* Status Footer */}
+        <div className="pt-2 border-t border-gray-200 dark:border-gray-700">
+          <div className="flex justify-between text-xs text-gray-500 dark:text-gray-400">
+            <span>{progressPercentage}% completed</span>
+            <span>
+              {sessionData.isPaused ? (
+                <Badge variant="outline" className="text-yellow-600 border-yellow-600 dark:text-yellow-400 dark:border-yellow-400">Paused</Badge>
+              ) : (
+                <Badge variant="outline" className="text-green-600 border-green-600 dark:text-green-400 dark:border-green-400">Active</Badge>
+              )}
+            </span>
           </div>
         </div>
       </CardContent>
