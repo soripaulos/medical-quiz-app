@@ -25,12 +25,13 @@ export function SessionRecovery({ onRecover, onDismiss }: SessionRecoveryProps) 
           const sessionData = JSON.parse(activeSession)
           const timeSinceLastActivity = Date.now() - sessionData.lastActivity
           
-          // Only show recovery if session was active recently (within 1 hour)
-          if (timeSinceLastActivity < 60 * 60 * 1000) {
+          // Only show recovery if session was active recently (within 2 hours)
+          if (timeSinceLastActivity < 2 * 60 * 60 * 1000) {
             setRecoveryData(sessionData)
           } else {
             // Clean up old session data
             localStorage.removeItem('activeTestSession')
+            localStorage.removeItem(`session_${sessionData.sessionId}_backup`)
           }
         } catch (error) {
           console.error('Error parsing recovery data:', error)
@@ -70,8 +71,12 @@ export function SessionRecovery({ onRecover, onDismiss }: SessionRecoveryProps) 
     }
   }
 
-  const handleDismiss = () => {
+  const handleStartNew = () => {
+    // Clean up the old session data
     localStorage.removeItem('activeTestSession')
+    if (recoveryData?.sessionId) {
+      localStorage.removeItem(`session_${recoveryData.sessionId}_backup`)
+    }
     setRecoveryData(null)
     onDismiss?.()
   }
@@ -79,19 +84,19 @@ export function SessionRecovery({ onRecover, onDismiss }: SessionRecoveryProps) 
   if (!recoveryData) return null
 
   return (
-    <Card className="border-orange-200 bg-orange-50">
+    <Card className="border-blue-200 bg-blue-50 dark:bg-blue-950 dark:border-blue-800">
       <CardHeader>
-        <CardTitle className="flex items-center gap-2 text-orange-800">
+        <CardTitle className="flex items-center gap-2 text-blue-800 dark:text-blue-200">
           <AlertCircle className="w-5 h-5" />
-          Session Recovery Available
+          Resume Test Session?
         </CardTitle>
-        <CardDescription className="text-orange-700">
-          We found an interrupted test session that you can resume.
+        <CardDescription className="text-blue-700 dark:text-blue-300">
+          We found a paused test session that you can continue.
         </CardDescription>
       </CardHeader>
       <CardContent>
         <div className="space-y-4">
-          <div className="text-sm text-orange-700">
+          <div className="text-sm text-blue-700 dark:text-blue-300">
             <p><strong>Session:</strong> {recoveryData.sessionName}</p>
             <p><strong>Last Activity:</strong> {new Date(recoveryData.lastActivity).toLocaleString()}</p>
           </div>
@@ -100,7 +105,7 @@ export function SessionRecovery({ onRecover, onDismiss }: SessionRecoveryProps) 
             <Button 
               onClick={handleRecover} 
               disabled={isRecovering}
-              className="bg-orange-600 hover:bg-orange-700"
+              className="bg-blue-600 hover:bg-blue-700 dark:bg-blue-700 dark:hover:bg-blue-600"
             >
               {isRecovering ? (
                 <RefreshCw className="w-4 h-4 mr-2 animate-spin" />
@@ -111,11 +116,11 @@ export function SessionRecovery({ onRecover, onDismiss }: SessionRecoveryProps) 
             </Button>
             
             <Button 
-              onClick={handleDismiss} 
+              onClick={handleStartNew} 
               variant="outline"
-              className="border-orange-300 text-orange-700 hover:bg-orange-100"
+              className="border-blue-300 text-blue-700 hover:bg-blue-100 dark:border-blue-600 dark:text-blue-300 dark:hover:bg-blue-900"
             >
-              Dismiss
+              Start New Test
             </Button>
           </div>
         </div>

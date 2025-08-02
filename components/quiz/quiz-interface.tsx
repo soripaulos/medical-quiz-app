@@ -415,6 +415,12 @@ export function QuizInterface({
     }
   }, [allQuestionsAnswered])
 
+  const handlePauseSession = () => {
+    onPauseSession()
+    // Redirect to homepage after pausing
+    router.push('/')
+  }
+
   if (!currentQuestion) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gray-50">
@@ -469,10 +475,25 @@ export function QuizInterface({
             </SheetContent>
           </Sheet>
           <div className="text-sm font-medium">
-            Item{" "}
-            <span className="font-bold">
-              {currentQuestionIndex + 1} of {questions.length}
+            {/* Mobile: Show just numbers, Desktop: Show "Item" */}
+            <span className="sm:hidden font-bold">
+              {currentQuestionIndex + 1}/{questions.length}
             </span>
+            <span className="hidden sm:inline">
+              Item{" "}
+              <span className="font-bold">
+                {currentQuestionIndex + 1} of {questions.length}
+              </span>
+            </span>
+          </div>
+          {/* Time display moved to header for mobile */}
+          <div className="sm:hidden text-sm">
+            {session.session_type === "exam" && session.time_limit && (
+              <span>{formatTime(timeRemaining)}</span>
+            )}
+            {session.session_type === "practice" && (
+              <span>{formatTime(activeTime)}</span>
+            )}
           </div>
         </div>
 
@@ -579,24 +600,65 @@ export function QuizInterface({
 
       {/* Footer */}
       <footer className="flex items-center justify-between p-2 border-t dark:bg-card bg-primary text-primary-foreground">
-        <Button variant="ghost" onClick={handlePreviousQuestion} disabled={currentQuestionIndex === 0}>
-          <ChevronLeft className="h-5 w-5 mr-1" />
-          Previous
-        </Button>
-        <Button variant="ghost" onClick={handleNextQuestion} disabled={currentQuestionIndex === questions.length - 1}>
-          Next
-          <ChevronRight className="h-5 w-5 ml-1" />
-        </Button>
-        <div className="flex items-center gap-4">
-          {session.session_type === "exam" && session.time_limit && (
-            <span className="text-sm">Time remaining: {formatTime(timeRemaining)}</span>
-          )}
-          {session.session_type === "practice" && (
-            <span className="text-sm">Time spent: {formatTime(activeTime)}</span>
-          )}
+        {/* Mobile: Wide buttons without labels */}
+        <div className="sm:hidden flex-1 flex gap-2">
+          <Button 
+            variant="ghost" 
+            onClick={handlePreviousQuestion} 
+            disabled={currentQuestionIndex === 0}
+            className="flex-1 h-12"
+          >
+            <ChevronLeft className="h-6 w-6" />
+          </Button>
+          <Button 
+            variant="ghost" 
+            onClick={handleNextQuestion} 
+            disabled={currentQuestionIndex === questions.length - 1}
+            className="flex-1 h-12"
+          >
+            <ChevronRight className="h-6 w-6" />
+          </Button>
+        </div>
+        
+        {/* Desktop: Original layout with labels */}
+        <div className="hidden sm:block">
+          <Button variant="ghost" onClick={handlePreviousQuestion} disabled={currentQuestionIndex === 0}>
+            <ChevronLeft className="h-5 w-5 mr-1" />
+            Previous
+          </Button>
+        </div>
+        <div className="hidden sm:block">
+          <Button variant="ghost" onClick={handleNextQuestion} disabled={currentQuestionIndex === questions.length - 1}>
+            Next
+            <ChevronRight className="h-5 w-5 ml-1" />
+          </Button>
+        </div>
+        
+        <div className="flex items-center gap-2">
+          {/* Desktop: Show time */}
+          <div className="hidden sm:block">
+            {session.session_type === "exam" && session.time_limit && (
+              <span className="text-sm">Time remaining: {formatTime(timeRemaining)}</span>
+            )}
+            {session.session_type === "practice" && (
+              <span className="text-sm">Time spent: {formatTime(activeTime)}</span>
+            )}
+          </div>
+          
+          {/* Pause button */}
+          <Button variant="outline" size="sm" onClick={handlePauseSession} className="hidden sm:flex">
+            Pause
+          </Button>
+          <Button variant="outline" size="icon" onClick={handlePauseSession} className="sm:hidden">
+            <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
+              <path fillRule="evenodd" d="M6 4a1 1 0 011 1v10a1 1 0 11-2 0V5a1 1 0 011-1zm8 0a1 1 0 011 1v10a1 1 0 11-2 0V5a1 1 0 011-1z" clipRule="evenodd" />
+            </svg>
+          </Button>
+          
           <Button variant="destructive" size="sm" onClick={() => setShowSubmitPrompt(true)}>
             <Square className="w-4 h-4 mr-1" />
-            End Block
+            <span className="hidden sm:inline">End Block</span>
+            <span className="sm:hidden">End</span>
           </Button>
         </div>
       </footer>

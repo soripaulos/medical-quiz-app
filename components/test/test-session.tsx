@@ -329,9 +329,13 @@ export function TestSession({ sessionId }: TestSessionProps) {
       if (!response.ok) {
         throw new Error("Failed to pause session")
       }
+
+      // Navigate to homepage after pausing
+      router.push('/')
     } catch (error) {
       console.error("Error pausing session:", error)
-      // Don't show error to user, session state is maintained locally
+      // Still navigate to homepage even if pause fails
+      router.push('/')
     }
   }
 
@@ -376,6 +380,35 @@ export function TestSession({ sessionId }: TestSessionProps) {
       setIsRecovering(false)
     }
   }
+
+  // Handle back navigation as session suspension
+  useEffect(() => {
+    const handlePopState = async (event: PopStateEvent) => {
+      if (session && session.is_active && !session.completed_at) {
+        // Prevent the default back navigation
+        event.preventDefault()
+        
+        // Pause the session
+        try {
+          await fetch(`/api/sessions/${sessionId}/pause`, {
+            method: "POST",
+          })
+        } catch (error) {
+          console.error("Error pausing session on back navigation:", error)
+        }
+        
+        // Navigate to homepage
+        router.push('/')
+      }
+    }
+
+    // Add the popstate listener
+    window.addEventListener('popstate', handlePopState)
+
+    return () => {
+      window.removeEventListener('popstate', handlePopState)
+    }
+  }, [session, sessionId, router])
 
   if (loading || isRecovering) {
     return (
