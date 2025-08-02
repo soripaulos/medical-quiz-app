@@ -58,8 +58,12 @@ export function QuizInterface({
   const [showCalculator, setShowCalculator] = useState(false)
   const [showNotes, setShowNotes] = useState(false)
   const [sidebarOpen, setSidebarOpen] = useState(false)
+  
+  // Stable timer states
   const [timeRemaining, setTimeRemaining] = useState(session.time_remaining || 0)
-  const [activeTime, setActiveTime] = useState(0)
+  const [activeTime, setActiveTime] = useState(session.active_time_seconds || 0)
+  const [lastSyncTime, setLastSyncTime] = useState(Date.now())
+  
   const [noteText, setNoteText] = useState("")
   const [showSubmitPrompt, setShowSubmitPrompt] = useState(false)
   const [localProgress, setLocalProgress] = useState<UserQuestionProgress[]>(userProgress)
@@ -364,47 +368,75 @@ export function QuizInterface({
     router.push(`/test/${session.id}/results`)
   }
 
-  // Timer effect for exam mode (countdown)
+  // Stable unified timer system
   useEffect(() => {
-    if (session.session_type === "exam" && session.time_limit && timeRemaining > 0) {
-      const timer = setInterval(() => {
+    if (!session.is_active || session.completed_at) return
+
+    const isExamMode = session.session_type === "exam"
+    const startTime = Date.now()
+    setLastSyncTime(startTime)
+
+    // Single timer for both modes
+    const timer = setInterval(() => {
+      const now = Date.now()
+      const elapsed = Math.floor((now - lastSyncTime) / 1000)
+
+      if (isExamMode && session.time_limit) {
+        // Countdown timer for exam mode
         setTimeRemaining((prev) => {
-          if (prev <= 1) {
+          const newTime = Math.max(0, prev - elapsed)
+          if (newTime <= 0) {
             clearInterval(timer)
             handleEndSession()
             return 0
           }
-          return prev - 1
+          return newTime
         })
-      }, 1000)
-      return () => clearInterval(timer)
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [session.session_type, session.time_limit, timeRemaining])
-
-  // Active time tracking for practice mode (stopwatch)
-  useEffect(() => {
-    if (session.session_type === "practice") {
-      const fetchActiveTime = async () => {
-        try {
-          const response = await fetch(`/api/sessions/${session.id}/active-time`)
-          if (response.ok) {
-            const data = await response.json()
-            setActiveTime(data.activeTime || 0)
-          }
-        } catch (error) {
-          console.error("Error fetching active time:", error)
-        }
+      } else {
+        // Stopwatch for practice mode
+        setActiveTime((prev) => prev + elapsed)
       }
 
-      // Initial fetch
-      fetchActiveTime()
+      setLastSyncTime(now)
+    }, 1000)
 
-      // Update active time every second
-      const timer = setInterval(fetchActiveTime, 1000)
-      return () => clearInterval(timer)
+    return () => clearInterval(timer)
+  }, [session.is_active, session.completed_at, session.session_type, session.time_limit])
+
+  // Periodic server sync (every 30 seconds instead of every second)
+  useEffect(() => {
+    if (!session.is_active || session.completed_at) return
+
+    const syncTimer = setInterval(async () => {
+      try {
+        const isExamMode = session.session_type === "exam"
+        const syncData = {
+          elapsedTime: isExamMode ? undefined : activeTime,
+          timeRemaining: isExamMode ? timeRemaining : undefined
+        }
+
+        await fetch(`/api/sessions/${session.id}/active-time`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(syncData)
+        })
+      } catch (error) {
+        console.warn("Timer sync failed:", error)
+      }
+    }, 30000) // Sync every 30 seconds
+
+    return () => clearInterval(syncTimer)
+  }, [session.id, session.is_active, session.completed_at, session.session_type, activeTime, timeRemaining])
+
+  // Initialize timer from session data on mount/resume
+  useEffect(() => {
+    if (session.session_type === "exam") {
+      setTimeRemaining(session.time_remaining || 0)
+    } else {
+      setActiveTime(session.active_time_seconds || 0)
     }
-  }, [session.session_type, session.id])
+    setLastSyncTime(Date.now())
+  }, [session.time_remaining, session.active_time_seconds, session.session_type])
 
   const answeredQuestionIds = new Set([...userAnswers.map((a) => a.question_id), ...Object.keys(selectedAnswers)])
   const allQuestionsAnswered = questions.length > 0 && answeredQuestionIds.size >= questions.length
@@ -414,6 +446,32 @@ export function QuizInterface({
       setShowSubmitPrompt(true)
     }
   }, [allQuestionsAnswered])
+
+  const handlePauseSession = () => {
+    // Sync time before pausing
+    const syncTimeBeforePause = async () => {
+      try {
+        const isExamMode = session.session_type === "exam"
+        const syncData = {
+          elapsedTime: isExamMode ? undefined : activeTime,
+          timeRemaining: isExamMode ? timeRemaining : undefined
+        }
+
+        await fetch(`/api/sessions/${session.id}/active-time`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(syncData)
+        })
+      } catch (error) {
+        console.warn("Failed to sync time before pause:", error)
+      }
+      
+      onPauseSession()
+      router.push('/')
+    }
+
+    syncTimeBeforePause()
+  }
 
   if (!currentQuestion) {
     return (
@@ -469,10 +527,25 @@ export function QuizInterface({
             </SheetContent>
           </Sheet>
           <div className="text-sm font-medium">
-            Item{" "}
-            <span className="font-bold">
-              {currentQuestionIndex + 1} of {questions.length}
+            {/* Mobile: Show just numbers, Desktop: Show "Item" */}
+            <span className="sm:hidden font-bold">
+              {currentQuestionIndex + 1}/{questions.length}
             </span>
+            <span className="hidden sm:inline">
+              Item{" "}
+              <span className="font-bold">
+                {currentQuestionIndex + 1} of {questions.length}
+              </span>
+            </span>
+          </div>
+          {/* Time display moved to header for mobile */}
+          <div className="sm:hidden text-sm">
+            {session.session_type === "exam" && session.time_limit && (
+              <span>{formatTime(timeRemaining)}</span>
+            )}
+            {session.session_type === "practice" && (
+              <span>{formatTime(activeTime)}</span>
+            )}
           </div>
         </div>
 
@@ -579,24 +652,65 @@ export function QuizInterface({
 
       {/* Footer */}
       <footer className="flex items-center justify-between p-2 border-t dark:bg-card bg-primary text-primary-foreground">
-        <Button variant="ghost" onClick={handlePreviousQuestion} disabled={currentQuestionIndex === 0}>
-          <ChevronLeft className="h-5 w-5 mr-1" />
-          Previous
-        </Button>
-        <Button variant="ghost" onClick={handleNextQuestion} disabled={currentQuestionIndex === questions.length - 1}>
-          Next
-          <ChevronRight className="h-5 w-5 ml-1" />
-        </Button>
-        <div className="flex items-center gap-4">
-          {session.session_type === "exam" && session.time_limit && (
-            <span className="text-sm">Time remaining: {formatTime(timeRemaining)}</span>
-          )}
-          {session.session_type === "practice" && (
-            <span className="text-sm">Time spent: {formatTime(activeTime)}</span>
-          )}
+        {/* Mobile: Wide buttons without labels */}
+        <div className="sm:hidden flex-1 flex gap-2">
+          <Button 
+            variant="ghost" 
+            onClick={handlePreviousQuestion} 
+            disabled={currentQuestionIndex === 0}
+            className="flex-1 h-12"
+          >
+            <ChevronLeft className="h-6 w-6" />
+          </Button>
+          <Button 
+            variant="ghost" 
+            onClick={handleNextQuestion} 
+            disabled={currentQuestionIndex === questions.length - 1}
+            className="flex-1 h-12"
+          >
+            <ChevronRight className="h-6 w-6" />
+          </Button>
+        </div>
+        
+        {/* Desktop: Original layout with labels */}
+        <div className="hidden sm:block">
+          <Button variant="ghost" onClick={handlePreviousQuestion} disabled={currentQuestionIndex === 0}>
+            <ChevronLeft className="h-5 w-5 mr-1" />
+            Previous
+          </Button>
+        </div>
+        <div className="hidden sm:block">
+          <Button variant="ghost" onClick={handleNextQuestion} disabled={currentQuestionIndex === questions.length - 1}>
+            Next
+            <ChevronRight className="h-5 w-5 ml-1" />
+          </Button>
+        </div>
+        
+        <div className="flex items-center gap-2">
+          {/* Desktop: Show time */}
+          <div className="hidden sm:block">
+            {session.session_type === "exam" && session.time_limit && (
+              <span className="text-sm">Time remaining: {formatTime(timeRemaining)}</span>
+            )}
+            {session.session_type === "practice" && (
+              <span className="text-sm">Time spent: {formatTime(activeTime)}</span>
+            )}
+          </div>
+          
+          {/* Pause button */}
+          <Button variant="outline" size="sm" onClick={handlePauseSession} className="hidden sm:flex">
+            Pause
+          </Button>
+          <Button variant="outline" size="icon" onClick={handlePauseSession} className="sm:hidden">
+            <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
+              <path fillRule="evenodd" d="M6 4a1 1 0 011 1v10a1 1 0 11-2 0V5a1 1 0 011-1zm8 0a1 1 0 011 1v10a1 1 0 11-2 0V5a1 1 0 011-1z" clipRule="evenodd" />
+            </svg>
+          </Button>
+          
           <Button variant="destructive" size="sm" onClick={() => setShowSubmitPrompt(true)}>
             <Square className="w-4 h-4 mr-1" />
-            End Block
+            <span className="hidden sm:inline">End Block</span>
+            <span className="sm:hidden">End</span>
           </Button>
         </div>
       </footer>

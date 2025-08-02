@@ -37,27 +37,24 @@ export function TestSession({ sessionId }: TestSessionProps) {
   // Enhanced session persistence with recovery mechanisms
   useEffect(() => {
     if (session && !loading) {
-      // Store comprehensive session info for recovery
+      // Store minimal session info for recovery (only essential data)
       const sessionData = {
         sessionId: session.id,
         sessionName: session.session_name,
         sessionType: session.session_type,
-        startTime: Date.now(),
-        url: window.location.href,
-        lastActivity: Date.now(),
         currentQuestionIndex: session.current_question_index,
-        isActive: session.is_active,
+        totalQuestions: questions.length,
         timeRemaining: session.time_remaining,
-        timeLimit: session.time_limit,
         activeTimeSeconds: session.active_time_seconds || 0,
-        sessionStartedAt: session.session_started_at,
-        lastActivityAt: session.last_activity_at
+        lastActivity: Date.now(),
+        isActive: session.is_active,
+        isPaused: session.is_paused
       }
       
+      // Only store in localStorage for recovery purposes
       localStorage.setItem('activeTestSession', JSON.stringify(sessionData))
-      localStorage.setItem(`session_${sessionId}_backup`, JSON.stringify(sessionData))
       
-      // Set up periodic session data backup
+      // Set up periodic backup (reduced frequency)
       if (sessionPersistenceRef.current) {
         clearInterval(sessionPersistenceRef.current)
       }
@@ -68,12 +65,10 @@ export function TestSession({ sessionId }: TestSessionProps) {
           lastActivity: Date.now(),
           currentQuestionIndex: session.current_question_index,
           timeRemaining: session.time_remaining,
-          activeTimeSeconds: session.active_time_seconds || 0,
-          lastActivityAt: session.last_activity_at
+          activeTimeSeconds: session.active_time_seconds || 0
         }
         localStorage.setItem('activeTestSession', JSON.stringify(updatedData))
-        localStorage.setItem(`session_${sessionId}_backup`, JSON.stringify(updatedData))
-      }, 10000) // Update every 10 seconds
+      }, 30000) // Reduced to every 30 seconds
     }
     
     return () => {
@@ -81,41 +76,30 @@ export function TestSession({ sessionId }: TestSessionProps) {
         clearInterval(sessionPersistenceRef.current)
       }
     }
-  }, [session, loading, sessionId])
+  }, [session, loading, sessionId, questions.length])
 
-  // Enhanced session recovery with retry logic
+  // Simplified session recovery - remove redundant recovery logic
   useEffect(() => {
-    const performSessionRecovery = async () => {
-      const storedSession = localStorage.getItem('activeTestSession')
-      const backupSession = localStorage.getItem(`session_${sessionId}_backup`)
-      
-      if (storedSession || backupSession) {
+    const syncSessionOnMount = async () => {
+      if (session && session.is_active) {
         try {
-          const sessionData = JSON.parse(storedSession || backupSession!)
-          if (sessionData.sessionId === sessionId) {
-            console.log('Recovering test session:', sessionData.sessionName)
-            setIsRecovering(true)
-            
-            // Attempt to resume the session
-            try {
-              await fetch(`/api/sessions/${sessionId}/resume`, {
-                method: "POST",
-              })
-            } catch (resumeError) {
-              console.warn("Could not resume session, but continuing with recovery:", resumeError)
-            }
-            
-            setIsRecovering(false)
-          }
+          // Ensure session is resumed and time is synced
+          await fetch(`/api/sessions/${sessionId}/resume`, {
+            method: "POST",
+          })
+          
+          // Sync current time data
+          await fetch(`/api/sessions/${sessionId}/active-time`, {
+            method: "POST",
+          })
         } catch (error) {
-          console.error('Error parsing stored session:', error)
-          setIsRecovering(false)
+          console.warn("Could not sync session on mount, but continuing:", error)
         }
       }
     }
     
-    performSessionRecovery()
-  }, [sessionId])
+    syncSessionOnMount()
+  }, [sessionId, session])
 
   // Enhanced error recovery with exponential backoff
   useEffect(() => {
@@ -322,6 +306,11 @@ export function TestSession({ sessionId }: TestSessionProps) {
     if (!session) return
 
     try {
+      // Sync current time before pausing
+      await fetch(`/api/sessions/${sessionId}/active-time`, {
+        method: "POST",
+      })
+      
       const response = await fetch(`/api/sessions/${sessionId}/pause`, {
         method: "POST",
       })
@@ -329,9 +318,13 @@ export function TestSession({ sessionId }: TestSessionProps) {
       if (!response.ok) {
         throw new Error("Failed to pause session")
       }
+
+      // Navigate to homepage after pausing
+      router.push('/')
     } catch (error) {
       console.error("Error pausing session:", error)
-      // Don't show error to user, session state is maintained locally
+      // Still navigate to homepage even if pause fails
+      router.push('/')
     }
   }
 
@@ -339,6 +332,11 @@ export function TestSession({ sessionId }: TestSessionProps) {
     if (!session) return
 
     try {
+      // Sync final time before ending
+      await fetch(`/api/sessions/${sessionId}/active-time`, {
+        method: "POST",
+      })
+      
       const response = await fetch(`/api/sessions/${sessionId}/end`, {
         method: "POST",
       })
@@ -349,7 +347,6 @@ export function TestSession({ sessionId }: TestSessionProps) {
 
       // Clean up localStorage when session is properly ended
       localStorage.removeItem('activeTestSession')
-      localStorage.removeItem(`session_${sessionId}_backup`)
 
       // Use Next.js router for navigation to preserve client-side state
       router.push(`/test/${sessionId}/results`)
@@ -357,7 +354,6 @@ export function TestSession({ sessionId }: TestSessionProps) {
       console.error("Error ending session:", error)
       // Still navigate to results even if there was an error
       localStorage.removeItem('activeTestSession')
-      localStorage.removeItem(`session_${sessionId}_backup`)
       router.push(`/test/${sessionId}/results`)
     }
   }
@@ -376,6 +372,35 @@ export function TestSession({ sessionId }: TestSessionProps) {
       setIsRecovering(false)
     }
   }
+
+  // Handle back navigation as session suspension
+  useEffect(() => {
+    const handlePopState = async (event: PopStateEvent) => {
+      if (session && session.is_active && !session.completed_at) {
+        // Prevent the default back navigation
+        event.preventDefault()
+        
+        // Pause the session
+        try {
+          await fetch(`/api/sessions/${sessionId}/pause`, {
+            method: "POST",
+          })
+        } catch (error) {
+          console.error("Error pausing session on back navigation:", error)
+        }
+        
+        // Navigate to homepage
+        router.push('/')
+      }
+    }
+
+    // Add the popstate listener
+    window.addEventListener('popstate', handlePopState)
+
+    return () => {
+      window.removeEventListener('popstate', handlePopState)
+    }
+  }, [session, sessionId, router])
 
   if (loading || isRecovering) {
     return (
