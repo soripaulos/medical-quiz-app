@@ -214,6 +214,7 @@ export function TestSession({ sessionId }: TestSessionProps) {
     const newAnswer: UserAnswer = {
       id: `answer-${questionId}-${choiceLetter}`,
       question_id: questionId,
+      session_id: sessionId,
       selected_choice_letter: choiceLetter,
       is_correct: isCorrect,
       answered_at: new Date().toISOString(),

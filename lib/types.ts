@@ -69,9 +69,11 @@ export interface UserSession {
 export interface UserAnswer {
   id: string
   question_id: string
+  session_id: string
   selected_choice_letter: string
   is_correct: boolean
   answered_at: string
+  time_spent?: number
 }
 
 export interface UserQuestionProgress {
