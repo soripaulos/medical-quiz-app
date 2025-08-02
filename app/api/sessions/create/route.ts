@@ -32,28 +32,40 @@ export async function POST(req: Request) {
       finalTimeLimit = estimatedMinutes
     }
 
+    // Validate required fields
+    if (!sessionName || !sessionMode || !questionIds || questionIds.length === 0) {
+      return NextResponse.json(
+        { ok: false, message: "Missing required fields: sessionName, sessionMode, or questionIds" },
+        { status: 400 }
+      )
+    }
+
     // Create the session
+    const sessionData = {
+      user_id: session.user.id,
+      session_name: sessionName,
+      session_type: sessionMode === "exam" ? "exam" : "practice",
+      total_questions: questionIds.length,
+      current_question_index: 0,
+      time_limit: finalTimeLimit,
+      time_remaining: finalTimeLimit ? finalTimeLimit * 60 : null, // Convert minutes to seconds
+      filters: filters,
+      questions_order: finalQuestionIds,
+      is_active: true,
+      track_progress: sessionMode === "practice" ? trackProgress : true, // Always track progress for exams
+      active_time_seconds: 0, // Initialize elapsed time
+    }
+
     const { data: userSession, error: sessionError } = await supabase
       .from("user_sessions")
-      .insert({
-        user_id: session.user.id,
-        session_name: sessionName,
-        session_type: sessionMode === "exam" ? "exam" : "practice",
-        session_mode: sessionMode,
-        total_questions: questionIds.length,
-        current_question_index: 0,
-        time_limit: finalTimeLimit,
-        time_remaining: finalTimeLimit ? finalTimeLimit * 60 : null, // Convert minutes to seconds
-        filters: filters,
-        questions_order: finalQuestionIds,
-        is_active: true,
-        track_progress: sessionMode === "practice" ? trackProgress : true, // Always track progress for exams
-        active_time_seconds: 0, // Initialize elapsed time
-      })
+      .insert(sessionData)
       .select()
       .single()
 
-    if (sessionError) throw sessionError
+    if (sessionError) {
+      console.error("Session creation error:", sessionError)
+      throw sessionError
+    }
 
     // Create session questions
     const sessionQuestions = finalQuestionIds.map((questionId: string, index: number) => ({
@@ -64,7 +76,10 @@ export async function POST(req: Request) {
 
     const { error: questionsError } = await supabase.from("session_questions").insert(sessionQuestions)
 
-    if (questionsError) throw questionsError
+    if (questionsError) {
+      console.error("Session questions creation error:", questionsError)
+      throw questionsError
+    }
 
     // Update user's profile to set this as their active session
     const { error: profileError } = await supabase
