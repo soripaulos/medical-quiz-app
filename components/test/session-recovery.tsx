@@ -220,105 +220,105 @@ export function UnifiedSessionManager({ onRecover, onDismiss }: UnifiedSessionMa
   return (
     <Card className="w-full border-l-4 border-l-blue-500 bg-gradient-to-br from-blue-50 via-white to-indigo-50 dark:from-blue-950/20 dark:via-background dark:to-indigo-950/20 dark:bg-card">
       <CardHeader className="pb-3">
-        <div className="flex items-start justify-between">
-          <div className="space-y-1">
-            <CardTitle className="text-lg font-bold text-gray-900 dark:text-gray-100 flex items-center space-x-2">
-              <Brain className="h-5 w-5 text-blue-600 dark:text-blue-400" />
-              <span>Continue Your Test</span>
+        <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3">
+          <div className="space-y-1 flex-1 min-w-0">
+            <CardTitle className="text-base sm:text-lg font-bold text-gray-900 dark:text-gray-100 flex items-center space-x-2">
+              <Brain className="h-4 w-4 sm:h-5 sm:w-5 text-blue-600 dark:text-blue-400 flex-shrink-0" />
+              <span className="truncate">Continue Your Test</span>
             </CardTitle>
-            <p className="text-sm text-gray-600 dark:text-gray-300 font-medium">{sessionData.sessionName}</p>
+            <p className="text-sm text-gray-600 dark:text-gray-300 font-medium truncate">{sessionData.sessionName}</p>
           </div>
-          <Badge className={`${isExamMode ? 'bg-red-100 text-red-800 border-red-200 dark:bg-red-900/20 dark:text-red-400 dark:border-red-800' : 'bg-blue-100 text-blue-800 border-blue-200 dark:bg-blue-900/20 dark:text-blue-400 dark:border-blue-800'} font-semibold px-2 py-1 text-xs`}>
+          <Badge className={`${isExamMode ? 'bg-red-100 text-red-800 border-red-200 dark:bg-red-900/20 dark:text-red-400 dark:border-red-800' : 'bg-blue-100 text-blue-800 border-blue-200 dark:bg-blue-900/20 dark:text-blue-400 dark:border-blue-800'} font-semibold px-2 py-1 text-xs flex-shrink-0`}>
             {sessionData.sessionType.charAt(0).toUpperCase() + sessionData.sessionType.slice(1)} Mode
           </Badge>
         </div>
       </CardHeader>
       
-      <CardContent className="space-y-3">
+      <CardContent className="space-y-4">
         {/* Progress Section */}
         <div className="space-y-2">
-          <div className="flex justify-between items-center">
-            <span className="text-sm font-medium text-gray-700 dark:text-gray-300">Progress</span>
-            <span className="text-sm text-gray-600 dark:text-gray-400">
-              {sessionData.currentQuestionIndex} of {sessionData.totalQuestions} questions
+          <div className="flex justify-between items-center text-sm">
+            <span className="font-medium text-gray-700 dark:text-gray-300">Progress</span>
+            <span className="text-gray-600 dark:text-gray-400">
+              {sessionData.currentQuestionIndex} of {sessionData.totalQuestions}
             </span>
           </div>
           <Progress value={progressPercentage} className="h-2" />
         </div>
 
-        {/* Stats and Action Row */}
-        <div className="flex items-center justify-between">
+        {/* Stats Row - Responsive Layout */}
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
           {/* Performance Stats */}
-          <div className="flex items-center space-x-4">
-            <div className="flex items-center space-x-2">
-              <Target className="h-4 w-4 text-green-500" />
+          <div className="flex items-center gap-3">
+            <div className="flex items-center gap-2">
+              <Target className="h-4 w-4 text-green-500 flex-shrink-0" />
               <span className="text-sm font-medium text-gray-700 dark:text-gray-300">Performance</span>
             </div>
             {!isExamMode && (sessionData.correctAnswers !== undefined || sessionData.incorrectAnswers !== undefined) ? (
-              <div className="flex items-center space-x-3">
-                <div className="flex items-center space-x-1">
+              <div className="flex items-center gap-3">
+                <div className="flex items-center gap-1">
                   <CheckCircle2 className="h-4 w-4 text-green-500" />
                   <span className="text-sm font-bold text-green-600 dark:text-green-400">{sessionData.correctAnswers || 0}</span>
                 </div>
-                <div className="flex items-center space-x-1">
+                <div className="flex items-center gap-1">
                   <AlertCircle className="h-4 w-4 text-red-500" />
                   <span className="text-sm font-bold text-red-600 dark:text-red-400">{sessionData.incorrectAnswers || 0}</span>
                 </div>
               </div>
             ) : (
-              <div className="flex items-center space-x-1">
+              <div className="flex items-center gap-1">
                 <span className="text-base font-bold text-gray-600 dark:text-gray-400">{sessionData.currentQuestionIndex}</span>
                 <span className="text-sm text-gray-500 dark:text-gray-400">answered</span>
               </div>
             )}
           </div>
 
-          {/* Time and Action */}
-          <div className="flex items-center space-x-3">
-            {(sessionData.timeRemaining || sessionData.activeTimeSeconds) && (
-              <div className="flex items-center space-x-1 text-sm text-gray-600 dark:text-gray-400">
-                <Clock className="h-4 w-4" />
-                <span>
-                  {isExamMode ? formatTime(sessionData.timeRemaining) : formatTime(sessionData.activeTimeSeconds)}
-                </span>
-              </div>
+          {/* Time Display */}
+          {(sessionData.timeRemaining || sessionData.activeTimeSeconds) && (
+            <div className="flex items-center gap-1 text-sm text-gray-600 dark:text-gray-400">
+              <Clock className="h-4 w-4 flex-shrink-0" />
+              <span className="font-mono">
+                {isExamMode ? formatTime(sessionData.timeRemaining) : formatTime(sessionData.activeTimeSeconds)}
+              </span>
+            </div>
+          )}
+        </div>
+
+        {/* Action Buttons - Responsive Layout */}
+        <div className="flex flex-col sm:flex-row gap-2 pt-2">
+          <Button 
+            onClick={handleResumeSession} 
+            disabled={isRecovering}
+            className="bg-blue-600 hover:bg-blue-700 dark:bg-blue-500 dark:hover:bg-blue-600 text-white font-semibold flex-1 sm:flex-none"
+          >
+            {isRecovering ? (
+              <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin mr-2" />
+            ) : (
+              <Play className="h-4 w-4 mr-2" />
             )}
-            
-            <Button 
-              onClick={handleResumeSession} 
-              disabled={isRecovering}
-              className="bg-blue-600 hover:bg-blue-700 dark:bg-blue-500 dark:hover:bg-blue-600 text-white font-semibold"
-              size="sm"
-            >
-              {isRecovering ? (
-                <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin mr-2" />
-              ) : (
-                <Play className="h-4 w-4 mr-2" />
-              )}
-              {isRecovering ? 'Resuming...' : 'Resume Test'}
-            </Button>
-            
-            <Button 
-              onClick={handleStartNewTest} 
-              variant="outline"
-              size="sm"
-            >
-              New Test
-            </Button>
-          </div>
+            {isRecovering ? 'Resuming...' : 'Resume Test'}
+          </Button>
+          
+          <Button 
+            onClick={handleStartNewTest} 
+            variant="outline"
+            className="flex-1 sm:flex-none"
+          >
+            New Test
+          </Button>
         </div>
 
         {/* Status Footer */}
         <div className="pt-2 border-t border-gray-200 dark:border-gray-700">
-          <div className="flex justify-between text-xs text-gray-500 dark:text-gray-400">
-            <span>{progressPercentage}% completed</span>
-            <span>
+          <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-2">
+            <span className="text-xs text-gray-500 dark:text-gray-400">{progressPercentage}% completed</span>
+            <div>
               {sessionData.isPaused ? (
-                <Badge variant="outline" className="text-yellow-600 border-yellow-600 dark:text-yellow-400 dark:border-yellow-400">Paused</Badge>
+                <Badge variant="outline" className="text-yellow-600 border-yellow-600 dark:text-yellow-400 dark:border-yellow-400 text-xs">Paused</Badge>
               ) : (
-                <Badge variant="outline" className="text-green-600 border-green-600 dark:text-green-400 dark:border-green-400">Active</Badge>
+                <Badge variant="outline" className="text-green-600 border-green-600 dark:text-green-400 dark:border-green-400 text-xs">Active</Badge>
               )}
-            </span>
+            </div>
           </div>
         </div>
       </CardContent>
