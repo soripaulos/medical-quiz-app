@@ -318,9 +318,7 @@ export function EnhancedCreateTestInterface({ userProfile }: EnhancedCreateTestI
       errors.push("Exam time limit must be at least 1 minute")
     }
 
-    if (sessionMode === "exam" && !timeLimit) {
-      errors.push("Exam mode requires a time limit")
-    }
+    // Time limit is now optional for exam mode - will use estimated time if not provided
 
     setValidationErrors(errors)
   }
@@ -867,18 +865,20 @@ export function EnhancedCreateTestInterface({ userProfile }: EnhancedCreateTestI
 
                         {sessionMode === "exam" && (
                           <div>
-                            <Label htmlFor="timeLimit">Time Limit (minutes) *</Label>
+                            <Label htmlFor="timeLimit">Time Limit (minutes)</Label>
                             <Input
                               id="timeLimit"
                               type="number"
                               value={timeLimit || ""}
                               onChange={(e) => setTimeLimit(e.target.value ? Number.parseInt(e.target.value) : null)}
-                              placeholder="Required for exam mode"
+                              placeholder={`Leave empty to use estimated time (${getEstimatedTime()} min)`}
                               className="mt-1"
                               min="1"
-                              required
                             />
-                            <p className="text-xs text-gray-500 mt-1">Estimated time: {getEstimatedTime()} minutes</p>
+                            <p className="text-xs text-blue-600 mt-1">
+                              <strong>Estimated time: {getEstimatedTime()} minutes</strong>
+                              {!timeLimit && " (will be used as default)"}
+                            </p>
                           </div>
                         )}
 

@@ -24,6 +24,14 @@ export async function POST(req: Request) {
     // This provides an additional shuffle if requested
     const finalQuestionIds = randomizeOrder ? [...questionIds].sort(() => Math.random() - 0.5) : questionIds
 
+    // Calculate estimated time if no time limit is provided for exam mode
+    let finalTimeLimit = timeLimit
+    if (sessionMode === "exam" && !timeLimit) {
+      // Estimate 1.5 minutes per question for exam mode
+      const estimatedMinutes = Math.ceil(questionIds.length * 1.5)
+      finalTimeLimit = estimatedMinutes
+    }
+
     // Create the session
     const { data: userSession, error: sessionError } = await supabase
       .from("user_sessions")
@@ -34,12 +42,13 @@ export async function POST(req: Request) {
         session_mode: sessionMode,
         total_questions: questionIds.length,
         current_question_index: 0,
-        time_limit: timeLimit,
-        time_remaining: timeLimit ? timeLimit * 60 : null, // Convert minutes to seconds
+        time_limit: finalTimeLimit,
+        time_remaining: finalTimeLimit ? finalTimeLimit * 60 : null, // Convert minutes to seconds
         filters: filters,
         questions_order: finalQuestionIds,
         is_active: true,
         track_progress: sessionMode === "practice" ? trackProgress : true, // Always track progress for exams
+        active_time_seconds: 0, // Initialize elapsed time
       })
       .select()
       .single()

@@ -60,6 +60,8 @@ export function QuizInterface({
   const [sidebarOpen, setSidebarOpen] = useState(false)
   const [timeRemaining, setTimeRemaining] = useState(session.time_remaining || 0)
   const [activeTime, setActiveTime] = useState(0)
+  const [sessionStartTime] = useState(Date.now())
+  const [lastUpdateTime, setLastUpdateTime] = useState(Date.now())
   const [noteText, setNoteText] = useState("")
   const [showSubmitPrompt, setShowSubmitPrompt] = useState(false)
   const [localProgress, setLocalProgress] = useState<UserQuestionProgress[]>(userProgress)
@@ -364,28 +366,64 @@ export function QuizInterface({
     router.push(`/test/${session.id}/results`)
   }
 
-  // Timer effect for exam mode (countdown)
+  // Stable timer implementation for both modes
   useEffect(() => {
-    if (session.session_type === "exam" && session.time_limit && timeRemaining > 0) {
-      const timer = setInterval(() => {
+    let timer: NodeJS.Timeout
+
+    const updateTime = async () => {
+      const now = Date.now()
+      const deltaSeconds = Math.floor((now - lastUpdateTime) / 1000)
+      
+      if (deltaSeconds < 1) return // Prevent unnecessary updates
+      
+      setLastUpdateTime(now)
+
+      if (session.session_type === "exam" && session.time_limit) {
+        // Countdown timer for exam mode
         setTimeRemaining((prev) => {
-          if (prev <= 1) {
-            clearInterval(timer)
-            handleEndSession()
-            return 0
+          const newTime = Math.max(0, prev - deltaSeconds)
+          if (newTime <= 0 && prev > 0) {
+            // Time's up - end session
+            setTimeout(() => handleEndSession(), 100)
           }
-          return prev - 1
+          return newTime
         })
-      }, 1000)
-      return () => clearInterval(timer)
+      } else {
+        // Stopwatch for practice mode - update local counter
+        setActiveTime((prev) => prev + deltaSeconds)
+      }
+
+      // Periodically sync with server (every 10 seconds)
+      if (Math.floor(now / 1000) % 10 === 0) {
+        try {
+          await fetch(`/api/sessions/${session.id}/active-time`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              elapsedTime: Math.floor((now - sessionStartTime) / 1000),
+              timeRemaining: session.session_type === "exam" ? timeRemaining : null
+            })
+          })
+        } catch (error) {
+          console.warn("Error syncing time with server:", error)
+        }
+      }
+    }
+
+    // Start the timer
+    timer = setInterval(updateTime, 1000)
+
+    return () => {
+      if (timer) clearInterval(timer)
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [session.session_type, session.time_limit, timeRemaining])
+  }, [session.id, session.session_type, session.time_limit])
 
-  // Active time tracking for practice mode (stopwatch)
+  // Initialize time from session data on mount
   useEffect(() => {
     if (session.session_type === "practice") {
-      const fetchActiveTime = async () => {
+      // For practice mode, fetch current active time
+      const fetchInitialTime = async () => {
         try {
           const response = await fetch(`/api/sessions/${session.id}/active-time`)
           if (response.ok) {
@@ -393,18 +431,15 @@ export function QuizInterface({
             setActiveTime(data.activeTime || 0)
           }
         } catch (error) {
-          console.error("Error fetching active time:", error)
+          console.warn("Error fetching initial active time:", error)
         }
       }
-
-      // Initial fetch
-      fetchActiveTime()
-
-      // Update active time every second
-      const timer = setInterval(fetchActiveTime, 1000)
-      return () => clearInterval(timer)
+      fetchInitialTime()
+    } else if (session.session_type === "exam") {
+      // For exam mode, use time_remaining from session
+      setTimeRemaining(session.time_remaining || 0)
     }
-  }, [session.session_type, session.id])
+  }, [session.id, session.session_type, session.time_remaining])
 
   const answeredQuestionIds = new Set([...userAnswers.map((a) => a.question_id), ...Object.keys(selectedAnswers)])
   const allQuestionsAnswered = questions.length > 0 && answeredQuestionIds.size >= questions.length

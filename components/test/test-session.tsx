@@ -41,12 +41,17 @@ export function TestSession({ sessionId }: TestSessionProps) {
       const sessionData = {
         sessionId: session.id,
         sessionName: session.session_name,
+        sessionType: session.session_type,
         startTime: Date.now(),
         url: window.location.href,
         lastActivity: Date.now(),
         currentQuestionIndex: session.current_question_index,
         isActive: session.is_active,
-        timeRemaining: session.time_remaining
+        timeRemaining: session.time_remaining,
+        timeLimit: session.time_limit,
+        activeTimeSeconds: session.active_time_seconds || 0,
+        sessionStartedAt: session.session_started_at,
+        lastActivityAt: session.last_activity_at
       }
       
       localStorage.setItem('activeTestSession', JSON.stringify(sessionData))
@@ -62,7 +67,9 @@ export function TestSession({ sessionId }: TestSessionProps) {
           ...sessionData,
           lastActivity: Date.now(),
           currentQuestionIndex: session.current_question_index,
-          timeRemaining: session.time_remaining
+          timeRemaining: session.time_remaining,
+          activeTimeSeconds: session.active_time_seconds || 0,
+          lastActivityAt: session.last_activity_at
         }
         localStorage.setItem('activeTestSession', JSON.stringify(updatedData))
         localStorage.setItem(`session_${sessionId}_backup`, JSON.stringify(updatedData))
