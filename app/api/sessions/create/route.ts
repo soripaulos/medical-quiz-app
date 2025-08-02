@@ -44,7 +44,10 @@ export async function POST(req: Request) {
       .select()
       .single()
 
-    if (sessionError) throw sessionError
+    if (sessionError) {
+      console.error("Session creation error:", sessionError)
+      throw sessionError
+    }
 
     // Create session questions
     const sessionQuestions = finalQuestionIds.map((questionId: string, index: number) => ({
@@ -55,7 +58,10 @@ export async function POST(req: Request) {
 
     const { error: questionsError } = await supabase.from("session_questions").insert(sessionQuestions)
 
-    if (questionsError) throw questionsError
+    if (questionsError) {
+      console.error("Session questions creation error:", questionsError)
+      throw questionsError
+    }
 
     // Update user's profile to set this as their active session
     const { error: profileError } = await supabase

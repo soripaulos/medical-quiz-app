@@ -92,13 +92,80 @@ export function TestResults({ sessionId }: TestResultsProps) {
       
       const data = await response.json()
 
-      if (data.results) {
-        setResults(data.results)
-      } else if (data.error) {
+      if (data.error) {
         console.error("Results API error:", data.error)
-      } else {
-        console.error("Unexpected response format:", data)
+        return
       }
+
+      // Transform API response to match expected ResultsData format
+      const transformedResults: ResultsData = {
+        session: data.session,
+        questions: data.questions || [],
+        userAnswers: data.questions?.map((q: any) => q.userAnswer).filter(Boolean) || [],
+        userProgress: data.questions?.map((q: any) => ({
+          question_id: q.id,
+          user_id: data.session.user_id,
+          is_flagged: q.isFlagged || false,
+          notes: "",
+          created_at: new Date().toISOString(),
+          updated_at: new Date().toISOString()
+        })) || [],
+        performance: {
+          totalQuestions: data.statistics.totalQuestions,
+          correctAnswers: data.statistics.correctAnswers,
+          incorrectAnswers: data.statistics.incorrectAnswers,
+          unansweredQuestions: data.statistics.unansweredQuestions,
+          accuracy: data.statistics.scorePercentage,
+          timeSpent: data.statistics.totalTimeSeconds,
+          averageTimePerQuestion: data.statistics.averageTimePerQuestion
+        },
+        categoryBreakdown: Object.entries(data.breakdown.bySpecialty).map(([specialty, stats]: [string, any]) => ({
+          specialty,
+          total: stats.total,
+          correct: stats.correct,
+          accuracy: stats.total > 0 ? Math.round((stats.correct / stats.total) * 100) : 0
+        })),
+        difficultyBreakdown: Object.entries(data.breakdown.byDifficulty).map(([level, stats]: [string, any]) => ({
+          level: parseInt(level) || 0,
+          total: stats.total,
+          correct: stats.correct,
+          accuracy: stats.total > 0 ? Math.round((stats.correct / stats.total) * 100) : 0
+        })),
+        questionDetails: data.questions?.map((q: any) => {
+          const userAnswer = q.userAnswer
+          return {
+            questionId: q.id,
+            questionText: q.question_text,
+            userAnswer: userAnswer?.selected_choice_letter || null,
+            correctAnswer: q.correct_answer,
+            isCorrect: userAnswer?.is_correct || false,
+            timeSpent: q.timeSpent || 0,
+            difficulty: q.difficulty || 1,
+            specialty: q.specialty?.name || "Unknown",
+            isFlagged: q.isFlagged || false,
+            choices: [
+              { letter: "A", text: q.choice_a },
+              { letter: "B", text: q.choice_b },
+              { letter: "C", text: q.choice_c },
+              { letter: "D", text: q.choice_d },
+              q.choice_e && { letter: "E", text: q.choice_e },
+              q.choice_f && { letter: "F", text: q.choice_f }
+            ].filter(Boolean),
+            userAnswerText: userAnswer ? (() => {
+              const choiceKey = `choice_${userAnswer.selected_choice_letter?.toLowerCase()}`
+              return q[choiceKey] || userAnswer.selected_choice_letter
+            })() : null,
+            correctAnswerText: (() => {
+              const choiceKey = `choice_${q.correct_answer?.toLowerCase()}`
+              return q[choiceKey] || q.correct_answer
+            })(),
+            explanation: q.explanation,
+            sources: q.sources
+          }
+        }) || []
+      }
+
+      setResults(transformedResults)
     } catch (error) {
       console.error("Error fetching results:", error)
     } finally {

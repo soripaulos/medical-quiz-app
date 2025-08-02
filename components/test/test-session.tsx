@@ -41,12 +41,17 @@ export function TestSession({ sessionId }: TestSessionProps) {
       const sessionData = {
         sessionId: session.id,
         sessionName: session.session_name,
+        sessionType: session.session_type,
         startTime: Date.now(),
         url: window.location.href,
         lastActivity: Date.now(),
         currentQuestionIndex: session.current_question_index,
         isActive: session.is_active,
-        timeRemaining: session.time_remaining
+        timeRemaining: session.time_remaining,
+        timeLimit: session.time_limit,
+        activeTimeSeconds: session.active_time_seconds || 0,
+        sessionStartedAt: session.session_started_at,
+        lastActivityAt: session.last_activity_at
       }
       
       localStorage.setItem('activeTestSession', JSON.stringify(sessionData))
@@ -62,7 +67,9 @@ export function TestSession({ sessionId }: TestSessionProps) {
           ...sessionData,
           lastActivity: Date.now(),
           currentQuestionIndex: session.current_question_index,
-          timeRemaining: session.time_remaining
+          timeRemaining: session.time_remaining,
+          activeTimeSeconds: session.active_time_seconds || 0,
+          lastActivityAt: session.last_activity_at
         }
         localStorage.setItem('activeTestSession', JSON.stringify(updatedData))
         localStorage.setItem(`session_${sessionId}_backup`, JSON.stringify(updatedData))
@@ -219,36 +226,20 @@ export function TestSession({ sessionId }: TestSessionProps) {
       answered_at: new Date().toISOString(),
     }
 
-    // Update local state immediately for better UX
+    // Optimistically update the store
     updateAnswer(questionId, newAnswer)
 
-    // Update progress with correct UserQuestionProgress structure
-    const existingProgress = userProgress.find((p) => p.question_id === questionId)
-    const newProgress: UserQuestionProgress = {
-      id: existingProgress?.id || `progress-${questionId}`,
-      question_id: questionId,
-      times_attempted: (existingProgress?.times_attempted || 0) + 1,
-      times_correct: (existingProgress?.times_correct || 0) + (isCorrect ? 1 : 0),
-      is_flagged: existingProgress?.is_flagged || false,
-      last_attempted: new Date().toISOString(),
-      user_id: session.user_id,
-      created_at: existingProgress?.created_at || new Date().toISOString(),
-      updated_at: new Date().toISOString(),
-    }
-
-    updateProgress(questionId, newProgress)
-
-    // Persist to server
+    // Save answer to database
     try {
-      const response = await fetch(`/api/sessions/${sessionId}/answers`, {
+      const response = await fetch("/api/answers/save", {
         method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          question_id: questionId,
-          selected_choice_letter: choiceLetter,
-          is_correct: isCorrect,
+          userId: session.user_id,
+          questionId,
+          sessionId: session.id,
+          selectedChoiceLetter: choiceLetter,
+          isCorrect,
         }),
       })
 
@@ -257,7 +248,7 @@ export function TestSession({ sessionId }: TestSessionProps) {
       }
     } catch (error) {
       console.error("Error saving answer:", error)
-      // Don't show error to user, answer is saved locally
+      // TODO: Revert optimistic update on error
     }
   }
 
