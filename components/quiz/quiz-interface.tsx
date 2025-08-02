@@ -59,10 +59,9 @@ export function QuizInterface({
   const [showNotes, setShowNotes] = useState(false)
   const [sidebarOpen, setSidebarOpen] = useState(false)
   
-  // Stable timer states
+  // Simple timer states
   const [timeRemaining, setTimeRemaining] = useState(session.time_remaining || 0)
   const [activeTime, setActiveTime] = useState(session.active_time_seconds || 0)
-  const [lastSyncTime, setLastSyncTime] = useState(Date.now())
   
   const [noteText, setNoteText] = useState("")
   const [showSubmitPrompt, setShowSubmitPrompt] = useState(false)
@@ -368,23 +367,18 @@ export function QuizInterface({
     router.push(`/test/${session.id}/results`)
   }
 
-  // Stable unified timer system
+  // Simple, correct timer implementation
   useEffect(() => {
     if (!session.is_active || session.completed_at) return
 
     const isExamMode = session.session_type === "exam"
-    const startTime = Date.now()
-    setLastSyncTime(startTime)
-
-    // Single timer for both modes
+    
+    // Simple timer that counts every second
     const timer = setInterval(() => {
-      const now = Date.now()
-      const elapsed = Math.floor((now - lastSyncTime) / 1000)
-
       if (isExamMode && session.time_limit) {
-        // Countdown timer for exam mode
+        // Exam mode: count down
         setTimeRemaining((prev) => {
-          const newTime = Math.max(0, prev - elapsed)
+          const newTime = Math.max(0, prev - 1)
           if (newTime <= 0) {
             clearInterval(timer)
             handleEndSession()
@@ -393,39 +387,41 @@ export function QuizInterface({
           return newTime
         })
       } else {
-        // Stopwatch for practice mode
-        setActiveTime((prev) => prev + elapsed)
+        // Practice mode: count up
+        setActiveTime((prev) => prev + 1)
       }
-
-      setLastSyncTime(now)
-    }, 1000)
+    }, 1000) // Every second
 
     return () => clearInterval(timer)
   }, [session.is_active, session.completed_at, session.session_type, session.time_limit])
 
-  // Periodic server sync (every 30 seconds instead of every second)
+  // Save time to database every minute
   useEffect(() => {
     if (!session.is_active || session.completed_at) return
 
-    const syncTimer = setInterval(async () => {
+    const saveTimer = setInterval(async () => {
       try {
         const isExamMode = session.session_type === "exam"
-        const syncData = {
+        const timeData = {
           elapsedTime: isExamMode ? undefined : activeTime,
           timeRemaining: isExamMode ? timeRemaining : undefined
         }
 
-        await fetch(`/api/sessions/${session.id}/active-time`, {
+        const response = await fetch(`/api/sessions/${session.id}/active-time`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify(syncData)
+          body: JSON.stringify(timeData)
         })
-      } catch (error) {
-        console.warn("Timer sync failed:", error)
-      }
-    }, 30000) // Sync every 30 seconds
 
-    return () => clearInterval(syncTimer)
+        if (!response.ok) {
+          console.warn("Failed to save time to database")
+        }
+      } catch (error) {
+        console.warn("Error saving time:", error)
+      }
+    }, 60000) // Every minute (60 seconds)
+
+    return () => clearInterval(saveTimer)
   }, [session.id, session.is_active, session.completed_at, session.session_type, activeTime, timeRemaining])
 
   // Initialize timer from session data on mount/resume
@@ -435,7 +431,6 @@ export function QuizInterface({
     } else {
       setActiveTime(session.active_time_seconds || 0)
     }
-    setLastSyncTime(Date.now())
   }, [session.time_remaining, session.active_time_seconds, session.session_type])
 
   const answeredQuestionIds = new Set([...userAnswers.map((a) => a.question_id), ...Object.keys(selectedAnswers)])
@@ -447,30 +442,26 @@ export function QuizInterface({
     }
   }, [allQuestionsAnswered])
 
-  const handlePauseSession = () => {
-    // Sync time before pausing
-    const syncTimeBeforePause = async () => {
-      try {
-        const isExamMode = session.session_type === "exam"
-        const syncData = {
-          elapsedTime: isExamMode ? undefined : activeTime,
-          timeRemaining: isExamMode ? timeRemaining : undefined
-        }
-
-        await fetch(`/api/sessions/${session.id}/active-time`, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify(syncData)
-        })
-      } catch (error) {
-        console.warn("Failed to sync time before pause:", error)
+  const handlePauseSession = async () => {
+    // Save current time before pausing
+    try {
+      const isExamMode = session.session_type === "exam"
+      const timeData = {
+        elapsedTime: isExamMode ? undefined : activeTime,
+        timeRemaining: isExamMode ? timeRemaining : undefined
       }
-      
-      onPauseSession()
-      router.push('/')
-    }
 
-    syncTimeBeforePause()
+      await fetch(`/api/sessions/${session.id}/active-time`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(timeData)
+      })
+    } catch (error) {
+      console.warn("Failed to save time before pause:", error)
+    }
+    
+    onPauseSession()
+    router.push('/')
   }
 
   if (!currentQuestion) {

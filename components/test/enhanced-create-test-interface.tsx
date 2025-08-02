@@ -878,143 +878,44 @@ export function EnhancedCreateTestInterface({ userProfile }: EnhancedCreateTestI
                     </Card>
                   </div>
 
-                  {/* Right Column - Test Settings and Quick Stats */}
+                  {/* Right Column - Quick Stats Only */}
                   <div className="order-1 lg:order-2 space-y-6">
-                    {/* Test Settings */}
-                    <Card>
-                      <CardHeader className="dark:bg-card bg-primary text-primary-foreground">
-                        <CardTitle className="flex items-center gap-2">
-                          <Settings className="w-5 h-5" />
-                          Test Settings
-                        </CardTitle>
+                    {/* Quick Stats Card - Always visible on desktop */}
+                    <Card className="hidden lg:block">
+                      <CardHeader>
+                        <CardTitle>Quick Stats</CardTitle>
                       </CardHeader>
                       <CardContent className="space-y-4">
-                        <div>
-                          <Label htmlFor="sessionName">Test Name</Label>
-                          <Input
-                            id="sessionName"
-                            value={sessionName}
-                            onChange={(e) => setSessionName(e.target.value)}
-                            placeholder="Auto-generated name..."
-                            className="mt-1"
-                          />
-                          <p className="text-xs text-gray-500 mt-1">Name is auto-generated based on your settings</p>
-                        </div>
-
-                        <div>
-                          <Label htmlFor="sessionMode">Test Mode</Label>
-                          <Select value={sessionMode} onValueChange={(value: "practice" | "exam") => setSessionMode(value)}>
-                            <SelectTrigger className="mt-1">
-                              <SelectValue />
-                            </SelectTrigger>
-                            <SelectContent>
-                              <SelectItem value="practice">Practice Mode</SelectItem>
-                              <SelectItem value="exam">Exam Mode</SelectItem>
-                            </SelectContent>
-                          </Select>
-                          <p className="text-xs text-gray-500 mt-1">
-                            {sessionMode === "practice"
-                              ? "Get immediate feedback after each question"
-                              : "Review answers only at the end"}
-                          </p>
-                        </div>
-
-                        {sessionMode === "practice" && (
-                          <div className="border border-blue-200 rounded-lg p-4 bg-transparent">
-                            <div className="flex items-start space-x-3">
-                              <TrendingUp className="w-5 h-5 text-blue-600 mt-0.5" />
-                              <div className="flex-1">
-                                <div className="flex items-center space-x-2 mb-2">
-                                  <Checkbox
-                                    id="trackProgress"
-                                    checked={trackProgress}
-                                    onCheckedChange={(checked) => setTrackProgress(checked as boolean)}
-                                  />
-                                  <Label htmlFor="trackProgress" className="text-sm font-medium">
-                                    Track my progress
-                                  </Label>
-                                </div>
-                                <p className="text-xs text-gray-600">
-                                  {trackProgress
-                                    ? "Your answers will be recorded and used to track your performance over time. This helps with filtering questions by status (answered, correct, incorrect)."
-                                    : "Your answers will not be saved to your progress history. Use this for casual practice without affecting your statistics."}
-                                </p>
+                        <div className="flex items-center justify-between">
+                          <span className="text-sm text-gray-600">Questions Available:</span>
+                          <Badge variant="secondary" className="text-lg font-bold">
+                            {loading ? (
+                              <div className="flex items-center gap-1">
+                                <Loader2 className="w-3 h-3 animate-spin" />
+                                Loading...
                               </div>
-                            </div>
-                          </div>
-                        )}
+                            ) : (
+                              questionCount.toLocaleString()
+                            )}
+                          </Badge>
+                        </div>
 
                         <div>
-                          <Label htmlFor="maxQuestions">Number of Questions</Label>
-                          <Input
-                            id="maxQuestions"
-                            type="number"
-                            value={maxQuestions || ""}
-                            onChange={(e) => setMaxQuestions(e.target.value ? Number.parseInt(e.target.value) : null)}
-                            placeholder={`All ${questionCount} questions`}
-                            className="mt-1"
-                            min="1"
-                            max={Math.min(questionCount, 200)}
-                          />
-                          <p className="text-xs text-gray-500 mt-1">
-                            Limit the number of questions in your test (max 200 per session)
-                          </p>
+                          <span className="text-sm text-gray-600 block mb-2">Active Filters:</span>
+                          {getSelectedFiltersCount() === 0 ? (
+                            <span className="text-sm text-green-600">All questions included</span>
+                          ) : (
+                            <div className="flex flex-wrap gap-1">
+                              {Object.entries(filters).map(([key, values]) =>
+                                values.map((value: string | number) => (
+                                  <Badge key={`${key}-${value}`} variant="outline" className="text-xs">
+                                    {String(value)}
+                                  </Badge>
+                                )),
+                              )}
+                            </div>
+                          )}
                         </div>
-
-                        {sessionMode === "exam" && (
-                          <div>
-                            <Label htmlFor="timeLimit">Time Limit (minutes) *</Label>
-                            <Input
-                              id="timeLimit"
-                              type="number"
-                              value={timeLimit || ""}
-                              onChange={(e) => setTimeLimit(e.target.value ? Number.parseInt(e.target.value) : null)}
-                              placeholder="Required for exam mode"
-                              className="mt-1"
-                              min="1"
-                              required
-                            />
-                            <p className="text-xs text-gray-500 mt-1">Estimated time: {getEstimatedTime()} minutes</p>
-                          </div>
-                        )}
-
-                        <div className="flex items-center space-x-2">
-                          <Checkbox
-                            id="randomizeOrder"
-                            checked={randomizeOrder}
-                            onCheckedChange={(checked) => setRandomizeOrder(checked as boolean)}
-                          />
-                          <Label htmlFor="randomizeOrder" className="text-sm">
-                            Randomize question order
-                          </Label>
-                        </div>
-
-                        <Separator className="my-4" />
-
-                        {validationErrors.length > 0 && (
-                          <Alert className="mb-4">
-                            <AlertCircle className="h-4 w-4" />
-                            <AlertDescription>
-                              <ul className="list-disc list-inside space-y-1">
-                                {validationErrors.map((error, index) => (
-                                  <li key={index} className="text-sm">
-                                    {error}
-                                  </li>
-                                ))}
-                              </ul>
-                            </AlertDescription>
-                          </Alert>
-                        )}
-
-                        <Button
-                          onClick={createSession}
-                          disabled={creating || validationErrors.length > 0 || !sessionName.trim()}
-                          className="w-full"
-                          size="lg"
-                        >
-                          <Play className="w-4 h-4 mr-2" />
-                          {creating ? "Creating Test..." : "Start Test"}
-                        </Button>
                       </CardContent>
                     </Card>
                   </div>
