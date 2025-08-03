@@ -111,10 +111,14 @@ export function TestSession({ sessionId }: TestSessionProps) {
           
           if (resumeResponse.ok) {
             const resumeData = await resumeResponse.json()
+            console.log('Resume response:', resumeData)
+            
+            // Always force refresh session data after resume to get latest time values
+            await loadSession(sessionId)
+            console.log('Session data refreshed after resume')
+            
             if (resumeData.sessionData) {
-              // Force refresh session data with updated time values
-              await loadSession(sessionId)
-              console.log('Session resumed with updated time data:', resumeData.sessionData)
+              console.log('Updated session time data:', resumeData.sessionData)
             }
           }
           

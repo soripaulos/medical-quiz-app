@@ -878,15 +878,12 @@ export function EnhancedCreateTestInterface({ userProfile }: EnhancedCreateTestI
 
                   {/* Right Column - Active Session, Test Configuration, Quick Stats */}
                   <div className="order-1 lg:order-2 space-y-6">
-                    {/* Quick Stats Card - Mobile: order-3 (below test config), Desktop: normal order */}
+                    {/* Quick Stats Card - Compact design without header */}
                     <Card className="order-3 lg:order-1">
-                      <CardHeader>
-                        <CardTitle>Quick Stats</CardTitle>
-                      </CardHeader>
-                      <CardContent className="space-y-4">
+                      <CardContent className="p-4 space-y-2">
                         <div className="flex items-center justify-between">
                           <span className="text-sm text-gray-600">Questions Available:</span>
-                          <Badge variant="secondary" className="text-lg font-bold">
+                          <Badge variant="secondary" className="font-bold">
                             {loading ? (
                               <div className="flex items-center gap-1">
                                 <Loader2 className="w-3 h-3 animate-spin" />
@@ -898,21 +895,23 @@ export function EnhancedCreateTestInterface({ userProfile }: EnhancedCreateTestI
                           </Badge>
                         </div>
 
-                        <div>
-                          <span className="text-sm text-gray-600 block mb-2">Active Filters:</span>
-                          {getSelectedFiltersCount() === 0 ? (
-                            <span className="text-sm text-green-600">All questions included</span>
-                          ) : (
-                            <div className="flex flex-wrap gap-1">
-                              {Object.entries(filters).map(([key, values]) =>
-                                values.map((value: string | number) => (
-                                  <Badge key={`${key}-${value}`} variant="outline" className="text-xs">
-                                    {String(value)}
-                                  </Badge>
-                                )),
-                              )}
-                            </div>
-                          )}
+                        <div className="flex items-start justify-between gap-2">
+                          <span className="text-sm text-gray-600">Active Filters:</span>
+                          <div className="flex-1 text-right">
+                            {getSelectedFiltersCount() === 0 ? (
+                              <span className="text-sm text-green-600">All included</span>
+                            ) : (
+                              <div className="flex flex-wrap justify-end gap-1">
+                                {Object.entries(filters).map(([key, values]) =>
+                                  values.map((value: string | number) => (
+                                    <Badge key={`${key}-${value}`} variant="outline" className="text-xs">
+                                      {String(value)}
+                                    </Badge>
+                                  )),
+                                )}
+                              </div>
+                            )}
+                          </div>
                         </div>
                       </CardContent>
                     </Card>

@@ -71,6 +71,38 @@ export function QuizInterface({
   const router = useRouter()
   const { theme, setTheme } = useTheme()
 
+  // Handle back navigation with pause
+  useEffect(() => {
+    const handlePopState = async (event: PopStateEvent) => {
+      event.preventDefault()
+      
+      // Pause the session before navigating back
+      if (session.is_active && !session.completed_at) {
+        try {
+          await fetch(`/api/sessions/${session.id}/pause`, {
+            method: "POST",
+          })
+          console.log('Session paused due to back navigation')
+        } catch (error) {
+          console.error('Failed to pause session on back navigation:', error)
+        }
+      }
+      
+      // Allow navigation to proceed
+      router.back()
+    }
+
+    // Add popstate listener
+    window.addEventListener('popstate', handlePopState)
+    
+    // Prevent default back behavior by pushing current state
+    window.history.pushState(null, '', window.location.href)
+
+    return () => {
+      window.removeEventListener('popstate', handlePopState)
+    }
+  }, [session.id, session.is_active, session.completed_at, router])
+
   const currentQuestion = questions[currentQuestionIndex]
   const currentAnswer = userAnswers.find((a) => a.question_id === currentQuestion?.id)
   const currentProgress = localProgress.find((p) => p.question_id === currentQuestion?.id)
@@ -422,21 +454,44 @@ export function QuizInterface({
 
   // Initialize timer from session data on mount/resume
   useEffect(() => {
-    if (session.session_type === "exam") {
-      setTimeRemaining(session.time_remaining || 0)
-    } else {
-      // Ensure we always get the latest active time from the session
-      setActiveTime(session.active_time_seconds || 0)
-    }
-    
-    // Log for debugging
-    console.log('Timer initialized:', {
+    console.log('Timer initialization triggered:', {
       sessionType: session.session_type,
       timeRemaining: session.time_remaining,
       activeTimeSeconds: session.active_time_seconds,
-      sessionId: session.id
+      sessionId: session.id,
+      currentActiveTime: activeTime,
+      currentTimeRemaining: timeRemaining
     })
+    
+    if (session.session_type === "exam") {
+      const newTimeRemaining = session.time_remaining || 0
+      if (newTimeRemaining !== timeRemaining) {
+        console.log(`Updating timeRemaining from ${timeRemaining} to ${newTimeRemaining}`)
+        setTimeRemaining(newTimeRemaining)
+      }
+    } else {
+      // Ensure we always get the latest active time from the session
+      const newActiveTime = session.active_time_seconds || 0
+      if (newActiveTime !== activeTime) {
+        console.log(`Updating activeTime from ${activeTime} to ${newActiveTime}`)
+        setActiveTime(newActiveTime)
+      }
+    }
   }, [session.time_remaining, session.active_time_seconds, session.session_type, session.id])
+
+  // Prevent timer reset on unnecessary re-renders
+  useEffect(() => {
+    // Only update if we have a significant difference (more than 5 seconds)
+    // This prevents minor sync differences from resetting the timer
+    if (session.session_type === "practice" && session.active_time_seconds !== undefined) {
+      const dbTime = session.active_time_seconds
+      const timeDiff = Math.abs(dbTime - activeTime)
+      if (timeDiff > 5) {
+        console.log(`Large time difference detected (${timeDiff}s), syncing timer: ${activeTime} -> ${dbTime}`)
+        setActiveTime(dbTime)
+      }
+    }
+  }, [session.active_time_seconds, activeTime, session.session_type])
 
   const answeredQuestionIds = new Set([...userAnswers.map((a) => a.question_id), ...Object.keys(selectedAnswers)])
   const allQuestionsAnswered = questions.length > 0 && answeredQuestionIds.size >= questions.length
@@ -641,9 +696,70 @@ export function QuizInterface({
         </div>
       </main>
 
-      {/* Footer - Compact Single Row */}
+      {/* Footer - Mobile: Wide buttons with timer in between, Desktop: Compact row */}
       <footer className="border-t dark:bg-card bg-primary text-primary-foreground">
-        <div className="flex items-center justify-between p-2 gap-2">
+        {/* Mobile Layout - Portrait: Wide buttons with timer in between */}
+        <div className="sm:hidden">
+          {/* Navigation buttons row */}
+          <div className="flex items-center p-2 gap-2">
+            <Button 
+              variant="ghost" 
+              onClick={handlePreviousQuestion} 
+              disabled={currentQuestionIndex === 0}
+              className="flex-1 h-12 text-sm"
+            >
+              <ChevronLeft className="h-4 w-4 mr-1" />
+              Previous
+            </Button>
+            
+            {/* Timer in between buttons */}
+            <div className="px-4 py-2 text-sm font-medium text-center min-w-[80px]">
+              {session.session_type === "exam" && session.time_limit && (
+                <span>{formatTime(timeRemaining)}</span>
+              )}
+              {session.session_type === "practice" && (
+                <span>{formatTime(activeTime)}</span>
+              )}
+            </div>
+            
+            <Button 
+              variant="ghost" 
+              onClick={handleNextQuestion} 
+              disabled={currentQuestionIndex === questions.length - 1}
+              className="flex-1 h-12 text-sm"
+            >
+              Next
+              <ChevronRight className="h-4 w-4 ml-1" />
+            </Button>
+          </div>
+          
+          {/* Action buttons row */}
+          <div className="flex items-center p-2 pt-0 gap-2">
+            <Button 
+              variant="outline" 
+              size="sm" 
+              onClick={handlePauseSession}
+              className="flex-1"
+            >
+              <svg className="w-4 h-4 mr-1" fill="currentColor" viewBox="0 0 20 20">
+                <path fillRule="evenodd" d="M6 4a1 1 0 011 1v10a1 1 0 11-2 0V5a1 1 0 011-1zm8 0a1 1 0 011 1v10a1 1 0 11-2 0V5a1 1 0 011-1z" clipRule="evenodd" />
+              </svg>
+              Pause
+            </Button>
+            <Button 
+              variant="destructive" 
+              size="sm" 
+              onClick={() => setShowSubmitPrompt(true)}
+              className="flex-1"
+            >
+              <Square className="w-4 h-4 mr-1" />
+              End Block
+            </Button>
+          </div>
+        </div>
+
+        {/* Desktop Layout - Compact single row */}
+        <div className="hidden sm:flex items-center justify-between p-2 gap-2">
           {/* Left: Navigation */}
           <div className="flex items-center gap-1">
             <Button 
