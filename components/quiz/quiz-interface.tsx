@@ -425,9 +425,18 @@ export function QuizInterface({
     if (session.session_type === "exam") {
       setTimeRemaining(session.time_remaining || 0)
     } else {
+      // Ensure we always get the latest active time from the session
       setActiveTime(session.active_time_seconds || 0)
     }
-  }, [session.time_remaining, session.active_time_seconds, session.session_type])
+    
+    // Log for debugging
+    console.log('Timer initialized:', {
+      sessionType: session.session_type,
+      timeRemaining: session.time_remaining,
+      activeTimeSeconds: session.active_time_seconds,
+      sessionId: session.id
+    })
+  }, [session.time_remaining, session.active_time_seconds, session.session_type, session.id])
 
   const answeredQuestionIds = new Set([...userAnswers.map((a) => a.question_id), ...Object.keys(selectedAnswers)])
   const allQuestionsAnswered = questions.length > 0 && answeredQuestionIds.size >= questions.length
@@ -632,89 +641,60 @@ export function QuizInterface({
         </div>
       </main>
 
-      {/* Footer */}
+      {/* Footer - Compact Single Row */}
       <footer className="border-t dark:bg-card bg-primary text-primary-foreground">
-        {/* Mobile Layout */}
-        <div className="sm:hidden p-3">
-          {/* Time display for mobile */}
-          <div className="text-center text-sm mb-3">
-            {session.session_type === "exam" && session.time_limit && (
-              <span className="font-medium">Time remaining: {formatTime(timeRemaining)}</span>
-            )}
-            {session.session_type === "practice" && (
-              <span className="font-medium">Time spent: {formatTime(activeTime)}</span>
-            )}
-          </div>
-          
-          {/* Navigation buttons */}
-          <div className="flex gap-2 mb-3">
+        <div className="flex items-center justify-between p-2 gap-2">
+          {/* Left: Navigation */}
+          <div className="flex items-center gap-1">
             <Button 
               variant="ghost" 
+              size="sm"
               onClick={handlePreviousQuestion} 
               disabled={currentQuestionIndex === 0}
-              className="flex-1 h-12"
+              className="p-2"
             >
-              <ChevronLeft className="h-5 w-5 mr-1" />
-              Previous
+              <ChevronLeft className="h-4 w-4" />
             </Button>
             <Button 
               variant="ghost" 
+              size="sm"
               onClick={handleNextQuestion} 
               disabled={currentQuestionIndex === questions.length - 1}
-              className="flex-1 h-12"
+              className="p-2"
             >
-              Next
-              <ChevronRight className="h-5 w-5 ml-1" />
-            </Button>
-          </div>
-          
-          {/* Action buttons */}
-          <div className="flex gap-2">
-            <Button variant="outline" size="sm" onClick={handlePauseSession} className="flex-1">
-              <svg className="w-4 h-4 mr-1" fill="currentColor" viewBox="0 0 20 20">
-                <path fillRule="evenodd" d="M6 4a1 1 0 011 1v10a1 1 0 11-2 0V5a1 1 0 011-1zm8 0a1 1 0 011 1v10a1 1 0 11-2 0V5a1 1 0 011-1z" clipRule="evenodd" />
-              </svg>
-              Pause
-            </Button>
-            <Button variant="destructive" size="sm" onClick={() => setShowSubmitPrompt(true)} className="flex-1">
-              <Square className="w-4 h-4 mr-1" />
-              End Block
-            </Button>
-          </div>
-        </div>
-
-        {/* Desktop Layout */}
-        <div className="hidden sm:flex items-center justify-between p-4">
-          {/* Left: Navigation */}
-          <div className="flex items-center gap-2">
-            <Button variant="ghost" onClick={handlePreviousQuestion} disabled={currentQuestionIndex === 0}>
-              <ChevronLeft className="h-5 w-5 mr-1" />
-              Previous
-            </Button>
-            <Button variant="ghost" onClick={handleNextQuestion} disabled={currentQuestionIndex === questions.length - 1}>
-              Next
-              <ChevronRight className="h-5 w-5 ml-1" />
+              <ChevronRight className="h-4 w-4" />
             </Button>
           </div>
           
           {/* Center: Time display */}
-          <div className="text-sm font-medium">
+          <div className="text-sm font-medium flex-1 text-center">
             {session.session_type === "exam" && session.time_limit && (
-              <span>Time remaining: {formatTime(timeRemaining)}</span>
+              <span>{formatTime(timeRemaining)}</span>
             )}
             {session.session_type === "practice" && (
-              <span>Time spent: {formatTime(activeTime)}</span>
+              <span>{formatTime(activeTime)}</span>
             )}
           </div>
           
           {/* Right: Action buttons */}
-          <div className="flex items-center gap-2">
-            <Button variant="outline" size="sm" onClick={handlePauseSession}>
-              Pause
+          <div className="flex items-center gap-1">
+            <Button 
+              variant="outline" 
+              size="sm" 
+              onClick={handlePauseSession}
+              className="p-2"
+            >
+              <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
+                <path fillRule="evenodd" d="M6 4a1 1 0 011 1v10a1 1 0 11-2 0V5a1 1 0 011-1zm8 0a1 1 0 011 1v10a1 1 0 11-2 0V5a1 1 0 011-1z" clipRule="evenodd" />
+              </svg>
             </Button>
-            <Button variant="destructive" size="sm" onClick={() => setShowSubmitPrompt(true)}>
-              <Square className="w-4 h-4 mr-1" />
-              End Block
+            <Button 
+              variant="destructive" 
+              size="sm" 
+              onClick={() => setShowSubmitPrompt(true)}
+              className="p-2"
+            >
+              <Square className="w-4 h-4" />
             </Button>
           </div>
         </div>

@@ -474,9 +474,9 @@ export function EnhancedCreateTestInterface({ userProfile }: EnhancedCreateTestI
           {userProfile ? (
             <>
               <TabsContent value="custom" className="space-y-6">
-                <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-                  {/* Left Column - Test Configuration */}
-                  <div className="lg:col-span-2 space-y-6 order-2 lg:order-1">
+                <div className="max-w-4xl mx-auto">
+                  {/* Main Column - Test Configuration */}
+                  <div className="space-y-6">
                     {/* Session Manager - Full version for all screens */}
                     <UnifiedSessionManager />
 
@@ -874,12 +874,9 @@ export function EnhancedCreateTestInterface({ userProfile }: EnhancedCreateTestI
                         </Button>
                       </CardContent>
                     </Card>
-                  </div>
 
-                  {/* Right Column - Quick Stats */}
-                  <div className="order-1 lg:order-2 space-y-6">
-                    {/* Quick Stats Card - Show on mobile after test settings */}
-                    <Card className="lg:hidden order-3">
+                    {/* Quick Stats Card - Now below Test Configuration */}
+                    <Card>
                       <CardHeader>
                         <CardTitle>Quick Stats</CardTitle>
                       </CardHeader>
@@ -917,6 +914,8 @@ export function EnhancedCreateTestInterface({ userProfile }: EnhancedCreateTestI
                       </CardContent>
                     </Card>
                   </div>
+
+
                 </div>
               </TabsContent>
 
