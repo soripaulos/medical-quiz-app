@@ -427,7 +427,6 @@ export function QuizInterface({
     } else {
       setActiveTime(session.active_time_seconds || 0)
     }
-    setLastSyncTime(Date.now())
   }, [session.time_remaining, session.active_time_seconds, session.session_type])
 
   const answeredQuestionIds = new Set([...userAnswers.map((a) => a.question_id), ...Object.keys(selectedAnswers)])

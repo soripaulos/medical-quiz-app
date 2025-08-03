@@ -1,8 +1,6 @@
 "use client"
 
-import type React from "react"
-
-import { useState, useEffect } from "react"
+import React, { useState, useEffect } from "react"
 import { useTheme } from "next-themes"
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
@@ -98,7 +96,7 @@ export function EnhancedCreateTestInterface({ userProfile }: EnhancedCreateTestI
   const { theme, setTheme } = useTheme()
   const router = useRouter()
   
-      // Removed redundant session recovery state - handled by UnifiedSessionManager
+  // Removed redundant session recovery state - handled by UnifiedSessionManager
 
   const [filters, setFilters] = useState<QuestionFilters>({
     specialties: [],
@@ -880,45 +878,45 @@ export function EnhancedCreateTestInterface({ userProfile }: EnhancedCreateTestI
 
                   {/* Right Column - Quick Stats */}
                   <div className="order-1 lg:order-2 space-y-6">
-
-                  {/* Quick Stats Card - Show on mobile after test settings */}
-                  <Card className="lg:hidden order-3">
-                    <CardHeader>
-                      <CardTitle>Quick Stats</CardTitle>
-                    </CardHeader>
-                    <CardContent className="space-y-4">
-                      <div className="flex items-center justify-between">
-                        <span className="text-sm text-gray-600">Questions Available:</span>
-                        <Badge variant="secondary" className="text-lg font-bold">
-                          {loading ? (
-                            <div className="flex items-center gap-1">
-                              <Loader2 className="w-3 h-3 animate-spin" />
-                              Loading...
-                            </div>
-                          ) : (
-                            questionCount.toLocaleString()
-                          )}
-                        </Badge>
-                      </div>
-
-                      <div>
-                        <span className="text-sm text-gray-600 block mb-2">Active Filters:</span>
-                        {getSelectedFiltersCount() === 0 ? (
-                          <span className="text-sm text-green-600">All questions included</span>
-                        ) : (
-                          <div className="flex flex-wrap gap-1">
-                            {Object.entries(filters).map(([key, values]) =>
-                              values.map((value: string | number) => (
-                                <Badge key={`${key}-${value}`} variant="outline" className="text-xs">
-                                  {String(value)}
-                                </Badge>
-                              )),
+                    {/* Quick Stats Card - Show on mobile after test settings */}
+                    <Card className="lg:hidden order-3">
+                      <CardHeader>
+                        <CardTitle>Quick Stats</CardTitle>
+                      </CardHeader>
+                      <CardContent className="space-y-4">
+                        <div className="flex items-center justify-between">
+                          <span className="text-sm text-gray-600">Questions Available:</span>
+                          <Badge variant="secondary" className="text-lg font-bold">
+                            {loading ? (
+                              <div className="flex items-center gap-1">
+                                <Loader2 className="w-3 h-3 animate-spin" />
+                                Loading...
+                              </div>
+                            ) : (
+                              questionCount.toLocaleString()
                             )}
-                          </div>
-                        )}
-                      </div>
-                    </CardContent>
-                  </Card>
+                          </Badge>
+                        </div>
+
+                        <div>
+                          <span className="text-sm text-gray-600 block mb-2">Active Filters:</span>
+                          {getSelectedFiltersCount() === 0 ? (
+                            <span className="text-sm text-green-600">All questions included</span>
+                          ) : (
+                            <div className="flex flex-wrap gap-1">
+                              {Object.entries(filters).map(([key, values]) =>
+                                values.map((value: string | number) => (
+                                  <Badge key={`${key}-${value}`} variant="outline" className="text-xs">
+                                    {String(value)}
+                                  </Badge>
+                                )),
+                              )}
+                            </div>
+                          )}
+                        </div>
+                      </CardContent>
+                    </Card>
+                  </div>
                 </div>
               </TabsContent>
 
