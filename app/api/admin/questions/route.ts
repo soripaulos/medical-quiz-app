@@ -75,9 +75,10 @@ export async function POST(req: Request) {
 }
 
 export async function GET() {
-  const supabase = createAdminClient()
-
   try {
+    console.log("Admin: Fetching questions with related data...")
+    const supabase = createAdminClient()
+
     const { data: questions, error } = await supabase
       .from("questions")
       .select(
@@ -89,11 +90,19 @@ export async function GET() {
       )
       .order("created_at", { ascending: false })
 
-    if (error) throw error
+    if (error) {
+      console.error("Database error fetching admin questions:", error)
+      throw error
+    }
 
+    console.log("Successfully fetched admin questions:", questions?.length || 0, "records")
     return NextResponse.json({ questions })
   } catch (err) {
     console.error("Error fetching questions:", err)
-    return NextResponse.json({ ok: false, message: String(err) }, { status: 400 })
+    return NextResponse.json({ 
+      ok: false, 
+      message: String(err),
+      error: err instanceof Error ? err.message : String(err)
+    }, { status: 500 })
   }
 }
