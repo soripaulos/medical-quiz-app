@@ -89,12 +89,18 @@ export function CreateTestInterface() {
         setExamTypes(examTypesData.examTypes.map((e: { name: string }) => e.name))
       }
 
-      // Fetch available years from questions
-      const yearsResponse = await fetch("/api/questions/years")
-      const yearsData = await yearsResponse.json()
-      if (yearsData.years) {
-        setAvailableYears(yearsData.years.sort((a: number, b: number) => b - a))
-      }
+          // Fetch available years from questions
+    const yearsResponse = await fetch("/api/questions/years")
+    const yearsData = await yearsResponse.json()
+    console.log("Years API response (create-test-interface):", yearsData)
+    if (yearsData.years) {
+      console.log("Years before sorting (create-test-interface):", yearsData.years)
+      const sortedYears = yearsData.years.sort((a: number, b: number) => b - a)
+      console.log("Years after sorting (create-test-interface):", sortedYears)
+      setAvailableYears(sortedYears)
+    } else {
+      console.log("No years data received (create-test-interface)")
+    }
     } catch (error) {
       console.error("Error fetching filter options:", error)
     }

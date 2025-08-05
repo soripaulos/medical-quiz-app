@@ -23,15 +23,23 @@ export async function GET() {
 
       if (fallbackError) throw fallbackError
 
+      console.log("Raw questions data:", questions?.slice(0, 10)) // Log first 10 for debugging
+      
       // Get unique years and sort them
       const uniqueYears = [...new Set(questions?.map((q) => q.year).filter(Boolean))] as number[]
+      console.log("Unique years found:", uniqueYears)
+      
       const sortedYears = uniqueYears.sort((a, b) => b - a) // Most recent first
+      console.log("Sorted years:", sortedYears)
 
       return NextResponse.json({ years: sortedYears })
     }
 
+    console.log("RPC years result:", years)
+    
     // Sort the years from the RPC function (most recent first)
     const sortedYears = (years || []).sort((a: number, b: number) => b - a)
+    console.log("Final sorted years:", sortedYears)
 
     return NextResponse.json({ years: sortedYears })
   } catch (err) {
