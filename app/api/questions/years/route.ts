@@ -23,7 +23,14 @@ export async function GET() {
     const uniqueYears = [...new Set(questions?.map((q) => q.year).filter(Boolean))] as number[]
     console.log("Unique years found:", uniqueYears)
 
-    return NextResponse.json({ years: uniqueYears })
+    const response = NextResponse.json({ years: uniqueYears })
+    
+    // Add cache-busting headers
+    response.headers.set('Cache-Control', 'no-cache, no-store, must-revalidate')
+    response.headers.set('Pragma', 'no-cache')
+    response.headers.set('Expires', '0')
+    
+    return response
   } catch (err) {
     console.error("Error fetching years:", err)
     return NextResponse.json({ 

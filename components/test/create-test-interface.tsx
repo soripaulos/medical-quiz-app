@@ -90,9 +90,16 @@ export function CreateTestInterface() {
       }
 
       // Fetch available years from questions
-      const yearsResponse = await fetch("/api/questions/years")
+      const yearsResponse = await fetch("/api/questions/years", {
+        cache: 'no-store',
+        headers: {
+          'Cache-Control': 'no-cache',
+        }
+      })
       const yearsData = await yearsResponse.json()
+      console.log("Fetched years data:", yearsData)
       if (yearsData.years) {
+        console.log("Setting available years:", yearsData.years)
         setAvailableYears(yearsData.years.sort((a: number, b: number) => b - a))
       }
     } catch (error) {

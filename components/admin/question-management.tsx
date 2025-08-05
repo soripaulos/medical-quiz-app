@@ -62,10 +62,17 @@ export function QuestionManagement() {
 
   const fetchAvailableYears = async () => {
     try {
-      const response = await fetch("/api/questions/years")
+      const response = await fetch("/api/questions/years", {
+        cache: 'no-store',
+        headers: {
+          'Cache-Control': 'no-cache',
+        }
+      })
       const data = await response.json()
+      console.log("Admin: Fetched years data:", data)
 
       if (data.years) {
+        console.log("Admin: Setting available years:", data.years)
         setAvailableYears(data.years)
       }
     } catch (error) {

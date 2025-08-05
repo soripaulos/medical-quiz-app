@@ -216,9 +216,16 @@ export function EnhancedCreateTestInterface({ userProfile }: EnhancedCreateTestI
       }
 
       // Fetch available years
-      const yearsRes = await fetch("/api/questions/years")
+      const yearsRes = await fetch("/api/questions/years", {
+        cache: 'no-store',
+        headers: {
+          'Cache-Control': 'no-cache',
+        }
+      })
       const yearsData = (await safeJson(yearsRes)) as any
+      console.log("Fetched years data:", yearsData)
       if (yearsData?.years) {
+        console.log("Setting available years:", yearsData.years)
         setAvailableYears(yearsData.years.sort((a: number, b: number) => b - a))
       }
     } catch (error) {
