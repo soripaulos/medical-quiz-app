@@ -31,13 +31,14 @@ export function QuestionManagement() {
 
   // Dynamic data
   const [availableYears, setAvailableYears] = useState<number[]>([])
-
-  const specialties = ["Internal Medicine", "Surgery", "Pediatrics", "OB/GYN", "Public Health", "Minor Specialties"]
-  const examTypes = ["Exit Exam", "COC"]
+  const [specialties, setSpecialties] = useState<string[]>([])
+  const [examTypes, setExamTypes] = useState<string[]>([])
 
   useEffect(() => {
     fetchQuestions()
     fetchAvailableYears()
+    fetchSpecialties()
+    fetchExamTypes()
   }, [])
 
   useEffect(() => {
@@ -69,6 +70,36 @@ export function QuestionManagement() {
       }
     } catch (error) {
       console.error("Error fetching years:", error)
+    }
+  }
+
+  const fetchSpecialties = async () => {
+    try {
+      const response = await fetch("/api/specialties")
+      const data = await response.json()
+
+      if (data.specialties) {
+        setSpecialties(data.specialties.map((s: { name: string }) => s.name))
+      }
+    } catch (error) {
+      console.error("Error fetching specialties:", error)
+      // Fallback to hardcoded values if API fails
+      setSpecialties(["Internal Medicine", "Surgery", "Pediatrics", "OB/GYN", "Public Health", "Minor Specialties"])
+    }
+  }
+
+  const fetchExamTypes = async () => {
+    try {
+      const response = await fetch("/api/exam-types")
+      const data = await response.json()
+
+      if (data.examTypes) {
+        setExamTypes(data.examTypes.map((e: { name: string }) => e.name))
+      }
+    } catch (error) {
+      console.error("Error fetching exam types:", error)
+      // Fallback to hardcoded values if API fails
+      setExamTypes(["Exit Exam", "COC"])
     }
   }
 
@@ -142,6 +173,8 @@ export function QuestionManagement() {
     // Refresh the questions list and available years after saving
     fetchQuestions()
     fetchAvailableYears()
+    fetchSpecialties()
+    fetchExamTypes()
   }
 
   const difficultyColors = {
