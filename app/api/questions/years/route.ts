@@ -1,54 +1,66 @@
 import { NextResponse } from "next/server"
 import { createClient } from "@/lib/supabase/server"
-import { createClient as createAdminClient } from "@/lib/supabase/admin-client"
 
 export async function GET() {
+  const supabase = await createClient()
+
   try {
     console.log("=== YEARS API DEBUG START ===")
     
-    // Test with both regular client and admin client
-    const supabase = await createClient()
-    const adminSupabase = createAdminClient()
-    
-    console.log("Testing with regular client first...")
-    
-    const { data: questions, error: fallbackError } = await supabase
-      .from("questions")
-      .select("year")
-      .not("year", "is", null)
-      .range(0, 9999) // Explicitly set range to get all rows
-
-    console.log("Regular client - Fallback query error:", fallbackError)
-    console.log("Regular client - Total questions fetched:", questions?.length)
-    
-    // Also test with admin client
-    console.log("Testing with admin client...")
-    const { data: adminQuestions, error: adminError } = await adminSupabase
+    // Try different approaches to get all years
+    console.log("Method 1: Using range(0, 9999)")
+    const { data: questions1, error: error1 } = await supabase
       .from("questions")
       .select("year")
       .not("year", "is", null)
       .range(0, 9999)
 
-    console.log("Admin client - Query error:", adminError)
-    console.log("Admin client - Total questions fetched:", adminQuestions?.length)
-
-    // Use whichever query returned more results
-    const questionsToUse = (adminQuestions?.length || 0) > (questions?.length || 0) ? adminQuestions : questions
-    const errorToCheck = (adminQuestions?.length || 0) > (questions?.length || 0) ? adminError : fallbackError
-    const clientUsed = (adminQuestions?.length || 0) > (questions?.length || 0) ? "admin" : "regular"
+    console.log("Method 1 - Error:", error1)
+    console.log("Method 1 - Total questions fetched:", questions1?.length)
     
-    console.log(`Using ${clientUsed} client results`)
+    console.log("Method 2: Without range limit")
+    const { data: questions2, error: error2 } = await supabase
+      .from("questions")
+      .select("year")
+      .not("year", "is", null)
 
-    if (errorToCheck) {
-      console.error("Query failed:", errorToCheck)
-      throw errorToCheck
+    console.log("Method 2 - Error:", error2)
+    console.log("Method 2 - Total questions fetched:", questions2?.length)
+    
+    console.log("Method 3: Using limit(10000)")
+    const { data: questions3, error: error3 } = await supabase
+      .from("questions")
+      .select("year")
+      .not("year", "is", null)
+      .limit(10000)
+
+    console.log("Method 3 - Error:", error3)
+    console.log("Method 3 - Total questions fetched:", questions3?.length)
+
+    // Use the method that returned the most results
+    const results = [
+      { data: questions1, error: error1, method: "range(0,9999)" },
+      { data: questions2, error: error2, method: "no limit" },
+      { data: questions3, error: error3, method: "limit(10000)" }
+    ]
+    
+    const bestResult = results
+      .filter(r => !r.error && r.data)
+      .sort((a, b) => (b.data?.length || 0) - (a.data?.length || 0))[0]
+
+    if (!bestResult) {
+      throw new Error("All query methods failed")
     }
 
-    console.log("Raw questions data (first 20):", questionsToUse?.slice(0, 20))
-    console.log("Raw questions data (last 20):", questionsToUse?.slice(-20))
+    console.log(`Using best method: ${bestResult.method} with ${bestResult.data?.length} questions`)
+
+    const questionsToUse = bestResult.data || []
+    
+    console.log("Raw questions data (first 20):", questionsToUse.slice(0, 20))
+    console.log("Raw questions data (last 20):", questionsToUse.slice(-20))
     
     // Get unique years and sort them
-    const allYears = questionsToUse?.map((q) => q.year).filter(Boolean) || []
+    const allYears = questionsToUse.map((q) => q.year).filter(Boolean) || []
     console.log("All years (first 50):", allYears.slice(0, 50))
     console.log("All years count:", allYears.length)
     
@@ -63,9 +75,8 @@ export async function GET() {
     return NextResponse.json({ 
       years: sortedYears,
       debug: {
-        regularClientCount: questions?.length || 0,
-        adminClientCount: adminQuestions?.length || 0,
-        clientUsed,
+        totalQuestions: questionsToUse.length,
+        methodUsed: bestResult.method,
         totalYears: allYears.length,
         uniqueYears: uniqueYears.length
       }
