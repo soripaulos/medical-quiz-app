@@ -58,7 +58,6 @@ export interface UserSession {
   user_id: string
   total_time_spent?: number
   total_active_time?: number
-  active_time_seconds?: number
   session_started_at?: string
   session_paused_at?: string
   last_activity_at?: string

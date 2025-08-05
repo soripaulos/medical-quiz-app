@@ -74,23 +74,11 @@ export async function POST(req: Request) {
   }
 }
 
-export async function GET(req: Request) {
+export async function GET() {
   const supabase = createAdminClient()
-  const { searchParams } = new URL(req.url)
-  
-  // Parse query parameters for pagination and filtering
-  const page = parseInt(searchParams.get('page') || '1')
-  const limit = parseInt(searchParams.get('limit') || '50')
-  const search = searchParams.get('search') || ''
-  const specialty = searchParams.get('specialty') || ''
-  const examType = searchParams.get('examType') || ''
-  const difficulty = searchParams.get('difficulty') || ''
-  const year = searchParams.get('year') || ''
-  const loadAll = searchParams.get('loadAll') === 'true'
 
   try {
-    // Build the base query
-    let query = supabase
+    const { data: questions, error } = await supabase
       .from("questions")
       .select(
         `
@@ -98,79 +86,14 @@ export async function GET(req: Request) {
         specialty:specialties(id, name),
         exam_type:exam_types(id, name)
       `,
-        { count: 'exact' }
       )
+      .order("created_at", { ascending: false })
 
-    // Apply server-side filtering for better performance
-    if (search) {
-      query = query.ilike('question_text', `%${search}%`)
-    }
+    if (error) throw error
 
-    if (specialty && specialty !== 'all') {
-      // Get specialty ID first
-      const { data: specialtyData, error: specialtyError } = await supabase
-        .from("specialties")
-        .select("id")
-        .eq("name", specialty)
-        .single()
-      
-      if (!specialtyError && specialtyData) {
-        query = query.eq('specialty_id', (specialtyData as any).id)
-      }
-    }
-
-    if (examType && examType !== 'all') {
-      // Get exam type ID first
-      const { data: examTypeData, error: examTypeError } = await supabase
-        .from("exam_types")
-        .select("id")
-        .eq("name", examType)
-        .single()
-      
-      if (!examTypeError && examTypeData) {
-        query = query.eq('exam_type_id', (examTypeData as any).id)
-      }
-    }
-
-    if (difficulty && difficulty !== 'all') {
-      query = query.eq('difficulty', parseInt(difficulty))
-    }
-
-    if (year && year !== 'all') {
-      query = query.eq('year', parseInt(year))
-    }
-
-    // Apply pagination unless loadAll is requested
-    if (!loadAll) {
-      const offset = (page - 1) * limit
-      query = query.range(offset, offset + limit - 1)
-    }
-
-    // Order by created_at descending
-    query = query.order("created_at", { ascending: false })
-
-    const { data: questions, error, count } = await query
-
-    if (error) {
-      console.error("Database error:", error)
-      throw error
-    }
-
-    return NextResponse.json({ 
-      questions: questions || [],
-      totalCount: count || 0,
-      page,
-      limit,
-      totalPages: loadAll ? 1 : Math.ceil((count || 0) / limit),
-      hasMore: loadAll ? false : (count || 0) > page * limit
-    })
+    return NextResponse.json({ questions })
   } catch (err) {
     console.error("Error fetching questions:", err)
-    return NextResponse.json({ 
-      ok: false, 
-      message: String(err),
-      questions: [],
-      totalCount: 0 
-    }, { status: 500 })
+    return NextResponse.json({ ok: false, message: String(err) }, { status: 400 })
   }
 }

@@ -20,8 +20,6 @@ export async function POST(req: Request) {
     const supabase = await createClient()
 
     // Shuffle questions if randomization is enabled
-    // Note: Questions are already randomized with better distribution in the filtered API
-    // This provides an additional shuffle if requested
     const finalQuestionIds = randomizeOrder ? [...questionIds].sort(() => Math.random() - 0.5) : questionIds
 
     // Create the session
@@ -44,10 +42,7 @@ export async function POST(req: Request) {
       .select()
       .single()
 
-    if (sessionError) {
-      console.error("Session creation error:", sessionError)
-      throw sessionError
-    }
+    if (sessionError) throw sessionError
 
     // Create session questions
     const sessionQuestions = finalQuestionIds.map((questionId: string, index: number) => ({
@@ -58,10 +53,7 @@ export async function POST(req: Request) {
 
     const { error: questionsError } = await supabase.from("session_questions").insert(sessionQuestions)
 
-    if (questionsError) {
-      console.error("Session questions creation error:", questionsError)
-      throw questionsError
-    }
+    if (questionsError) throw questionsError
 
     // Update user's profile to set this as their active session
     const { error: profileError } = await supabase

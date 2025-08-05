@@ -3,281 +3,209 @@ import { createClient } from "@/lib/supabase/server"
 export interface SessionMetrics {
   correctAnswers: number
   incorrectAnswers: number
-  totalAnswered: number
   unansweredQuestions: number
-  accuracy: number
+  totalTimeSpent: number
 }
 
-export async function calculateSessionMetrics(sessionId: string): Promise<SessionMetrics | null> {
-  try {
-    const supabase = await createClient()
+/**
+ * Calculate session metrics based on user answers
+ */
+export async function calculateSessionMetrics(sessionId: string): Promise<SessionMetrics> {
+  const supabase = await createClient()
+  
+  // Get session data
+  const { data: session } = await supabase
+    .from("user_sessions")
+    .select("total_questions")
+    .eq("id", sessionId)
+    .single()
 
-    // Get session details
-    const { data: session, error: sessionError } = await supabase
-      .from("user_sessions")
-      .select("total_questions")
-      .eq("id", sessionId)
-      .single()
+  // Get answers for this session
+  const { data: answers } = await supabase
+    .from("user_answers")
+    .select("is_correct")
+    .eq("session_id", sessionId)
 
-    if (sessionError || !session) {
-      console.error("Session error:", sessionError)
-      return null
-    }
+  const correctAnswers = answers?.filter((a) => a.is_correct).length || 0
+  const incorrectAnswers = answers?.filter((a) => !a.is_correct).length || 0
+  const totalAnswered = correctAnswers + incorrectAnswers
+  const unansweredQuestions = Math.max(0, (session?.total_questions || 0) - totalAnswered)
 
-    // Get answers for this session
-    const { data: answers, error: answersError } = await supabase
-      .from("user_answers")
-      .select("is_correct")
-      .eq("session_id", sessionId)
-
-    const correctAnswers = answers?.filter((a: any) => a.is_correct).length || 0
-    const incorrectAnswers = answers?.filter((a: any) => !a.is_correct).length || 0
-    const totalAnswered = correctAnswers + incorrectAnswers
-    const unansweredQuestions = Math.max(0, (session?.total_questions || 0) - totalAnswered)
-
-    return {
-      correctAnswers,
-      incorrectAnswers,
-      totalAnswered,
-      unansweredQuestions,
-      accuracy: totalAnswered > 0 ? (correctAnswers / totalAnswered) * 100 : 0,
-    }
-  } catch (error) {
-    console.error("Error calculating session metrics:", error)
-    return null
+  return {
+    correctAnswers,
+    incorrectAnswers,
+    unansweredQuestions,
+    totalTimeSpent: 0, // Will be calculated separately
   }
 }
 
-export async function updateSessionMetrics(sessionId: string): Promise<boolean> {
+/**
+ * Safely pause a session with fallback mechanisms
+ */
+export async function safelyPauseSession(sessionId: string): Promise<{ success: boolean; timeSpent?: number }> {
+  const supabase = await createClient()
+  
   try {
-    const metrics = await calculateSessionMetrics(sessionId)
-    if (!metrics) return false
-
-    const supabase = await createClient()
-
-    const { error } = await supabase
-      .from("user_sessions")
-      .update({
-        correct_answers: metrics.correctAnswers,
-        incorrect_answers: metrics.incorrectAnswers,
-        unanswered_questions: metrics.unansweredQuestions,
-        updated_at: new Date().toISOString(),
-      })
-      .eq("id", sessionId)
-
-    if (error) {
-      console.error("Error updating session metrics:", error)
-      return false
-    }
-
-    return true
-  } catch (error) {
-    console.error("Error in updateSessionMetrics:", error)
-    return false
-  }
-}
-
-export async function completeSession(sessionId: string): Promise<boolean> {
-  try {
-    const supabase = await createClient()
-
-    // First update the metrics
-    const updated = await updateSessionMetrics(sessionId)
-    if (!updated) return false
-
-    // Calculate final active time
-    const { data: activeTime, error: timeError } = await supabase.rpc('calculate_session_active_time', {
+    // First, try to pause using the database function
+    const { data: pauseResult, error: pauseError } = await supabase.rpc('pause_session_activity', {
       session_id: sessionId
     })
 
-    if (timeError) {
-      console.error("Error calculating final active time:", timeError)
+    if (!pauseError) {
+      return { success: true }
     }
 
-    // Mark session as completed
-    const { error } = await supabase
+    console.error("Database function failed, using fallback:", pauseError)
+    
+    // Fallback: manually update session state
+    const { error: fallbackError } = await supabase
       .from("user_sessions")
       .update({
-        is_completed: true,
-        is_active: false,
+        is_paused: true,
+        session_paused_at: new Date().toISOString(),
+        last_activity_at: new Date().toISOString(),
+      })
+      .eq("id", sessionId)
+
+    if (fallbackError) {
+      console.error("Fallback pause failed:", fallbackError)
+      return { success: false }
+    }
+
+    return { success: true }
+  } catch (error) {
+    console.error("Error in safelyPauseSession:", error)
+    return { success: false }
+  }
+}
+
+/**
+ * Safely end a session with fallback mechanisms
+ */
+export async function safelyEndSession(sessionId: string): Promise<{ success: boolean; metrics?: SessionMetrics }> {
+  const supabase = await createClient()
+  
+  try {
+    // Calculate metrics first
+    const metrics = await calculateSessionMetrics(sessionId)
+    
+    // Try to end using the database function
+    const { data: finalActiveTime, error: endError } = await supabase.rpc('end_session_activity', {
+      session_id: sessionId
+    })
+
+    if (!endError) {
+      // Update session with metrics
+      await supabase
+        .from("user_sessions")
+        .update({
+          correct_answers: metrics.correctAnswers,
+          incorrect_answers: metrics.incorrectAnswers,
+          unanswered_questions: metrics.unansweredQuestions,
+        })
+        .eq("id", sessionId)
+
+      return { 
+        success: true, 
+        metrics: { ...metrics, totalTimeSpent: finalActiveTime || 0 } 
+      }
+    }
+
+    console.error("Database function failed, using fallback:", endError)
+    
+    // Fallback: manually end session
+    const { data: session } = await supabase
+      .from("user_sessions")
+      .select("total_active_time")
+      .eq("id", sessionId)
+      .single()
+
+    const fallbackTime = session?.total_active_time || 0
+
+    const { error: fallbackError } = await supabase
+      .from("user_sessions")
+      .update({
+        total_active_time: fallbackTime,
+        correct_answers: metrics.correctAnswers,
+        incorrect_answers: metrics.incorrectAnswers,
+        unanswered_questions: metrics.unansweredQuestions,
         completed_at: new Date().toISOString(),
-        active_time_seconds: activeTime || 0,
-        updated_at: new Date().toISOString(),
-      })
-      .eq("id", sessionId)
-
-    if (error) {
-      console.error("Error completing session:", error)
-      return false
-    }
-
-    return true
-  } catch (error) {
-    console.error("Error in completeSession:", error)
-    return false
-  }
-}
-
-export async function pauseSession(sessionId: string): Promise<boolean> {
-  try {
-    const supabase = await createClient()
-
-    const { error } = await supabase
-      .from("user_sessions")
-      .update({
         is_active: false,
-        updated_at: new Date().toISOString(),
+        is_paused: false,
       })
       .eq("id", sessionId)
 
-    if (error) {
-      console.error("Error pausing session:", error)
-      return false
+    if (fallbackError) {
+      console.error("Fallback end failed:", fallbackError)
+      return { success: false }
     }
 
-    return true
+    return { 
+      success: true, 
+      metrics: { ...metrics, totalTimeSpent: fallbackTime } 
+    }
   } catch (error) {
-    console.error("Error in pauseSession:", error)
-    return false
+    console.error("Error in safelyEndSession:", error)
+    return { success: false }
   }
 }
 
-export async function resumeSession(sessionId: string): Promise<boolean> {
+/**
+ * Clean up orphaned sessions (sessions that were not properly closed)
+ */
+export async function cleanupOrphanedSessions(userId: string): Promise<void> {
+  const supabase = await createClient()
+  
   try {
-    const supabase = await createClient()
-
-    const { error } = await supabase
+    // Find sessions that are active but haven't been updated in a while (e.g., 1 hour)
+    const oneHourAgo = new Date(Date.now() - 60 * 60 * 1000).toISOString()
+    
+    const { data: orphanedSessions } = await supabase
       .from("user_sessions")
-      .update({
-        is_active: true,
-        updated_at: new Date().toISOString(),
-      })
-      .eq("id", sessionId)
-
-    if (error) {
-      console.error("Error resuming session:", error)
-      return false
-    }
-
-    return true
-  } catch (error) {
-    console.error("Error in resumeSession:", error)
-    return false
-  }
-}
-
-export async function getActiveSession(userId: string): Promise<any | null> {
-  try {
-    const supabase = await createClient()
-
-    const { data: session, error } = await supabase
-      .from("user_sessions")
-      .select("*")
+      .select("id")
       .eq("user_id", userId)
       .eq("is_active", true)
-      .eq("is_completed", false)
-      .single()
+      .lt("last_activity_at", oneHourAgo)
+
+    if (orphanedSessions && orphanedSessions.length > 0) {
+      console.log(`Found ${orphanedSessions.length} orphaned sessions for user ${userId}`)
+      
+      // End each orphaned session
+      for (const session of orphanedSessions) {
+        await safelyEndSession(session.id)
+      }
+    }
+  } catch (error) {
+    console.error("Error cleaning up orphaned sessions:", error)
+  }
+}
+
+/**
+ * Get accurate session time using the database function
+ */
+export async function getSessionActiveTime(sessionId: string): Promise<number> {
+  const supabase = await createClient()
+  
+  try {
+    const { data: activeTime, error } = await supabase.rpc('calculate_session_active_time', {
+      session_id: sessionId
+    })
 
     if (error) {
-      if (error.code === 'PGRST116') {
-        // No active session found
-        return null
-      }
-      console.error("Error getting active session:", error)
-      return null
+      console.error("Error calculating active time:", error)
+      // Fallback to stored time
+      const { data: session } = await supabase
+        .from("user_sessions")
+        .select("total_active_time")
+        .eq("id", sessionId)
+        .single()
+      
+      return session?.total_active_time || 0
     }
 
-    return session
+    return activeTime || 0
   } catch (error) {
-    console.error("Error in getActiveSession:", error)
-    return null
-  }
-}
-
-export async function cleanupInactiveSessions(): Promise<number> {
-  try {
-    const supabase = await createClient()
-
-    // Sessions inactive for more than 24 hours should be marked as completed
-    const cutoffTime = new Date()
-    cutoffTime.setHours(cutoffTime.getHours() - 24)
-
-    const { data: inactiveSessions, error: fetchError } = await supabase
-      .from("user_sessions")
-      .select("id")
-      .eq("is_active", true)
-      .eq("is_completed", false)
-      .lt("updated_at", cutoffTime.toISOString())
-
-    if (fetchError) {
-      console.error("Error fetching inactive sessions:", fetchError)
-      return 0
-    }
-
-    if (!inactiveSessions || inactiveSessions.length === 0) {
-      return 0
-    }
-
-    // Complete each inactive session
-    let completedCount = 0
-    for (const session of inactiveSessions) {
-      const completed = await completeSession(session.id)
-      if (completed) {
-        completedCount++
-      }
-    }
-
-    return completedCount
-  } catch (error) {
-    console.error("Error in cleanupInactiveSessions:", error)
+    console.error("Error in getSessionActiveTime:", error)
     return 0
-  }
-}
-
-export async function getSessionProgress(sessionId: string): Promise<{
-  totalQuestions: number
-  answeredQuestions: number
-  currentQuestionIndex: number
-  progressPercentage: number
-} | null> {
-  try {
-    const supabase = await createClient()
-
-    // Get session details
-    const { data: session, error: sessionError } = await supabase
-      .from("user_sessions")
-      .select("total_questions")
-      .eq("id", sessionId)
-      .single()
-
-    if (sessionError || !session) {
-      return null
-    }
-
-    // Get answered questions count
-    const { data: answers, error: answersError } = await supabase
-      .from("user_answers")
-      .select("id")
-      .eq("session_id", sessionId)
-
-    if (answersError) {
-      console.error("Error getting answers:", answersError)
-      return null
-    }
-
-    const totalQuestions = session.total_questions || 0
-    const answeredQuestions = answers?.length || 0
-    const currentQuestionIndex = Math.min(answeredQuestions, totalQuestions - 1)
-    const progressPercentage = totalQuestions > 0 ? Math.round((answeredQuestions / totalQuestions) * 100) : 0
-
-    return {
-      totalQuestions,
-      answeredQuestions,
-      currentQuestionIndex,
-      progressPercentage,
-    }
-  } catch (error) {
-    console.error("Error in getSessionProgress:", error)
-    return null
   }
 }

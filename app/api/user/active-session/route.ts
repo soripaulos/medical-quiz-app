@@ -42,8 +42,6 @@ export async function GET() {
       .select("*")
       .eq("id", profile.active_session_id)
       .eq("is_active", true) // Only return if session is still active
-      .eq("is_completed", false) // Exclude completed sessions
-      .is("completed_at", null) // Exclude sessions with completion timestamp
       .single()
 
     if (sessionError) {

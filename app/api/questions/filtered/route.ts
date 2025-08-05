@@ -1,273 +1,127 @@
 import { NextResponse } from "next/server"
 import { createClient } from "@/lib/supabase/server"
-import { questionCache } from "@/lib/cache/question-cache"
 
 export async function POST(req: Request) {
-  const { filters, userId, limit = 5000, offset = 0 } = await req.json()
+  const { filters, userId } = await req.json()
 
   const supabase = await createClient()
 
   try {
-    // Check cache first for exact match
-    const cachedResult = questionCache.getFilteredQuestions(filters, userId, limit, offset)
-    if (cachedResult) {
-      return NextResponse.json({
-        questions: cachedResult.questions,
-        count: cachedResult.count,
-        hasMore: cachedResult.questions.length === limit,
-        offset: offset,
-        limit: limit,
-        performance: {
-          totalFromDB: cachedResult.totalFromDB,
-          afterFiltering: cachedResult.questions.length,
-          statusFilteringApplied: !!(filters.questionStatus && filters.questionStatus.length > 0),
-          cached: true,
-          responseTime: '<10ms'
-        }
-      })
-    }
-
-    // Optimize by combining specialty and exam type lookups in parallel with caching
-    const [specialtyIds, examTypeIds] = await Promise.all([
-      // Get specialty IDs with caching
-      filters.specialties && filters.specialties.length > 0
-        ? (async () => {
-            const cached = questionCache.getSpecialtyIds(filters.specialties)
-            if (cached) return cached
-            
-            const { data: specialtyData, error: specialtyError } = await supabase
-              .from("specialties")
-              .select("id, name")
-              .in("name", filters.specialties)
-            
-            if (!specialtyError && specialtyData) {
-              const ids = specialtyData.map((s: any) => s.id) || []
-              questionCache.setSpecialtyIds(filters.specialties, ids)
-              return ids
-            }
-            return []
-          })()
-        : Promise.resolve([]),
-      
-      // Get exam type IDs with caching
-      filters.examTypes && filters.examTypes.length > 0
-        ? (async () => {
-            const cached = questionCache.getExamTypeIds(filters.examTypes)
-            if (cached) return cached
-            
-            const { data: examTypeData, error: examTypeError } = await supabase
-              .from("exam_types")
-              .select("id, name")
-              .in("name", filters.examTypes)
-            
-            if (!examTypeError && examTypeData) {
-              const ids = examTypeData.map((e: any) => e.id) || []
-              questionCache.setExamTypeIds(filters.examTypes, ids)
-              return ids
-            }
-            return []
-          })()
-        : Promise.resolve([])
-    ])
-
-    // Build optimized base query using indexes
-    const buildBaseQuery = (selectClause: string, includeCount = false) => {
-      let query = supabase.from("questions").select(selectClause, includeCount ? { count: "exact", head: true } : {})
-
-      // Apply filters in order of selectivity (most selective first)
-      // Years are usually most selective
-      if (filters.years && filters.years.length > 0) {
-        query = query.in("year", filters.years)
-      }
-
-      // Difficulty is usually quite selective
-      if (filters.difficulties && filters.difficulties.length > 0) {
-        query = query.in("difficulty", filters.difficulties)
-      }
-
-      // Specialty filtering (use IDs for better index performance)
-      if (filters.specialties && filters.specialties.length > 0 && specialtyIds.length > 0) {
-        query = query.in("specialty_id", specialtyIds)
-      }
-
-      // Exam type filtering (use IDs for better index performance)
-      if (filters.examTypes && filters.examTypes.length > 0 && examTypeIds.length > 0) {
-        query = query.in("exam_type_id", examTypeIds)
-      }
-
-      return query
-    }
-
-    // Get count and data in parallel for better performance
-    const [countResult, questionsResult] = await Promise.all([
-      // Get total count
-      buildBaseQuery("*", true),
-      
-      // Get actual questions with joins
-      buildBaseQuery(`
+    // Build the base query
+    let query = supabase.from("questions").select(`
         *,
         specialty:specialties(id, name),
         exam_type:exam_types(id, name)
-      `).range(offset, offset + limit - 1).order('created_at', { ascending: false })
-    ])
+      `)
 
-    if (countResult.error) throw countResult.error
-    if (questionsResult.error) throw questionsResult.error
+    // Apply specialty filters - if empty array, include all
+    if (filters.specialties && filters.specialties.length > 0) {
+      const { data: specialtyIds } = await supabase.from("specialties").select("id").in("name", filters.specialties)
 
-    const totalCount = countResult.count || 0
-    let questions = questionsResult.data || []
-
-    // Optimize user data fetching - only fetch if status filtering is needed
-    let userProgress: any[] = []
-    let userAnswers: any[] = []
-    let latestAnswerMap = new Map<string, { is_correct: boolean; answered_at: string }>()
-
-    if (userId && userId !== "temp-user-id" && filters.questionStatus && filters.questionStatus.length > 0) {
-      // Extract question IDs for targeted queries
-      const questionIds = questions.map((q: any) => q.id)
-      
-      if (questionIds.length > 0) {
-        // Fetch user data only for the questions we're working with
-        const [progressResult, answersResult] = await Promise.all([
-          // Only fetch progress if flagged status is requested
-          filters.questionStatus.includes("flagged")
-            ? supabase.from("user_question_progress")
-                .select("question_id, is_flagged")
-                .eq("user_id", userId)
-                .in("question_id", questionIds)
-            : Promise.resolve({ data: [], error: null }),
-          
-          // Fetch answers for status filtering
-          supabase.from("user_answers")
-            .select("question_id, is_correct, answered_at")
-            .eq("user_id", userId)
-            .in("question_id", questionIds)
-            .order("answered_at", { ascending: false })
-        ])
-
-        userProgress = progressResult.data || []
-        userAnswers = answersResult.data || []
-
-        // Build answer map more efficiently
-        userAnswers.forEach((answer: any) => {
-          if (!latestAnswerMap.has(answer.question_id)) {
-            latestAnswerMap.set(answer.question_id, {
-              is_correct: answer.is_correct,
-              answered_at: answer.answered_at,
-            })
-          }
-        })
+      if (specialtyIds && specialtyIds.length > 0) {
+        query = query.in(
+          "specialty_id",
+          specialtyIds.map((s) => s.id),
+        )
       }
     }
 
-    // Apply status filtering more efficiently
-    if (filters.questionStatus && filters.questionStatus.length > 0) {
-      // Create progress map for faster lookups
-      const progressMap = new Map(userProgress.map((p: any) => [p.question_id, p]))
-      
-      // Pre-compute status checks to avoid repeated calculations
-      const statusChecks = {
-        answered: filters.questionStatus.includes("answered"),
-        unanswered: filters.questionStatus.includes("unanswered"),
-        correct: filters.questionStatus.includes("correct"),
-        incorrect: filters.questionStatus.includes("incorrect"),
-        flagged: filters.questionStatus.includes("flagged")
+    // Apply exam type filters - if empty array, include all
+    if (filters.examTypes && filters.examTypes.length > 0) {
+      const { data: examTypeIds } = await supabase.from("exam_types").select("id").in("name", filters.examTypes)
+
+      if (examTypeIds && examTypeIds.length > 0) {
+        query = query.in(
+          "exam_type_id",
+          examTypeIds.map((e) => e.id),
+        )
       }
+    }
 
-      questions = questions.filter((question: any) => {
+    // Apply year filters - if empty array, include all
+    if (filters.years && filters.years.length > 0) {
+      query = query.in("year", filters.years)
+    }
+
+    // Apply difficulty filters - if empty array, include all
+    if (filters.difficulties && filters.difficulties.length > 0) {
+      query = query.in("difficulty", filters.difficulties)
+    }
+
+    const { data: questions, error } = await query
+
+    if (error) throw error
+
+    // Get user progress and answers for filtering by question status
+    let userProgress: any[] = []
+    let userAnswers: any[] = []
+
+    if (userId && userId !== "temp-user-id") {
+      const { data: progressData } = await supabase.from("user_question_progress").select("*").eq("user_id", userId)
+
+      // Get all user answers with question_id, is_correct, and answered_at
+      const { data: answersData } = await supabase
+        .from("user_answers")
+        .select("question_id, is_correct, answered_at")
+        .eq("user_id", userId)
+        .order("answered_at", { ascending: false }) // Most recent first
+
+      userProgress = progressData || []
+      userAnswers = answersData || []
+    }
+
+    // Filter questions based on status - if empty array, include all
+    let filteredQuestions = questions || []
+
+    if (filters.questionStatus && filters.questionStatus.length > 0) {
+      // Create a map of question_id to most recent answer
+      const latestAnswerMap = new Map<string, { is_correct: boolean; answered_at: string }>()
+
+      userAnswers.forEach((answer) => {
+        if (!latestAnswerMap.has(answer.question_id)) {
+          // Since answers are ordered by answered_at DESC, the first occurrence is the most recent
+          latestAnswerMap.set(answer.question_id, {
+            is_correct: answer.is_correct,
+            answered_at: answer.answered_at,
+          })
+        }
+      })
+
+      filteredQuestions = filteredQuestions.filter((question) => {
+        const progress = userProgress.find((p) => p.question_id === question.id)
         const latestAnswer = latestAnswerMap.get(question.id)
-        const progress = progressMap.get(question.id)
 
+        // Determine question status based on most recent answer
         const hasAnswered = !!latestAnswer
         const isCorrect = hasAnswered && latestAnswer.is_correct
         const isIncorrect = hasAnswered && !latestAnswer.is_correct
         const isFlagged = progress?.is_flagged || false
 
-        return (
-          (statusChecks.answered && hasAnswered) ||
-          (statusChecks.unanswered && !hasAnswered) ||
-          (statusChecks.correct && isCorrect) ||
-          (statusChecks.incorrect && isIncorrect) ||
-          (statusChecks.flagged && isFlagged)
-        )
+        return filters.questionStatus.some((status: string) => {
+          switch (status) {
+            case "answered":
+              return hasAnswered
+            case "unanswered":
+              return !hasAnswered
+            case "correct":
+              return isCorrect
+            case "incorrect":
+              return isIncorrect
+            case "flagged":
+              return isFlagged
+            default:
+              return false
+          }
+        })
       })
     }
 
-    // Optimized randomization with better performance
-    if (questions.length > 0) {
-      // Simple Fisher-Yates shuffle for better performance
-      for (let i = questions.length - 1; i > 0; i--) {
-        const j = Math.floor(Math.random() * (i + 1));
-        [questions[i], questions[j]] = [questions[j], questions[i]]
-      }
-
-      // If we need specialty diversity, do a secondary sort
-      if (questions.length > 100) { // Only for larger sets
-        // Group by specialty and interleave
-        const specialtyGroups = new Map<string, any[]>()
-        
-        questions.forEach((question: any) => {
-          const specialtyName = question.specialty?.name || 'Unknown'
-          if (!specialtyGroups.has(specialtyName)) {
-            specialtyGroups.set(specialtyName, [])
-          }
-          specialtyGroups.get(specialtyName)!.push(question)
-        })
-
-        // Interleave if we have multiple specialties
-        if (specialtyGroups.size > 1) {
-          const interleavedQuestions: any[] = []
-          const specialtyArrays = Array.from(specialtyGroups.values())
-          const maxLength = Math.max(...specialtyArrays.map(arr => arr.length))
-
-          for (let i = 0; i < maxLength; i++) {
-            specialtyArrays.forEach(arr => {
-              if (i < arr.length) {
-                interleavedQuestions.push(arr[i])
-              }
-            })
-          }
-
-          questions = interleavedQuestions
-        }
-      }
-    }
-
-    // Return appropriate count
-    const finalCount = filters.questionStatus && filters.questionStatus.length > 0 
-      ? questions.length  // If status filtering is applied, use the filtered count
-      : totalCount        // Otherwise, use the total count from the database
-
-    // Cache the result for future requests
-    const cacheData = {
-      questions,
-      count: finalCount,
-      totalFromDB: totalCount
-    }
-    questionCache.setFilteredQuestions(filters, userId, limit, offset, cacheData)
-
     return NextResponse.json({
-      questions,
-      count: finalCount,
-      hasMore: questions.length === limit,
-      offset: offset,
-      limit: limit,
-      performance: {
-        totalFromDB: totalCount,
-        afterFiltering: questions.length,
-        statusFilteringApplied: !!(filters.questionStatus && filters.questionStatus.length > 0),
-        cached: false,
-        responseTime: 'optimized'
-      }
+      questions: filteredQuestions,
+      count: filteredQuestions.length,
     })
-
   } catch (err) {
     console.error("Error filtering questions:", err)
-    return NextResponse.json({ 
-      ok: false, 
-      message: String(err),
-      questions: [],
-      count: 0
-    }, { status: 500 })
+    return NextResponse.json({ ok: false, message: String(err) }, { status: 400 })
   }
 }
