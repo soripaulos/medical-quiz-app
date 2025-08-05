@@ -51,20 +51,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           }, 1000)
         }
       } else if (event === 'SIGNED_IN') {
-        // Check if user was in a test session before signing in
-        const activeSession = localStorage.getItem('activeTestSession')
-        if (activeSession) {
-          try {
-            const sessionData = JSON.parse(activeSession)
-            // Redirect back to the test session
-            router.push(`/test/${sessionData.sessionId}`)
-          } catch (error) {
-            console.error('Error parsing active session:', error)
-            router.push('/')
-          }
-        } else {
-          router.push('/')
-        }
+        // Always redirect to home page on sign in - let user choose to continue session via UnifiedSessionManager
+        router.push('/')
         router.refresh()
       }
     })

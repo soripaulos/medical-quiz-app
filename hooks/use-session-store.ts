@@ -331,18 +331,20 @@ export const useSessionStore = create<SessionState>((set, get) => ({
 // Custom hook for easier session management
 export const useSession = (sessionId?: string) => {
   const store = useSessionStore()
+  const loadedSessionIdRef = React.useRef<string | null>(null)
   
-  // Auto-load session when sessionId changes
+  // Auto-load session when sessionId changes (prevent duplicate loads)
   React.useEffect(() => {
-    if (sessionId && sessionId !== store.session?.id) {
+    if (sessionId && sessionId !== loadedSessionIdRef.current && !store.loading) {
       console.log(`Loading session: ${sessionId}`)
+      loadedSessionIdRef.current = sessionId
       store.loadSession(sessionId)
     }
-  }, [sessionId, store.session?.id])
+  }, [sessionId, store.loading])
   
   // Set up real-time subscription when session is loaded
   React.useEffect(() => {
-    if (sessionId && store.session && !store.loading) {
+    if (sessionId && store.session && store.session.id === sessionId && !store.loading) {
       console.log(`Setting up real-time for session: ${sessionId}`)
       store.subscribeToSession(sessionId)
     }

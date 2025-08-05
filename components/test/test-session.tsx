@@ -21,6 +21,7 @@ export function TestSession({ sessionId }: TestSessionProps) {
   const [connectionStatus, setConnectionStatus] = useState<'connected' | 'disconnected' | 'checking'>('checking')
   const sessionPersistenceRef = useRef<NodeJS.Timeout | null>(null)
   const recoveryAttemptRef = useRef<number>(0)
+  const initializationRef = useRef<boolean>(false)
   
   // Use our session store
   const {
@@ -99,45 +100,37 @@ export function TestSession({ sessionId }: TestSessionProps) {
     return () => clearInterval(connectionCheckInterval)
   }, [])
 
-  // Simplified session recovery - remove redundant recovery logic
+  // Session initialization - only run once when component mounts and session is loaded
   useEffect(() => {
-    const syncSessionOnMount = async () => {
-      if (session && session.is_active) {
-        try {
-          // Ensure session is resumed and get updated time data
-          const resumeResponse = await fetch(`/api/sessions/${sessionId}/resume`, {
-            method: "POST",
-          })
+    const initializeSession = async () => {
+      if (initializationRef.current || !session || loading) return
+      initializationRef.current = true
+      
+      try {
+        // Try to resume if needed (without reloading session data)
+        const resumeResponse = await fetch(`/api/sessions/${sessionId}/resume`, {
+          method: "POST",
+        })
+        
+        if (resumeResponse.ok) {
+          console.log('Session resumed successfully')
           
-          if (resumeResponse.ok) {
-            const resumeData = await resumeResponse.json()
-            console.log('Resume response:', resumeData)
-            
-            // Always force refresh session data after resume to get latest time values
-            await loadSession(sessionId)
-            console.log('Session data refreshed after resume')
-            
-            if (resumeData.sessionData) {
-              console.log('Updated session time data:', resumeData.sessionData)
-            }
-          }
-          
-          // Sync current time data
+          // Sync current time data without reloading entire session
           await fetch(`/api/sessions/${sessionId}/active-time`, {
             method: "POST",
           })
-        } catch (error) {
-          console.warn("Could not sync session on mount, but continuing:", error)
         }
+      } catch (error) {
+        console.warn("Could not initialize session, but continuing:", error)
       }
     }
     
-    syncSessionOnMount()
-  }, [sessionId, session])
+    initializeSession()
+  }, [session, loading, sessionId]) // Wait for session to be loaded by useSession hook
 
   // Enhanced error recovery with exponential backoff and database connectivity checks
   useEffect(() => {
-    if (error && !loading) {
+    if (error && !loading && error !== lastError) {
       setLastError(error)
       
       // Check if error is due to database connectivity or authentication
@@ -153,7 +146,7 @@ export function TestSession({ sessionId }: TestSessionProps) {
       // Implement exponential backoff for retry attempts
       const retryDelay = Math.min(1000 * Math.pow(2, recoveryAttemptRef.current), 30000)
       
-      if (recoveryAttemptRef.current < 5) { // Max 5 retry attempts
+      if (recoveryAttemptRef.current < 3) { // Reduced max attempts to prevent excessive retries
         console.log(`Attempting session recovery in ${retryDelay}ms (attempt ${recoveryAttemptRef.current + 1})`)
         console.log(`Error type: ${isDatabaseError ? 'Database/Network' : 'Other'} - ${error}`)
         
@@ -161,28 +154,28 @@ export function TestSession({ sessionId }: TestSessionProps) {
           recoveryAttemptRef.current++
           setRetryCount(prev => prev + 1)
           
-                      try {
-              // Test database connectivity first for database errors
-              if (isDatabaseError) {
-                setConnectionStatus('checking')
-                const healthCheck = await fetch('/api/sessions/cleanup', { method: 'HEAD' })
-                if (!healthCheck.ok) {
-                  setConnectionStatus('disconnected')
-                  throw new Error('Database connectivity issue')
-                }
-                setConnectionStatus('connected')
+          try {
+            // Test database connectivity first for database errors
+            if (isDatabaseError) {
+              setConnectionStatus('checking')
+              const healthCheck = await fetch('/api/sessions/cleanup', { method: 'HEAD' })
+              if (!healthCheck.ok) {
+                setConnectionStatus('disconnected')
+                throw new Error('Database connectivity issue')
               }
-              
-              await loadSession(sessionId)
-              // If successful, reset retry count
-              recoveryAttemptRef.current = 0
-              setLastError(null)
               setConnectionStatus('connected')
-              console.log('Session recovery successful')
-            } catch (retryError) {
-              console.error('Retry failed:', retryError)
-              setConnectionStatus('disconnected')
             }
+            
+            await loadSession(sessionId)
+            // If successful, reset retry count
+            recoveryAttemptRef.current = 0
+            setLastError(null)
+            setConnectionStatus('connected')
+            console.log('Session recovery successful')
+          } catch (retryError) {
+            console.error('Retry failed:', retryError)
+            setConnectionStatus('disconnected')
+          }
         }, retryDelay)
         
         return () => clearTimeout(retryTimer)
@@ -190,7 +183,7 @@ export function TestSession({ sessionId }: TestSessionProps) {
         console.error("Max recovery attempts reached. Session recovery failed.")
       }
     }
-  }, [error, loading, sessionId, loadSession, router])
+  }, [error, loading, sessionId]) // Removed loadSession and router from dependencies to prevent loops
 
   // Prevent page unload during active sessions
   useEffect(() => {
@@ -237,24 +230,7 @@ export function TestSession({ sessionId }: TestSessionProps) {
     }
   }, [session, sessionId])
 
-  // Resume session activity when component mounts
-  useEffect(() => {
-    const resumeSession = async () => {
-      if (session && session.is_paused) {
-        try {
-          const response = await fetch(`/api/sessions/${sessionId}/resume`, {
-            method: "POST",
-          })
-          if (!response.ok) {
-            console.warn("Could not resume session activity, but continuing")
-          }
-        } catch (error) {
-          console.warn("Error resuming session activity, but continuing:", error)
-        }
-      }
-    }
-    resumeSession()
-  }, [session, sessionId])
+  // Note: Session resume is handled in the initialization useEffect above to prevent duplicate calls
 
   const handleAnswerSelect = async (questionId: string, choiceLetter: string) => {
     if (!session) return
