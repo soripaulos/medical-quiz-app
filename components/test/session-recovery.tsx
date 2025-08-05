@@ -160,7 +160,7 @@ export function UnifiedSessionManager({ onRecover, onDismiss }: UnifiedSessionMa
         currentQuestionIndex: Math.max(0, session.current_question_index || 0),
         totalQuestions: Math.max(0, session.total_questions || 0),
         timeRemaining: session.time_remaining,
-        activeTimeSeconds: session.active_time_seconds,
+        activeTimeSeconds: session.total_active_time,
         lastActivity: Date.now(),
         isActive: Boolean(session.is_active),
         isPaused: Boolean(session.is_paused),

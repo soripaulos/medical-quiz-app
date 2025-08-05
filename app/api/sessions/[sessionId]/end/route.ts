@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server"
 import { createClient } from "@/lib/supabase/server"
-import { completeSession } from "@/lib/session-utils"
+import { safelyEndSession } from "@/lib/session-utils"
 import { verifySession } from "@/lib/auth"
 
 export async function POST(req: Request, context: { params: Promise<{ sessionId: string }> }) {
@@ -28,9 +28,9 @@ export async function POST(req: Request, context: { params: Promise<{ sessionId:
     }
 
     // Complete the session
-    const success = await completeSession(sessionId)
+    const result = await safelyEndSession(sessionId)
 
-    if (!success) {
+    if (!result.success) {
       return NextResponse.json({ error: "Failed to end session" }, { status: 500 })
     }
 

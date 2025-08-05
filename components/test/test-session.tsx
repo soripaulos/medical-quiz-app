@@ -47,7 +47,7 @@ export function TestSession({ sessionId }: TestSessionProps) {
         currentQuestionIndex: session.current_question_index,
         totalQuestions: questions.length,
         timeRemaining: session.time_remaining,
-        activeTimeSeconds: session.active_time_seconds || 0,
+        activeTimeSeconds: session.total_active_time || 0,
         lastActivity: Date.now(),
         isActive: session.is_active,
         isPaused: session.is_paused
@@ -67,7 +67,7 @@ export function TestSession({ sessionId }: TestSessionProps) {
           lastActivity: Date.now(),
           currentQuestionIndex: session.current_question_index,
           timeRemaining: session.time_remaining,
-          activeTimeSeconds: session.active_time_seconds || 0
+          activeTimeSeconds: session.total_active_time || 0
         }
         localStorage.setItem('activeTestSession', JSON.stringify(updatedData))
       }, 30000) // Reduced to every 30 seconds
@@ -317,6 +317,8 @@ export function TestSession({ sessionId }: TestSessionProps) {
   }
 
   const handleSaveNote = async (questionId: string, note: string) => {
+    if (!session) return
+
     try {
       const response = await fetch(`/api/notes/save`, {
         method: "POST",
@@ -324,9 +326,9 @@ export function TestSession({ sessionId }: TestSessionProps) {
           "Content-Type": "application/json",
         },
         body: JSON.stringify({
-          question_id: questionId,
-          session_id: sessionId,
-          note_text: note,
+          userId: session.user_id,
+          questionId: questionId,
+          noteText: note,
         }),
       })
 
