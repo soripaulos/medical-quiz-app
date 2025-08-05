@@ -317,6 +317,8 @@ export function TestSession({ sessionId }: TestSessionProps) {
   }
 
   const handleSaveNote = async (questionId: string, note: string) => {
+    if (!session) return
+
     try {
       const response = await fetch(`/api/notes/save`, {
         method: "POST",
@@ -324,9 +326,9 @@ export function TestSession({ sessionId }: TestSessionProps) {
           "Content-Type": "application/json",
         },
         body: JSON.stringify({
-          question_id: questionId,
-          session_id: sessionId,
-          note_text: note,
+          userId: session.user_id,
+          questionId: questionId,
+          noteText: note,
         }),
       })
 
