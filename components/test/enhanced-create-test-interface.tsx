@@ -230,21 +230,37 @@ export function EnhancedCreateTestInterface({ userProfile }: EnhancedCreateTestI
   const fetchFilteredQuestions = async () => {
     setLoading(true)
     try {
-      // Use the dedicated count endpoint for better performance
-      const countRes = await fetch("/api/questions/count", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ filters, userId: user?.id }),
-      })
+      // If question status filters are applied, use the filtered endpoint
+      if (filters.questionStatus && filters.questionStatus.length > 0) {
+        const filteredRes = await fetch("/api/questions/filtered", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ filters, userId: user?.id, countOnly: true }),
+        })
 
-      const countData = await safeJson(countRes)
+        const filteredData = await safeJson(filteredRes)
 
-      if (!countRes.ok || !countData) {
-        throw new Error(countData?.message || `Server returned ${countRes.status}`)
+        if (!filteredRes.ok || !filteredData) {
+          throw new Error(filteredData?.message || `Server returned ${filteredRes.status}`)
+        }
+
+        setQuestionCount(filteredData.count || 0)
+      } else {
+        // Use the dedicated count endpoint for better performance when no question status filters
+        const countRes = await fetch("/api/questions/count", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ filters }),
+        })
+
+        const countData = await safeJson(countRes)
+
+        if (!countRes.ok || !countData) {
+          throw new Error(countData?.message || `Server returned ${countRes.status}`)
+        }
+
+        setQuestionCount(countData.count || 0)
       }
-
-      // Set the question count from the dedicated endpoint
-      setQuestionCount(countData.count || 0)
       
       // Only fetch actual questions if we need them (for preview or test creation)
       // For now, we'll clear the available questions since we're just showing the count
