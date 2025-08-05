@@ -103,25 +103,24 @@ export function CreateTestInterface() {
   const fetchFilteredQuestions = async () => {
     setLoading(true)
     try {
-      const response = await fetch("/api/questions/filtered", {
+      // Use the dedicated count endpoint for better performance
+      const response = await fetch("/api/questions/count", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          filters,
-          userId: user?.id || "anonymous",
-        }),
+        body: JSON.stringify({ filters }),
       })
 
       const data = await response.json()
-      if (data.questions) {
-        setAvailableQuestions(data.questions)
+      if (data.count !== undefined) {
         setQuestionCount(data.count)
+        // Clear available questions since we're only getting the count
+        setAvailableQuestions([])
       } else {
         setAvailableQuestions([])
         setQuestionCount(0)
       }
     } catch (error) {
-      console.error("Error fetching questions:", error)
+      console.error("Error fetching question count:", error)
       setAvailableQuestions([])
       setQuestionCount(0)
     } finally {
@@ -198,6 +197,24 @@ export function CreateTestInterface() {
 
     setCreating(true)
     try {
+      // Fetch the actual questions for test creation
+      const questionsRes = await fetch("/api/questions/filtered", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ filters, userId: user?.id || "anonymous" }),
+      })
+
+      const questionsData = await questionsRes.json()
+
+      if (!questionsRes.ok || !questionsData.questions) {
+        throw new Error(questionsData?.message || `Failed to fetch questions: ${questionsRes.status}`)
+      }
+
+      const questions = questionsData.questions || []
+      if (questions.length === 0) {
+        throw new Error("No questions available with the current filters")
+      }
+
       const res = await fetch("/api/sessions/create", {
         method: "POST",
         headers: { "Content-Type": "application/json", Accept: "application/json" },
@@ -205,7 +222,7 @@ export function CreateTestInterface() {
           sessionName: sessionName.trim(),
           sessionMode,
           filters,
-          questionIds: availableQuestions.map((q) => q.id),
+          questionIds: questions.map((q: any) => q.id),
           userId: user?.id || "anonymous",
           timeLimit: sessionMode === "exam" ? timeLimit : null,
         }),

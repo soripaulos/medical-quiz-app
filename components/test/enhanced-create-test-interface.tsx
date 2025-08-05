@@ -230,34 +230,32 @@ export function EnhancedCreateTestInterface({ userProfile }: EnhancedCreateTestI
   const fetchFilteredQuestions = async () => {
     setLoading(true)
     try {
-      const res = await fetch("/api/questions/filtered", {
+      // Use the dedicated count endpoint for better performance
+      const countRes = await fetch("/api/questions/count", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ filters, userId: user?.id }),
+        body: JSON.stringify({ filters }),
       })
 
-      const data = await safeJson(res)
+      const countData = await safeJson(countRes)
 
-      if (!res.ok || !data) {
-        throw new Error(data?.message || `Server returned ${res.status}`)
+      if (!countRes.ok || !countData) {
+        throw new Error(countData?.message || `Server returned ${countRes.status}`)
       }
 
-      if (data?.questions) {
-        setAvailableQuestions(data.questions)
-        setQuestionCount(data.count)
-      } else {
-        setAvailableQuestions([])
-        setQuestionCount(0)
-        if (process.env.NODE_ENV === "development") {
-          alert("Failed to load questions. Check the console for errors.")
-        }
-      }
+      // Set the question count from the dedicated endpoint
+      setQuestionCount(countData.count || 0)
+      
+      // Only fetch actual questions if we need them (for preview or test creation)
+      // For now, we'll clear the available questions since we're just showing the count
+      setAvailableQuestions([])
+      
     } catch (err) {
-      console.error("Error fetching questions:", err)
+      console.error("Error fetching question count:", err)
       setAvailableQuestions([])
       setQuestionCount(0)
       if (process.env.NODE_ENV === "development") {
-        alert("Failed to load questions. Check the console for errors.")
+        alert("Failed to load question count. Check the console for errors.")
       }
     } finally {
       setLoading(false)
@@ -366,8 +364,26 @@ export function EnhancedCreateTestInterface({ userProfile }: EnhancedCreateTestI
 
     setCreating(true)
     try {
-      const questionIds = availableQuestions.map((q) => q.id)
+      // Fetch the actual questions for test creation
+      const questionsRes = await fetch("/api/questions/filtered", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ filters, userId: user?.id }),
+      })
+
+      const questionsData = await safeJson(questionsRes)
+
+      if (!questionsRes.ok || !questionsData) {
+        throw new Error(questionsData?.message || `Failed to fetch questions: ${questionsRes.status}`)
+      }
+
+      const questions = questionsData.questions || []
+      const questionIds = questions.map((q: any) => q.id)
       const finalQuestionIds = maxQuestions ? questionIds.slice(0, maxQuestions) : questionIds
+
+      if (finalQuestionIds.length === 0) {
+        throw new Error("No questions available with the current filters")
+      }
 
       const res = await fetch("/api/sessions/create", {
         method: "POST",
