@@ -61,7 +61,7 @@ export function QuizInterface({
   
   // Stable timer states
   const [timeRemaining, setTimeRemaining] = useState(session.time_remaining || 0)
-  const [activeTime, setActiveTime] = useState(session.active_time_seconds || 0)
+  const [activeTime, setActiveTime] = useState(session.total_active_time || 0)
   
   const [noteText, setNoteText] = useState("")
   const [showSubmitPrompt, setShowSubmitPrompt] = useState(false)
@@ -457,7 +457,7 @@ export function QuizInterface({
     console.log('Timer initialization triggered:', {
       sessionType: session.session_type,
       timeRemaining: session.time_remaining,
-      activeTimeSeconds: session.active_time_seconds,
+      activeTimeSeconds: session.total_active_time,
       sessionId: session.id,
       currentActiveTime: activeTime,
       currentTimeRemaining: timeRemaining
@@ -471,27 +471,27 @@ export function QuizInterface({
       }
     } else {
       // Ensure we always get the latest active time from the session
-      const newActiveTime = session.active_time_seconds || 0
+      const newActiveTime = session.total_active_time || 0
       if (newActiveTime !== activeTime) {
         console.log(`Updating activeTime from ${activeTime} to ${newActiveTime}`)
         setActiveTime(newActiveTime)
       }
     }
-  }, [session.time_remaining, session.active_time_seconds, session.session_type, session.id])
+  }, [session.time_remaining, session.total_active_time, session.session_type, session.id])
 
   // Prevent timer reset on unnecessary re-renders
   useEffect(() => {
     // Only update if we have a significant difference (more than 5 seconds)
     // This prevents minor sync differences from resetting the timer
-    if (session.session_type === "practice" && session.active_time_seconds !== undefined) {
-      const dbTime = session.active_time_seconds
+    if (session.session_type === "practice" && session.total_active_time !== undefined) {
+      const dbTime = session.total_active_time
       const timeDiff = Math.abs(dbTime - activeTime)
       if (timeDiff > 5) {
         console.log(`Large time difference detected (${timeDiff}s), syncing timer: ${activeTime} -> ${dbTime}`)
         setActiveTime(dbTime)
       }
     }
-  }, [session.active_time_seconds, activeTime, session.session_type])
+  }, [session.total_active_time, activeTime, session.session_type])
 
   const answeredQuestionIds = new Set([...userAnswers.map((a) => a.question_id), ...Object.keys(selectedAnswers)])
   const allQuestionsAnswered = questions.length > 0 && answeredQuestionIds.size >= questions.length

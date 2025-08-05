@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server"
 import { createClient } from "@/lib/supabase/server"
-import { pauseSession } from "@/lib/session-utils"
+import { safelyPauseSession } from "@/lib/session-utils"
 
 export async function POST(req: Request, context: { params: Promise<{ sessionId: string }> }) {
   try {
@@ -19,9 +19,9 @@ export async function POST(req: Request, context: { params: Promise<{ sessionId:
     }
 
     // Pause the session
-    const success = await pauseSession(sessionId)
+    const result = await safelyPauseSession(sessionId)
 
-    if (!success) {
+    if (!result.success) {
       return NextResponse.json({ error: "Failed to pause session" }, { status: 500 })
     }
 
