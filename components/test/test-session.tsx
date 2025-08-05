@@ -18,6 +18,7 @@ export function TestSession({ sessionId }: TestSessionProps) {
   const [isRecovering, setIsRecovering] = useState(false)
   const [retryCount, setRetryCount] = useState(0)
   const [lastError, setLastError] = useState<string | null>(null)
+  const [connectionStatus, setConnectionStatus] = useState<'connected' | 'disconnected' | 'checking'>('checking')
   const sessionPersistenceRef = useRef<NodeJS.Timeout | null>(null)
   const recoveryAttemptRef = useRef<number>(0)
   
@@ -78,15 +79,48 @@ export function TestSession({ sessionId }: TestSessionProps) {
     }
   }, [session, loading, sessionId, questions.length])
 
+  // Periodic connection health check
+  useEffect(() => {
+    const checkConnection = async () => {
+      try {
+        const response = await fetch('/api/sessions/cleanup', { method: 'HEAD' })
+        setConnectionStatus(response.ok ? 'connected' : 'disconnected')
+      } catch (error) {
+        setConnectionStatus('disconnected')
+      }
+    }
+
+    // Initial check
+    checkConnection()
+
+    // Check every 30 seconds
+    const connectionCheckInterval = setInterval(checkConnection, 30000)
+
+    return () => clearInterval(connectionCheckInterval)
+  }, [])
+
   // Simplified session recovery - remove redundant recovery logic
   useEffect(() => {
     const syncSessionOnMount = async () => {
       if (session && session.is_active) {
         try {
-          // Ensure session is resumed and time is synced
-          await fetch(`/api/sessions/${sessionId}/resume`, {
+          // Ensure session is resumed and get updated time data
+          const resumeResponse = await fetch(`/api/sessions/${sessionId}/resume`, {
             method: "POST",
           })
+          
+          if (resumeResponse.ok) {
+            const resumeData = await resumeResponse.json()
+            console.log('Resume response:', resumeData)
+            
+            // Always force refresh session data after resume to get latest time values
+            await loadSession(sessionId)
+            console.log('Session data refreshed after resume')
+            
+            if (resumeData.sessionData) {
+              console.log('Updated session time data:', resumeData.sessionData)
+            }
+          }
           
           // Sync current time data
           await fetch(`/api/sessions/${sessionId}/active-time`, {
@@ -101,35 +135,62 @@ export function TestSession({ sessionId }: TestSessionProps) {
     syncSessionOnMount()
   }, [sessionId, session])
 
-  // Enhanced error recovery with exponential backoff
+  // Enhanced error recovery with exponential backoff and database connectivity checks
   useEffect(() => {
     if (error && !loading) {
       setLastError(error)
+      
+      // Check if error is due to database connectivity or authentication
+      const isDatabaseError = error.includes('fetch') || error.includes('network') || error.includes('connection')
+      const isAuthError = error.includes('Unauthorized') || error.includes('logged in')
+      
+      if (isAuthError) {
+        console.error('Authentication error - redirecting to login')
+        router.push('/login')
+        return
+      }
       
       // Implement exponential backoff for retry attempts
       const retryDelay = Math.min(1000 * Math.pow(2, recoveryAttemptRef.current), 30000)
       
       if (recoveryAttemptRef.current < 5) { // Max 5 retry attempts
         console.log(`Attempting session recovery in ${retryDelay}ms (attempt ${recoveryAttemptRef.current + 1})`)
+        console.log(`Error type: ${isDatabaseError ? 'Database/Network' : 'Other'} - ${error}`)
         
         const retryTimer = setTimeout(async () => {
           recoveryAttemptRef.current++
           setRetryCount(prev => prev + 1)
           
-          try {
-            await loadSession(sessionId)
-            // If successful, reset retry count
-            recoveryAttemptRef.current = 0
-            setLastError(null)
-          } catch (retryError) {
-            console.error('Retry failed:', retryError)
-          }
+                      try {
+              // Test database connectivity first for database errors
+              if (isDatabaseError) {
+                setConnectionStatus('checking')
+                const healthCheck = await fetch('/api/sessions/cleanup', { method: 'HEAD' })
+                if (!healthCheck.ok) {
+                  setConnectionStatus('disconnected')
+                  throw new Error('Database connectivity issue')
+                }
+                setConnectionStatus('connected')
+              }
+              
+              await loadSession(sessionId)
+              // If successful, reset retry count
+              recoveryAttemptRef.current = 0
+              setLastError(null)
+              setConnectionStatus('connected')
+              console.log('Session recovery successful')
+            } catch (retryError) {
+              console.error('Retry failed:', retryError)
+              setConnectionStatus('disconnected')
+            }
         }, retryDelay)
         
         return () => clearTimeout(retryTimer)
+      } else {
+        console.error("Max recovery attempts reached. Session recovery failed.")
       }
     }
-  }, [error, loading, sessionId, loadSession])
+  }, [error, loading, sessionId, loadSession, router])
 
   // Prevent page unload during active sessions
   useEffect(() => {
@@ -482,16 +543,36 @@ export function TestSession({ sessionId }: TestSessionProps) {
   }))
 
   return (
-    <QuizInterface
-      session={session}
-      questions={questionsWithChoices}
-      userAnswers={userAnswers}
-      userProgress={userProgress}
-      onAnswerSelect={handleAnswerSelect}
-      onFlagQuestion={handleFlagQuestion}
-      onSaveNote={handleSaveNote}
-      onPauseSession={handlePauseSession}
-      onEndSession={handleEndSession}
-    />
+    <div className="relative">
+      {/* Connection Status Indicator */}
+      {connectionStatus === 'disconnected' && (
+        <div className="fixed top-4 right-4 z-50 bg-red-500 text-white px-3 py-2 rounded-lg shadow-lg text-sm">
+          <div className="flex items-center gap-2">
+            <div className="w-2 h-2 bg-white rounded-full animate-pulse"></div>
+            Connection Lost - Retrying...
+          </div>
+        </div>
+      )}
+      {connectionStatus === 'checking' && (
+        <div className="fixed top-4 right-4 z-50 bg-yellow-500 text-white px-3 py-2 rounded-lg shadow-lg text-sm">
+          <div className="flex items-center gap-2">
+            <div className="w-2 h-2 bg-white rounded-full animate-spin"></div>
+            Checking Connection...
+          </div>
+        </div>
+      )}
+      
+      <QuizInterface
+        session={session}
+        questions={questionsWithChoices}
+        userAnswers={userAnswers}
+        userProgress={userProgress}
+        onAnswerSelect={handleAnswerSelect}
+        onFlagQuestion={handleFlagQuestion}
+        onSaveNote={handleSaveNote}
+        onPauseSession={handlePauseSession}
+        onEndSession={handleEndSession}
+      />
+    </div>
   )
 }

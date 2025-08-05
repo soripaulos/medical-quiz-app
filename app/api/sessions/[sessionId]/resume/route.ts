@@ -52,7 +52,23 @@ export async function POST(req: Request, context: { params: Promise<{ sessionId:
       )
     }
 
-    return NextResponse.json({ ok: true, message: "Session activity resumed" })
+    // Get updated session data after resume to return current time values
+    const { data: updatedSession, error: updateError } = await supabase
+      .from("user_sessions")
+      .select("id, active_time_seconds, time_remaining, session_type")
+      .eq("id", sessionId)
+      .single()
+
+    if (updateError) {
+      console.error("Error fetching updated session data:", updateError)
+      return NextResponse.json({ ok: true, message: "Session activity resumed" })
+    }
+
+    return NextResponse.json({ 
+      ok: true, 
+      message: "Session activity resumed",
+      sessionData: updatedSession
+    })
   } catch (err) {
     console.error("Error resuming session activity:", err)
     return NextResponse.json(
