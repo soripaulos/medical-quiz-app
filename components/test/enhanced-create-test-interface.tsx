@@ -45,6 +45,16 @@ import { useToast } from "@/components/ui/use-toast"
 import { ActiveSessionCard } from "./active-session-card"
 import { AppLogo } from "@/components/ui/app-logo"
 
+// Fisher-Yates shuffle algorithm for proper randomization
+function shuffleArray<T>(array: T[]): T[] {
+  const shuffled = [...array]
+  for (let i = shuffled.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1))
+    ;[shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]]
+  }
+  return shuffled
+}
+
 // Helper: safely parse JSON, logs non-JSON text responses for easier debugging
 /**
  * Attempts to parse a Response as JSON.
@@ -381,10 +391,17 @@ export function EnhancedCreateTestInterface({ userProfile }: EnhancedCreateTestI
     setCreating(true)
     try {
       // Fetch the actual questions for test creation
+      // Use a larger pageSize when randomizing to ensure good diversity
+      const fetchSize = randomizeOrder ? Math.max(2000, (maxQuestions || 200) * 5) : 1000
       const questionsRes = await fetch("/api/questions/filtered", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ filters, userId: user?.id }),
+        body: JSON.stringify({ 
+          filters, 
+          userId: user?.id, 
+          randomize: randomizeOrder,
+          pageSize: fetchSize
+        }),
       })
 
       const questionsData = await safeJson(questionsRes)
@@ -395,6 +412,8 @@ export function EnhancedCreateTestInterface({ userProfile }: EnhancedCreateTestI
 
       const questions = questionsData.questions || []
       const questionIds = questions.map((q: any) => q.id)
+      
+      // Questions are already randomized at the database level if randomizeOrder is true
       const finalQuestionIds = maxQuestions ? questionIds.slice(0, maxQuestions) : questionIds
 
       if (finalQuestionIds.length === 0) {

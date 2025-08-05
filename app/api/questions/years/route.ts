@@ -5,18 +5,48 @@ export async function GET() {
   const supabase = await createClient()
 
   try {
-    // Use the method that works best - limit(10000) based on debugging results
-    const { data: questions, error } = await supabase
+    // Try different approaches to get all years (based on working commit b9da295)
+    
+    // Method 1: Using range(0, 9999)
+    const { data: questions1, error: error1 } = await supabase
       .from("questions")
       .select("year")
       .not("year", "is", null)
-      .limit(10000) // Use high limit to get all questions
-      .order("year", { ascending: false })
+      .range(0, 9999)
+    
+    // Method 2: Without range limit
+    const { data: questions2, error: error2 } = await supabase
+      .from("questions")
+      .select("year")
+      .not("year", "is", null)
+    
+    // Method 3: Using limit(10000)
+    const { data: questions3, error: error3 } = await supabase
+      .from("questions")
+      .select("year")
+      .not("year", "is", null)
+      .limit(10000)
 
-    if (error) throw error
+    // Use the method that returned the most results
+    const results = [
+      { data: questions1, error: error1, method: "range(0,9999)" },
+      { data: questions2, error: error2, method: "no limit" },
+      { data: questions3, error: error3, method: "limit(10000)" }
+    ]
+    
+    const bestResult = results
+      .filter(r => !r.error && r.data)
+      .sort((a, b) => (b.data?.length || 0) - (a.data?.length || 0))[0]
 
+    if (!bestResult) {
+      throw new Error("All query methods failed")
+    }
+
+    const questionsToUse = bestResult.data || []
+    
     // Get unique years and sort them
-    const uniqueYears = [...new Set(questions?.map((q) => q.year).filter(Boolean))] as number[]
+    const allYears = questionsToUse.map((q) => q.year).filter(Boolean) || []
+    const uniqueYears = [...new Set(allYears)] as number[]
     const sortedYears = uniqueYears.sort((a, b) => b - a) // Most recent first
 
     return NextResponse.json({ years: sortedYears })

@@ -2,6 +2,16 @@ import { NextResponse } from "next/server"
 import { createClient } from "@/lib/supabase/server"
 import { verifySession } from "@/lib/auth"
 
+// Fisher-Yates shuffle algorithm for proper randomization
+function shuffleArray<T>(array: T[]): T[] {
+  const shuffled = [...array]
+  for (let i = shuffled.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1))
+    ;[shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]]
+  }
+  return shuffled
+}
+
 export async function POST(req: Request) {
   try {
     // Authenticate user
@@ -19,8 +29,8 @@ export async function POST(req: Request) {
 
     const supabase = await createClient()
 
-    // Shuffle questions if randomization is enabled
-    const finalQuestionIds = randomizeOrder ? [...questionIds].sort(() => Math.random() - 0.5) : questionIds
+    // Shuffle questions if randomization is enabled using Fisher-Yates shuffle
+    const finalQuestionIds = randomizeOrder ? shuffleArray([...questionIds]) : questionIds
 
     // Create the session
     const { data: userSession, error: sessionError } = await supabase

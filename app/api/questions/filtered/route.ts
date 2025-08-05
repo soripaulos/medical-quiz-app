@@ -2,7 +2,7 @@ import { NextResponse } from "next/server"
 import { createClient } from "@/lib/supabase/server"
 
 export async function POST(req: Request) {
-  const { filters, userId, countOnly = false, page = 0, pageSize = 1000 } = await req.json()
+  const { filters, userId, countOnly = false, page = 0, pageSize = 1000, randomize = false } = await req.json()
 
   const supabase = await createClient()
 
@@ -68,9 +68,17 @@ export async function POST(req: Request) {
         *,
         specialty:specialties(id, name),
         exam_type:exam_types(id, name)
-      `).range(startRange, endRange)
+      `)
 
     query = await buildQueryConditions(query)
+    
+    // Add randomization if requested - use PostgreSQL's RANDOM() function
+    if (randomize) {
+      query = query.order('random()')
+    }
+    
+    // Apply pagination after filtering and randomization
+    query = query.range(startRange, endRange)
 
     // Also get the total count for pagination info
     let countQuery = supabase.from("questions").select("id", { count: "exact", head: true })
