@@ -159,94 +159,62 @@ export function ActiveSessionCard({ compact = false }: ActiveSessionCardProps) {
 
   return (
     <Card className="w-full border-l-4 border-l-blue-500 bg-gradient-to-br from-blue-50 via-white to-indigo-50 dark:from-blue-950/20 dark:via-background dark:to-indigo-950/20 dark:bg-card">
-      <CardHeader className="pb-3">
-        <div className="flex items-start justify-between">
-          <div className="space-y-1">
-            <CardTitle className="text-lg font-bold text-gray-900 dark:text-gray-100 flex items-center space-x-2">
-              <Brain className="h-5 w-5 text-blue-600 dark:text-blue-400" />
-              <span>Continue Your Test</span>
-            </CardTitle>
-            <p className="text-sm text-gray-600 dark:text-gray-300 font-medium">{activeSession.session_name}</p>
+      <CardHeader className="pb-2">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center space-x-2">
+            <Brain className="h-4 w-4 text-blue-600 dark:text-blue-400" />
+            <div>
+              <CardTitle className="text-base font-bold text-gray-900 dark:text-gray-100">Continue Test</CardTitle>
+              <p className="text-xs text-gray-600 dark:text-gray-300 font-medium truncate max-w-[150px]">{activeSession.session_name}</p>
+            </div>
           </div>
           <Badge className={`${getSessionTypeColor(activeSession.session_type)} font-semibold px-2 py-1 text-xs`}>
-            {activeSession.session_type.charAt(0).toUpperCase() + activeSession.session_type.slice(1)} Mode
+            {activeSession.session_type.charAt(0).toUpperCase() + activeSession.session_type.slice(1)}
           </Badge>
         </div>
       </CardHeader>
       
-      <CardContent className="space-y-4">
-        {/* Progress Section */}
-        <div className="space-y-2">
+      <CardContent className="space-y-3">
+        {/* Compact Progress Section */}
+        <div className="space-y-1">
           <div className="flex justify-between items-center">
-            <span className="text-sm font-medium text-gray-700 dark:text-gray-300">Progress</span>
-            <span className="text-sm text-gray-600 dark:text-gray-400">
-              {activeSession.current_question_index} of {activeSession.total_questions} questions
+            <span className="text-xs font-medium text-gray-700 dark:text-gray-300">Progress</span>
+            <span className="text-xs text-gray-600 dark:text-gray-400">
+              {activeSession.current_question_index}/{activeSession.total_questions} ({progressPercentage}%)
             </span>
           </div>
-          <Progress value={progressPercentage} className="h-2" />
-          <p className="text-xs text-gray-500 dark:text-gray-400">{progressPercentage}% completed</p>
+          <Progress value={progressPercentage} className="h-1.5" />
         </div>
 
-        {/* Stats Grid */}
-        <div className="grid grid-cols-2 gap-3">
-          {/* Performance - Show for both modes */}
-          <div className="space-y-1">
-            <div className="flex items-center space-x-2">
-              <Target className="h-4 w-4 text-green-500" />
-              <span className="text-sm font-medium text-gray-700 dark:text-gray-300">Performance</span>
-            </div>
+        {/* Compact Stats */}
+        <div className="flex justify-between items-center text-xs">
+          <div className="flex items-center space-x-2">
+            <Target className="h-3 w-3 text-green-500" />
             {!isExamMode ? (
-              <div className="flex items-center space-x-3">
-                <div className="flex items-center space-x-1">
-                  <CheckCircle2 className="h-4 w-4 text-green-500" />
-                  <span className="text-sm font-bold text-green-600 dark:text-green-400">{sessionMetrics.correctAnswers}</span>
-                </div>
-                <div className="flex items-center space-x-1">
-                  <AlertCircle className="h-4 w-4 text-red-500" />
-                  <span className="text-sm font-bold text-red-600 dark:text-red-400">{sessionMetrics.incorrectAnswers}</span>
-                </div>
+              <div className="flex items-center space-x-2">
+                <span className="text-green-600 dark:text-green-400 font-medium">✓{sessionMetrics.correctAnswers}</span>
+                <span className="text-red-600 dark:text-red-400 font-medium">✗{sessionMetrics.incorrectAnswers}</span>
               </div>
             ) : (
-              <div className="flex items-center space-x-1">
-                <span className="text-base font-bold text-gray-600 dark:text-gray-400">{sessionMetrics.totalAnswered}</span>
-                <span className="text-sm text-gray-500 dark:text-gray-400">answered</span>
-              </div>
+              <span className="text-gray-600 dark:text-gray-400 font-medium">{sessionMetrics.totalAnswered} answered</span>
             )}
           </div>
-
-          {/* Session Type */}
-          <div className="space-y-1">
-            <div className="flex items-center space-x-2">
-              <BookOpen className="h-4 w-4 text-blue-500" />
-              <span className="text-sm font-medium text-gray-700 dark:text-gray-300">Mode</span>
-            </div>
-            <p className="text-base font-bold text-blue-600 dark:text-blue-400">
-              {activeSession.session_type.charAt(0).toUpperCase() + activeSession.session_type.slice(1)}
-            </p>
+          <div className="flex items-center space-x-1">
+            {activeSession.is_paused ? (
+              <Badge variant="outline" className="text-yellow-600 border-yellow-600 dark:text-yellow-400 dark:border-yellow-400 text-xs px-1 py-0">Paused</Badge>
+            ) : (
+              <Badge variant="outline" className="text-green-600 border-green-600 dark:text-green-400 dark:border-green-400 text-xs px-1 py-0">Active</Badge>
+            )}
           </div>
         </div>
 
-        {/* Action Button */}
+        {/* Compact Action Button */}
         <Link href={`/test/${activeSession.id}`} className="block">
-          <Button className="w-full bg-blue-600 hover:bg-blue-700 dark:bg-blue-500 dark:hover:bg-blue-600 text-white font-semibold py-2 rounded-lg transition-all duration-200">
-            <Play className="h-4 w-4 mr-2" />
-            Resume Test Session
+          <Button className="w-full bg-blue-600 hover:bg-blue-700 dark:bg-blue-500 dark:hover:bg-blue-600 text-white font-medium py-1.5 text-sm rounded-lg transition-all duration-200">
+            <Play className="h-3 w-3 mr-1" />
+            Resume Test
           </Button>
         </Link>
-
-        {/* Quick Stats */}
-        <div className="pt-2 border-t border-gray-200 dark:border-gray-700">
-          <div className="flex justify-between text-xs text-gray-500 dark:text-gray-400">
-            <span>Started: {new Date(activeSession.created_at).toLocaleDateString()}</span>
-            <span>
-              {activeSession.is_paused ? (
-                <Badge variant="outline" className="text-yellow-600 border-yellow-600 dark:text-yellow-400 dark:border-yellow-400">Paused</Badge>
-              ) : (
-                <Badge variant="outline" className="text-green-600 border-green-600 dark:text-green-400 dark:border-green-400">Active</Badge>
-              )}
-            </span>
-          </div>
-        </div>
       </CardContent>
     </Card>
   )
