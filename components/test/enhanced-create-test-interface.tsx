@@ -218,14 +218,8 @@ export function EnhancedCreateTestInterface({ userProfile }: EnhancedCreateTestI
       // Fetch available years
       const yearsRes = await fetch("/api/questions/years")
       const yearsData = (await safeJson(yearsRes)) as any
-      console.log("Years API response:", yearsData)
       if (yearsData?.years) {
-        console.log("Years before sorting:", yearsData.years)
-        const sortedYears = yearsData.years.sort((a: number, b: number) => b - a)
-        console.log("Years after sorting:", sortedYears)
-        setAvailableYears(sortedYears)
-      } else {
-        console.log("No years data received or yearsData.years is falsy")
+        setAvailableYears(yearsData.years.sort((a: number, b: number) => b - a))
       }
     } catch (error) {
       // This will catch network errors or JSON parsing failures
@@ -774,9 +768,6 @@ export function EnhancedCreateTestInterface({ userProfile }: EnhancedCreateTestI
                                 Clear
                               </Button>
                             </div>
-                          </div>
-                          <div className="mb-2 text-xs text-muted-foreground">
-                            Debug: {availableYears.length} years loaded: [{availableYears.join(', ')}]
                           </div>
                           <div className="grid grid-cols-4 gap-3">
                             {availableYears.map((year) => (

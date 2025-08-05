@@ -63,13 +63,9 @@ export function QuestionManagement() {
     try {
       const response = await fetch("/api/questions/years")
       const data = await response.json()
-      console.log("Years API response (admin):", data)
 
       if (data.years) {
-        console.log("Setting available years (admin):", data.years)
         setAvailableYears(data.years)
-      } else {
-        console.log("No years data received (admin)")
       }
     } catch (error) {
       console.error("Error fetching years:", error)
