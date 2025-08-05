@@ -44,18 +44,35 @@ export function UnifiedSessionManager({ onRecover, onDismiss }: UnifiedSessionMa
       // First check localStorage for recent session
       const localSession = checkLocalStorageSession()
       
-      // Then check database for active session
-      const dbSession = await checkDatabaseSession()
+      // Then check database for active session (with timeout)
+      const dbSession = await Promise.race([
+        checkDatabaseSession(),
+        new Promise<null>((_, reject) => 
+          setTimeout(() => reject(new Error('Database check timeout')), 5000)
+        )
+      ]).catch((error) => {
+        console.warn('Database session check failed:', error)
+        return null
+      })
       
       // Use the most recent session or merge data
       const activeSession = selectActiveSession(localSession, dbSession)
       
-      // Don't show sessions that have ended
-      if (activeSession && !activeSession.completedAt && activeSession.isActive) {
+      // Don't show sessions that have ended or are invalid
+      if (activeSession && !activeSession.completedAt && activeSession.isActive && activeSession.sessionId) {
         setSessionData(activeSession)
       }
     } catch (error) {
       console.error('Error checking for active session:', error)
+      // If there's an error, still try to use localStorage session
+      try {
+        const localSession = checkLocalStorageSession()
+        if (localSession && !localSession.completedAt && localSession.isActive && localSession.sessionId) {
+          setSessionData(localSession)
+        }
+      } catch (localError) {
+        console.error('Error with localStorage session:', localError)
+      }
     } finally {
       setLoading(false)
     }
@@ -67,6 +84,13 @@ export function UnifiedSessionManager({ onRecover, onDismiss }: UnifiedSessionMa
       if (!storedSession) return null
 
       const sessionData = JSON.parse(storedSession)
+      
+      // Validate required fields
+      if (!sessionData.sessionId || !sessionData.sessionName || !sessionData.lastActivity) {
+        localStorage.removeItem('activeTestSession')
+        return null
+      }
+      
       const timeSinceLastActivity = Date.now() - sessionData.lastActivity
       
       // Only consider sessions active within the last 2 hours
@@ -78,52 +102,78 @@ export function UnifiedSessionManager({ onRecover, onDismiss }: UnifiedSessionMa
       return {
         sessionId: sessionData.sessionId,
         sessionName: sessionData.sessionName,
-        sessionType: sessionData.sessionType,
-        currentQuestionIndex: sessionData.currentQuestionIndex || 0,
-        totalQuestions: sessionData.totalQuestions || 0,
+        sessionType: sessionData.sessionType || 'practice',
+        currentQuestionIndex: Math.max(0, sessionData.currentQuestionIndex || 0),
+        totalQuestions: Math.max(0, sessionData.totalQuestions || 0),
         timeRemaining: sessionData.timeRemaining,
         activeTimeSeconds: sessionData.activeTimeSeconds,
         lastActivity: sessionData.lastActivity,
-        isActive: sessionData.isActive,
+        isActive: Boolean(sessionData.isActive),
         isPaused: true, // localStorage sessions are always considered paused
       }
     } catch (error) {
       console.error('Error parsing localStorage session:', error)
-      localStorage.removeItem('activeTestSession')
+      // Clean up corrupted localStorage data
+      try {
+        localStorage.removeItem('activeTestSession')
+      } catch (cleanupError) {
+        console.error('Error cleaning up localStorage:', cleanupError)
+      }
       return null
     }
   }
 
   const checkDatabaseSession = async (): Promise<SessionData | null> => {
     try {
-      const response = await fetch('/api/user/active-session')
-      if (!response.ok) return null
+      const controller = new AbortController()
+      const timeoutId = setTimeout(() => controller.abort(), 3000)
+      
+      const response = await fetch('/api/user/active-session', {
+        signal: controller.signal,
+        headers: {
+          'Cache-Control': 'no-cache',
+          'Pragma': 'no-cache'
+        }
+      })
+      
+      clearTimeout(timeoutId)
+      
+      if (!response.ok) {
+        console.warn(`Database session check failed: ${response.status}`)
+        return null
+      }
 
       const data = await response.json()
-      if (!data.activeSession) return null
+      if (!data || !data.activeSession) return null
 
       const session = data.activeSession
       
-      // Don't return completed sessions
-      if (session.completed_at) return null
+      // Validate session data
+      if (!session.id || !session.session_name || session.completed_at) {
+        return null
+      }
 
       return {
         sessionId: session.id,
         sessionName: session.session_name,
-        sessionType: session.session_type,
-        currentQuestionIndex: session.current_question_index || 0,
-        totalQuestions: session.total_questions || 0,
+        sessionType: session.session_type || 'practice',
+        currentQuestionIndex: Math.max(0, session.current_question_index || 0),
+        totalQuestions: Math.max(0, session.total_questions || 0),
         timeRemaining: session.time_remaining,
         activeTimeSeconds: session.active_time_seconds,
         lastActivity: Date.now(),
-        isActive: session.is_active,
-        isPaused: session.is_paused,
+        isActive: Boolean(session.is_active),
+        isPaused: Boolean(session.is_paused),
         completedAt: session.completed_at,
         correctAnswers: session.correct_answers,
         incorrectAnswers: session.incorrect_answers,
       }
     } catch (error) {
-      console.error('Error fetching database session:', error)
+      if (error instanceof Error && error.name === 'AbortError') {
+        console.warn('Database session check timed out')
+      } else {
+        console.error('Error fetching database session:', error)
+      }
       return null
     }
   }
@@ -145,29 +195,49 @@ export function UnifiedSessionManager({ onRecover, onDismiss }: UnifiedSessionMa
   }
 
   const handleResumeSession = async () => {
-    if (!sessionData) return
+    if (!sessionData || !sessionData.sessionId) return
 
     setIsRecovering(true)
     
     try {
-      // Try to resume the session to ensure timer continuity
+      // Try to resume the session to ensure timer continuity (with timeout)
+      const controller = new AbortController()
+      const timeoutId = setTimeout(() => controller.abort(), 5000)
+      
       const response = await fetch(`/api/sessions/${sessionData.sessionId}/resume`, {
         method: "POST",
+        signal: controller.signal,
+        headers: {
+          'Content-Type': 'application/json',
+        }
       })
+      
+      clearTimeout(timeoutId)
 
       if (response.ok) {
         // Clean up localStorage since we're resuming
-        localStorage.removeItem('activeTestSession')
+        try {
+          localStorage.removeItem('activeTestSession')
+        } catch (cleanupError) {
+          console.warn('Error cleaning up localStorage:', cleanupError)
+        }
         
         // Navigate to session
         router.push(`/test/${sessionData.sessionId}`)
         onRecover?.()
       } else {
-        throw new Error('Failed to resume session')
+        console.warn(`Resume session failed: ${response.status}`)
+        // Still try to navigate to the session
+        router.push(`/test/${sessionData.sessionId}`)
+        onRecover?.()
       }
     } catch (error) {
-      console.error('Error resuming session:', error)
-      // Still try to navigate to the session
+      if (error instanceof Error && error.name === 'AbortError') {
+        console.warn('Resume session timed out, proceeding anyway')
+      } else {
+        console.error('Error resuming session:', error)
+      }
+      // Still try to navigate to the session - the session page will handle recovery
       router.push(`/test/${sessionData.sessionId}`)
       onRecover?.()
     } finally {
