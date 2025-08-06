@@ -40,11 +40,14 @@ export async function GET() {
     const completedSessions = sessions?.filter((s) => s.completed_at) || []
     const totalSessions = completedSessions.length
     const totalQuestions = completedSessions.reduce((sum, s) => sum + (s.total_questions || 0), 0)
-    const totalCorrect = completedSessions.reduce((sum, s) => sum + (s.correct_answers || 0), 0)
-    const totalIncorrect = completedSessions.reduce((sum, s) => sum + (s.incorrect_answers || 0), 0)
+    
+    // Use latest answers per question for correct/incorrect counts (same as question filters)
+    const latestCorrectCount = latestAnswerMap.size > 0 ? Array.from(latestAnswerMap.values()).filter(answer => answer.is_correct).length : 0
+    const latestIncorrectCount = latestAnswerMap.size > 0 ? Array.from(latestAnswerMap.values()).filter(answer => !answer.is_correct).length : 0
     
     // Calculate total time spent using total_active_time for completed sessions and real-time for active ones
     let totalTimeSpentSeconds = 0
+    console.log(`Processing ${sessions?.length || 0} sessions for time calculation`)
     for (const session of sessions || []) {
       try {
         if (session.is_active) {
@@ -52,16 +55,23 @@ export async function GET() {
           const { data: activeTime } = await supabase.rpc('calculate_session_active_time', {
             session_id: session.id
           })
-          totalTimeSpentSeconds += activeTime || session.total_active_time || 0
+          const timeToAdd = activeTime || session.total_active_time || 0
+          console.log(`Active session ${session.id}: adding ${timeToAdd} seconds`)
+          totalTimeSpentSeconds += timeToAdd
         } else {
           // For completed sessions, use stored total_active_time
-          totalTimeSpentSeconds += session.total_active_time || 0
+          const timeToAdd = session.total_active_time || 0
+          console.log(`Completed session ${session.id}: adding ${timeToAdd} seconds`)
+          totalTimeSpentSeconds += timeToAdd
         }
       } catch (error) {
         console.error(`Error calculating active time for session ${session.id}:`, error)
-        totalTimeSpentSeconds += session.total_active_time || 0
+        const timeToAdd = session.total_active_time || 0
+        console.log(`Fallback for session ${session.id}: adding ${timeToAdd} seconds`)
+        totalTimeSpentSeconds += timeToAdd
       }
     }
+    console.log(`Total time spent: ${totalTimeSpentSeconds} seconds (${Math.floor(totalTimeSpentSeconds / 60)} minutes)`)
 
     // Get latest answers per question for answer distribution (not across all sessions)
     const { data: latestAnswers, error: answersError } = await supabase
@@ -116,16 +126,17 @@ export async function GET() {
     const unansweredPercentage = totalQuestionsInDatabase > 0 ? (unansweredCount / totalQuestionsInDatabase) * 100 : 0
 
     // Calculate overall score as correct answers out of attempted answers (excluding unanswered)
-    const totalAttemptedQuestions = totalCorrect + totalIncorrect
-    const overallScore = totalAttemptedQuestions > 0 ? (totalCorrect / totalAttemptedQuestions) * 100 : 0
+    // Use the same logic as question filters - latest answer per question
+    const totalAttemptedQuestions = latestCorrectCount + latestIncorrectCount
+    const overallScore = totalAttemptedQuestions > 0 ? (latestCorrectCount / totalAttemptedQuestions) * 100 : 0
 
     const stats = {
       totalSessions,
       totalQuestions,
-      totalCorrect,
-      totalIncorrect,
+      totalCorrect: latestCorrectCount, // Use latest answers per question
+      totalIncorrect: latestIncorrectCount, // Use latest answers per question
       totalTimeSpent: totalTimeSpentSeconds, // Return in seconds for proper conversion
-      averageScore: overallScore, // Now calculated as correct/(correct + incorrect)
+      averageScore: overallScore, // Now calculated as correct/(correct + incorrect) using latest answers
       totalAttemptedQuestions, // Add this for display
       totalUniqueQuestions: totalAnsweredQuestions,
       answerDistribution: {
