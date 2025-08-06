@@ -8,8 +8,7 @@ import type { User, Session } from "@supabase/supabase-js"
 interface AuthContextType {
   user: User | null
   loading: boolean
-  signIn: (email: string, password: string) => Promise<void>
-  signUp: (email: string, password: string, fullName: string) => Promise<void>
+  signInWithGoogle: () => Promise<void>
   signOut: () => Promise<void>
 }
 
@@ -48,36 +47,21 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     return () => subscription.unsubscribe()
   }, [router, supabase.auth])
 
-  const signIn = async (email: string, password: string) => {
+  const signInWithGoogle = async () => {
     setLoading(true)
     try {
-      const { error } = await supabase.auth.signInWithPassword({
-        email: email.trim().toLowerCase(),
-        password,
-      })
-
-      if (error) throw error
-    } catch (error) {
-      setLoading(false)
-      throw error
-    }
-  }
-
-  const signUp = async (email: string, password: string, fullName: string) => {
-    setLoading(true)
-    try {
-      const { error } = await supabase.auth.signUp({
-        email: email.trim().toLowerCase(),
-        password,
+      const { error } = await supabase.auth.signInWithOAuth({
+        provider: 'google',
         options: {
-          data: {
-            full_name: fullName.trim(),
+          redirectTo: `${window.location.origin}/auth/callback`,
+          queryParams: {
+            access_type: 'offline',
+            prompt: 'consent',
           },
         },
       })
 
       if (error) throw error
-      setLoading(false)
     } catch (error) {
       setLoading(false)
       throw error
@@ -87,6 +71,31 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const signOut = async () => {
     setLoading(true)
     try {
+      // Get current user before signing out
+      const { data: { user } } = await supabase.auth.getUser()
+      
+      if (user) {
+        // Decrement the logged_in_number
+        const { data: profile } = await supabase
+          .from('profiles')
+          .select('logged_in_number')
+          .eq('id', user.id)
+          .single()
+
+        if (profile) {
+          const newLoginCount = Math.max(0, (profile.logged_in_number || 1) - 1)
+          await supabase
+            .from('profiles')
+            .update({ 
+              logged_in_number: newLoginCount,
+              updated_at: new Date().toISOString()
+            })
+            .eq('id', user.id)
+          
+          console.log(`User ${user.id} login count decremented to ${newLoginCount}`)
+        }
+      }
+
       const { error } = await supabase.auth.signOut()
       if (error) throw error
     } catch (error) {
@@ -98,8 +107,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const value = {
     user,
     loading,
-    signIn,
-    signUp,
+    signInWithGoogle,
     signOut,
   }
 
@@ -113,8 +121,7 @@ export function useAuth() {
     return {
       user: null,
       loading: false,
-      signIn: async () => { throw new Error("Auth not available") },
-      signUp: async () => { throw new Error("Auth not available") },
+      signInWithGoogle: async () => { throw new Error("Auth not available") },
       signOut: async () => { throw new Error("Auth not available") }
     }
   }

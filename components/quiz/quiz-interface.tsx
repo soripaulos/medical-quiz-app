@@ -11,6 +11,7 @@ import { QuestionSidebar } from "./question-sidebar"
 import { LabValuesModal } from "./lab-values-modal"
 import { CalculatorModal } from "./calculator-modal"
 import { NotesPanel } from "./notes-panel"
+import { QuestionFeedback } from "./question-feedback"
 import { AppLogo } from "@/components/ui/app-logo"
 import type { Question, UserSession, UserAnswer, UserQuestionProgress, UserNote } from "@/lib/types"
 import { useRouter } from "next/navigation"
@@ -444,6 +445,10 @@ export function QuizInterface({
         </div>
 
         <div className="flex items-center gap-1 sm:gap-2 flex-wrap justify-end">
+          <QuestionFeedback 
+            question={currentQuestion} 
+            sessionId={session.id} 
+          />
           <Button variant="ghost" size="icon" onClick={handleFlagQuestion}>
             <Flag
               className={`h-5 w-5 ${currentProgress?.is_flagged ? "text-yellow-500 fill-current" : ""}`}
@@ -479,6 +484,21 @@ export function QuizInterface({
           {/* Question */}
           <Card>
             <CardContent className="p-6">
+              {/* Question metadata */}
+              {(currentQuestion.year || currentQuestion.exam_type) && (
+                <div className="flex flex-wrap gap-2 mb-4">
+                  {currentQuestion.year && (
+                    <Badge variant="secondary" className="text-xs font-medium">
+                      Year {currentQuestion.year}
+                    </Badge>
+                  )}
+                  {currentQuestion.exam_type && (
+                    <Badge variant="outline" className="text-xs font-medium">
+                      {currentQuestion.exam_type.name}
+                    </Badge>
+                  )}
+                </div>
+              )}
               <p className="text-lg leading-relaxed">{currentQuestion.question_text}</p>
               {currentQuestion.question_image_url && (
                 <img
