@@ -19,20 +19,37 @@ export async function GET() {
     }
 
     // Fallback: Get all questions using range to bypass default limits
+    // First, get total count to determine appropriate range
+    const { count: totalCount } = await supabase
+      .from("questions")
+      .select("*", { count: "exact", head: true })
+      .not("year", "is", null)
+
+    const rangeEnd = Math.max(99999, totalCount || 99999)
+    
     const { data: questions, error } = await supabase
       .from("questions")
       .select("year")
       .not("year", "is", null)
-      .range(0, 99999) // Use range instead of limit to get more records
+      .range(0, rangeEnd) // Use dynamic range based on actual count
 
     // If regular client failed or returned no results, try admin client
-    if (error || !questions || questions.length === 0) {
+          if (error || !questions || questions.length === 0) {
       const adminSupabase = createAdminClient()
-                      const { data: adminQuestions, error: adminError } = await adminSupabase
+      
+      // Get count for admin client as well
+      const { count: adminTotalCount } = await adminSupabase
+        .from("questions")
+        .select("*", { count: "exact", head: true })
+        .not("year", "is", null)
+
+      const adminRangeEnd = Math.max(99999, adminTotalCount || 99999)
+      
+      const { data: adminQuestions, error: adminError } = await adminSupabase
           .from("questions")
           .select("year")
           .not("year", "is", null)
-          .range(0, 99999)
+          .range(0, adminRangeEnd)
 
       if (!adminError && adminQuestions && adminQuestions.length > 0) {
         const allYears = adminQuestions.map((q) => q.year).filter(Boolean) || []

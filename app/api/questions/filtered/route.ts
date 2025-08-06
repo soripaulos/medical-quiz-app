@@ -56,8 +56,47 @@ export async function POST(req: Request) {
       query = query.in("difficulty", filters.difficulties)
     }
 
+    // Get total count first to determine appropriate range
+    const countQuery = supabase.from("questions").select("*", { count: "exact", head: true })
+    
+    // Apply the same filters for counting
+    if (filters.specialties && filters.specialties.length > 0) {
+      const { data: specialtyIds } = await supabase
+        .from("specialties")
+        .select("id")
+        .in("name", filters.specialties)
+        .range(0, 999)
+      
+      if (specialtyIds && specialtyIds.length > 0) {
+        countQuery.in("specialty_id", specialtyIds.map((s) => s.id))
+      }
+    }
+    
+    if (filters.examTypes && filters.examTypes.length > 0) {
+      const { data: examTypeIds } = await supabase
+        .from("exam_types")
+        .select("id")
+        .in("name", filters.examTypes)
+        .range(0, 999)
+      
+      if (examTypeIds && examTypeIds.length > 0) {
+        countQuery.in("exam_type_id", examTypeIds.map((e) => e.id))
+      }
+    }
+    
+    if (filters.years && filters.years.length > 0) {
+      countQuery.in("year", filters.years)
+    }
+    
+    if (filters.difficulties && filters.difficulties.length > 0) {
+      countQuery.in("difficulty", filters.difficulties)
+    }
+    
+    const { count: totalFilteredCount } = await countQuery
+    const rangeEnd = Math.max(99999, totalFilteredCount || 99999)
+    
     // Apply range after all filters to ensure we get all matching questions
-    query = query.range(0, 99999)
+    query = query.range(0, rangeEnd)
 
     const { data: questions, error } = await query
 
@@ -68,11 +107,27 @@ export async function POST(req: Request) {
     let userAnswers: any[] = []
 
     if (userId && userId !== "temp-user-id") {
+      // Get count of user progress first
+      const { count: progressCount } = await supabase
+        .from("user_question_progress")
+        .select("*", { count: "exact", head: true })
+        .eq("user_id", userId)
+
+      const progressRangeEnd = Math.max(99999, progressCount || 99999)
+      
       const { data: progressData } = await supabase
         .from("user_question_progress")
         .select("*")
         .eq("user_id", userId)
-        .range(0, 99999) // Ensure we get all user progress data
+        .range(0, progressRangeEnd) // Ensure we get all user progress data
+
+      // Get count of user answers first
+      const { count: answersCount } = await supabase
+        .from("user_answers")
+        .select("*", { count: "exact", head: true })
+        .eq("user_id", userId)
+
+      const answersRangeEnd = Math.max(99999, answersCount || 99999)
 
       // Get all user answers with question_id, is_correct, and answered_at
       const { data: answersData } = await supabase
@@ -80,7 +135,7 @@ export async function POST(req: Request) {
         .select("question_id, is_correct, answered_at")
         .eq("user_id", userId)
         .order("answered_at", { ascending: false }) // Most recent first
-        .range(0, 99999) // Ensure we get all user answers
+        .range(0, answersRangeEnd) // Ensure we get all user answers
 
       userProgress = progressData || []
       userAnswers = answersData || []
