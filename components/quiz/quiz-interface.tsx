@@ -479,14 +479,14 @@ export function QuizInterface({
       </header>
 
       {/* Main Content */}
-      <main className="flex-1 overflow-y-auto p-4 md:p-6">
-        <div className="max-w-4xl mx-auto space-y-6">
+      <main className="flex-1 overflow-y-auto p-2 sm:p-4 md:p-6">
+        <div className="max-w-7xl mx-auto space-y-4 sm:space-y-6">
           {/* Question */}
           <Card>
-            <CardContent className="p-6">
+            <CardContent className="p-3 sm:p-4 md:p-6">
               {/* Question metadata */}
               {(currentQuestion.year || currentQuestion.exam_type) && (
-                <div className="flex flex-wrap gap-2 mb-4">
+                <div className="flex flex-wrap gap-2 mb-3 sm:mb-4">
                   {currentQuestion.year && (
                     <Badge variant="secondary" className="text-xs font-medium">
                       Year {currentQuestion.year}
@@ -499,7 +499,7 @@ export function QuizInterface({
                   )}
                 </div>
               )}
-              <p className="text-lg leading-relaxed">{currentQuestion.question_text}</p>
+              <p className="text-sm sm:text-base md:text-lg leading-snug sm:leading-normal md:leading-relaxed">{currentQuestion.question_text}</p>
               {currentQuestion.question_image_url && (
                 <img
                   src={currentQuestion.question_image_url || "/placeholder.svg"}
@@ -511,14 +511,14 @@ export function QuizInterface({
           </Card>
 
           {/* Answer Choices */}
-          <div className="space-y-3">
+          <div className="space-y-2 sm:space-y-3">
             {answerChoices.map((choice) => {
               const isSelected = currentSelectedAnswer === choice.letter
               return (
                 <Card
                   key={choice.letter}
                   onClick={() => !showCurrentExplanation && handleAnswerSelect(choice.letter)}
-                  className={`p-4 rounded-lg border-2 transition-all cursor-pointer ${getChoiceStyle(
+                  className={`p-2 sm:p-3 md:p-4 rounded-lg border-2 transition-all cursor-pointer ${getChoiceStyle(
                     choice,
                     isSelected,
                   )}`}
@@ -526,11 +526,11 @@ export function QuizInterface({
                   <div className="flex items-center">
                     <Badge
                       variant="outline"
-                      className="mr-4 text-base font-bold w-8 h-8 flex items-center justify-center"
+                      className="mr-2 sm:mr-3 md:mr-4 text-sm sm:text-base font-bold w-6 h-6 sm:w-7 sm:h-7 md:w-8 md:h-8 flex items-center justify-center"
                     >
                       {choice.letter}
                     </Badge>
-                    <p>{choice.text}</p>
+                    <p className="text-sm sm:text-base leading-snug sm:leading-normal">{choice.text}</p>
                   </div>
                 </Card>
               )
@@ -540,21 +540,21 @@ export function QuizInterface({
           {/* Explanation */}
           {showCurrentExplanation && currentQuestion && (
             <Card>
-              <CardContent className="p-6">
-                <h3 className="font-bold text-lg mb-2">Explanation</h3>
+              <CardContent className="p-3 sm:p-4 md:p-6">
+                <h3 className="font-bold text-base sm:text-lg mb-2">Explanation</h3>
                 <div className="prose dark:prose-invert max-w-none">
-                  <p>{currentQuestion.explanation}</p>
+                  <p className="text-sm sm:text-base leading-snug sm:leading-normal">{currentQuestion.explanation}</p>
                   {currentQuestion.explanation_image_url && (
                     <img
                       src={currentQuestion.explanation_image_url}
                       alt="Explanation"
-                      className="mt-4 rounded-lg max-w-full h-auto"
+                      className="mt-3 sm:mt-4 rounded-lg max-w-full h-auto"
                     />
                   )}
                 </div>
                 {currentQuestion.sources && (
-                  <div className="mt-4 pt-4 border-t">
-                    <h4 className="font-semibold text-sm mb-2">Sources:</h4>
+                  <div className="mt-3 sm:mt-4 pt-3 sm:pt-4 border-t">
+                    <h4 className="font-semibold text-xs sm:text-sm mb-2">Sources:</h4>
                     <SourcesDisplay sources={currentQuestion.sources} />
                   </div>
                 )}

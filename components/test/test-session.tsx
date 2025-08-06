@@ -28,20 +28,32 @@ export function TestSession({ sessionId }: TestSessionProps) {
     updateProgress
   } = useSession(sessionId)
 
-  // Add session persistence to localStorage
+  // Add session persistence to localStorage with better recovery
   useEffect(() => {
     if (session && !loading) {
-      // Store session info in localStorage for recovery
-      localStorage.setItem('activeTestSession', JSON.stringify({
+      // Store comprehensive session info in localStorage for recovery
+      const sessionData = {
         sessionId: session.id,
         sessionName: session.session_name,
+        sessionType: session.session_type,
+        currentQuestionIndex: session.current_question_index,
         startTime: Date.now(),
-        url: window.location.href
-      }))
-    }
-    
-    return () => {
-      // Don't remove from localStorage on unmount - keep it for recovery
+        lastActivity: Date.now(),
+        url: window.location.href,
+        isActive: true
+      }
+      localStorage.setItem('activeTestSession', JSON.stringify(sessionData))
+      
+      // Set up periodic updates to localStorage
+      const updateInterval = setInterval(() => {
+        const currentData = JSON.parse(localStorage.getItem('activeTestSession') || '{}')
+        if (currentData.sessionId === session.id) {
+          currentData.lastActivity = Date.now()
+          localStorage.setItem('activeTestSession', JSON.stringify(currentData))
+        }
+      }, 30000) // Update every 30 seconds
+      
+      return () => clearInterval(updateInterval)
     }
   }, [session, loading])
 

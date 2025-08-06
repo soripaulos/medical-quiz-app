@@ -281,13 +281,15 @@ export const useSessionStore = create<SessionState>((set, get) => ({
 export const useSession = (sessionId?: string) => {
   const store = useSessionStore()
   
-  // Auto-load session when sessionId changes
+  // Auto-load session when sessionId changes or on mount
   React.useEffect(() => {
-    if (sessionId && sessionId !== store.session?.id) {
-      console.log(`Loading session: ${sessionId}`)
+    if (sessionId) {
+      // Always try to load session data, even if we think we have it
+      // This ensures fresh data after tab switches or page reloads
+      console.log(`Loading/refreshing session: ${sessionId}`)
       store.loadSession(sessionId)
     }
-  }, [sessionId, store.session?.id])
+  }, [sessionId]) // Remove dependency on store.session?.id to force refresh
   
   // Set up real-time subscription when session is loaded
   React.useEffect(() => {
@@ -301,6 +303,19 @@ export const useSession = (sessionId?: string) => {
       store.unsubscribeFromSession()
     }
   }, [sessionId, store.session?.id, store.loading])
+  
+  // Handle page visibility changes to refresh data when returning to tab
+  React.useEffect(() => {
+    const handleVisibilityChange = () => {
+      if (!document.hidden && sessionId && store.session) {
+        console.log('Tab became visible, refreshing session data')
+        store.refreshSessionData(sessionId)
+      }
+    }
+    
+    document.addEventListener('visibilitychange', handleVisibilityChange)
+    return () => document.removeEventListener('visibilitychange', handleVisibilityChange)
+  }, [sessionId, store.session?.id])
   
   return store
 } 
