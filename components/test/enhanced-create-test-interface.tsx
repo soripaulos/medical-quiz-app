@@ -44,6 +44,7 @@ import { LoadingSpinner } from "@/components/ui/loading-spinner"
 import { useToast } from "@/components/ui/use-toast"
 import { ActiveSessionCard } from "./active-session-card"
 import { AppLogo } from "@/components/ui/app-logo"
+import { FeedbackButton } from "@/components/feedback/feedback-button"
 
 // Fisher-Yates shuffle algorithm for proper randomization
 function shuffleArray<T>(array: T[]): T[] {
@@ -481,6 +482,7 @@ export function EnhancedCreateTestInterface({ userProfile }: EnhancedCreateTestI
                 </Button>
               </Link>
             )}
+            <FeedbackButton showText={false} size="sm" />
             <Button variant="ghost" size="sm" onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')} className="flex items-center gap-2 p-2">
               {theme === 'dark' ? <Sun className="w-4 h-4" /> : <Moon className="w-4 h-4" />}
             </Button>

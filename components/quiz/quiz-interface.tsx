@@ -6,6 +6,7 @@ import { Card, CardContent } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet"
 import { Calculator, Flag, ChevronLeft, ChevronRight, Square, Beaker, StickyNote, Menu, Moon, Sun } from "lucide-react"
+import { FeedbackButton } from "@/components/feedback/feedback-button"
 import { SourcesDisplay } from "@/components/ui/sources-display"
 import { QuestionSidebar } from "./question-sidebar"
 import { LabValuesModal } from "./lab-values-modal"
@@ -466,6 +467,7 @@ export function QuizInterface({
             )}
             <span className="sr-only">Notes</span>
           </Button>
+          <FeedbackButton />
           <Button variant="ghost" size="icon" onClick={toggleDarkMode}>
             <Sun className="h-5 w-5 rotate-0 scale-100 transition-all dark:-rotate-90 dark:scale-0" />
             <Moon className="absolute h-5 w-5 rotate-90 scale-0 transition-all dark:rotate-0 dark:scale-100" />
