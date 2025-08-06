@@ -97,8 +97,9 @@ export function QuestionFeedback({ question, sessionId }: QuestionFeedbackProps)
         session_id: sessionId || null,
         feedback_type: selectedType,
         suggested_correct_answer: requiresAnswerSelection ? suggestedAnswer : null,
-        created_at: new Date().toISOString(),
       }
+
+      console.log('Submitting feedback data:', feedbackData)
 
       const { error } = await supabase
         .from('question_feedbacks')
@@ -106,8 +107,14 @@ export function QuestionFeedback({ question, sessionId }: QuestionFeedbackProps)
 
       if (error) {
         console.error('Error submitting feedback:', error)
+        console.error('Error details:', {
+          code: error.code,
+          message: error.message,
+          details: error.details,
+          hint: error.hint
+        })
         setSubmitStatus('error')
-        setErrorMessage(error.message || 'Failed to submit feedback')
+        setErrorMessage(`${error.message}${error.hint ? ` (${error.hint})` : ''}`)
       } else {
         setSubmitStatus('success')
         // Reset form after successful submission
