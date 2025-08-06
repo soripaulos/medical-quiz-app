@@ -62,8 +62,8 @@ export async function GET() {
     }
 
     if (allQuestions.length > 0) {
-      const allYears = allQuestions.map((q) => q.year).filter(Boolean)
-      const uniqueYears = [...new Set(allYears)] as number[]
+      const allYears = allQuestions.map((q) => q.year).filter((year): year is number => typeof year === 'number')
+      const uniqueYears = [...new Set(allYears)]
       const sortedYears = uniqueYears.sort((a, b) => b - a)
       console.log(`Regular client succeeded with batching, found ${sortedYears.length} unique years from ${allQuestions.length} questions:`, sortedYears)
       return NextResponse.json({ years: sortedYears })
@@ -106,8 +106,8 @@ export async function GET() {
     }
 
     if (allQuestions.length > 0) {
-      const allYears = allQuestions.map((q) => q.year).filter(Boolean)
-      const uniqueYears = [...new Set(allYears)] as number[]
+      const allYears = allQuestions.map((q) => q.year).filter((year): year is number => typeof year === 'number')
+      const uniqueYears = [...new Set(allYears)]
       const sortedYears = uniqueYears.sort((a, b) => b - a)
       console.log(`Admin client succeeded with batching, found ${sortedYears.length} unique years from ${allQuestions.length} questions:`, sortedYears)
       return NextResponse.json({ years: sortedYears })

@@ -53,7 +53,7 @@ export async function GET() {
         .not("year", "is", null)
         .range(0, 10000)
 
-      const uniqueYears = directYears ? [...new Set(directYears.map(q => q.year))].sort((a, b) => b - a) : []
+      const uniqueYears = directYears ? [...new Set(directYears.map(q => q.year))].filter((year): year is number => typeof year === 'number').sort((a, b) => b - a) : []
       
       debugInfo.tests.push({
         name: "Direct Years Query (Regular Client)",
@@ -81,7 +81,7 @@ export async function GET() {
         .not("year", "is", null)
         .range(0, 10000)
 
-      const adminUniqueYears = adminDirectYears ? [...new Set(adminDirectYears.map(q => q.year))].sort((a, b) => b - a) : []
+      const adminUniqueYears = adminDirectYears ? [...new Set(adminDirectYears.map(q => q.year))].filter((year): year is number => typeof year === 'number').sort((a, b) => b - a) : []
       
       debugInfo.tests.push({
         name: "Direct Years Query (Admin Client)",
