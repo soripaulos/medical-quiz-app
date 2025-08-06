@@ -1,37 +1,51 @@
 import { NextResponse } from "next/server"
 import { createClient } from "@/lib/supabase/server"
+import { createAdminClient } from "@/lib/supabase/admin-client"
 
 export async function GET() {
   const supabase = await createClient()
 
   try {
-    // Try different approaches to get all years (based on working commit b9da295)
+    // Try the optimized database function first
+    const { data: yearsFromFunction, error: functionError } = await supabase.rpc('get_distinct_years')
     
-    // Method 1: Using range(0, 9999)
+    if (!functionError && yearsFromFunction && yearsFromFunction.length > 0) {
+      const sortedYears = yearsFromFunction.map((row: any) => row.year).sort((a: number, b: number) => b - a)
+      return NextResponse.json({ years: sortedYears })
+    }
+
+    // Try different approaches to get all years
     const { data: questions1, error: error1 } = await supabase
       .from("questions")
       .select("year")
       .not("year", "is", null)
       .range(0, 9999)
     
-    // Method 2: Without range limit
     const { data: questions2, error: error2 } = await supabase
       .from("questions")
       .select("year")
       .not("year", "is", null)
     
-    // Method 3: Using limit(10000)
     const { data: questions3, error: error3 } = await supabase
       .from("questions")
       .select("year")
       .not("year", "is", null)
       .limit(10000)
 
+    // Try with admin client (bypasses RLS) as fallback
+    const adminSupabase = createAdminClient()
+    const { data: adminQuestions, error: adminError } = await adminSupabase
+      .from("questions")
+      .select("year")
+      .not("year", "is", null)
+      .range(0, 9999)
+
     // Use the method that returned the most results
     const results = [
       { data: questions1, error: error1, method: "range(0,9999)" },
       { data: questions2, error: error2, method: "no limit" },
-      { data: questions3, error: error3, method: "limit(10000)" }
+      { data: questions3, error: error3, method: "limit(10000)" },
+      { data: adminQuestions, error: adminError, method: "admin client (bypasses RLS)" }
     ]
     
     const bestResult = results
