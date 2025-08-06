@@ -71,9 +71,30 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const signOut = async () => {
     setLoading(true)
     try {
-      // Clear session tracking data
-      localStorage.removeItem('auth_session_id')
-      localStorage.removeItem('auth_session_timestamp')
+      // Get current user before signing out
+      const { data: { user } } = await supabase.auth.getUser()
+      
+      if (user) {
+        // Decrement the logged_in_number
+        const { data: profile } = await supabase
+          .from('profiles')
+          .select('logged_in_number')
+          .eq('id', user.id)
+          .single()
+
+        if (profile) {
+          const newLoginCount = Math.max(0, (profile.logged_in_number || 1) - 1)
+          await supabase
+            .from('profiles')
+            .update({ 
+              logged_in_number: newLoginCount,
+              updated_at: new Date().toISOString()
+            })
+            .eq('id', user.id)
+          
+          console.log(`User ${user.id} login count decremented to ${newLoginCount}`)
+        }
+      }
 
       const { error } = await supabase.auth.signOut()
       if (error) throw error

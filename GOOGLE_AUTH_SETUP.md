@@ -12,7 +12,14 @@ The authentication system has been updated to:
 
 ## Database Setup
 
-**No database changes required!** The session management system uses client-side localStorage and Supabase's built-in authentication to manage concurrent sessions without modifying your database schema.
+**Uses existing schema!** The session management system uses the existing `logged_in_number` column in the `profiles` table to track concurrent sessions. No additional database changes are required.
+
+### Required Column
+The system expects a `logged_in_number` column in your `profiles` table:
+- **Column name**: `logged_in_number`
+- **Type**: `integer`
+- **Default**: `0` or `NULL`
+- **Purpose**: Tracks the number of active sessions for each user
 
 ## Google OAuth Configuration
 
@@ -75,28 +82,32 @@ NEXT_PUBLIC_SUPABASE_ANON_KEY=your_supabase_anon_key
 
 ## Session Management Features
 
-### Client-Side Session Limiting
-- Users are limited to 2 active sessions simultaneously using localStorage
-- When a user logs in from a 3rd device, the oldest session is automatically ended
-- Session tracking includes device type, browser information, and activity timestamps
-- Sessions automatically expire after 24 hours of inactivity
+### Server-Side Session Limiting
+- Users are limited to 2 active sessions simultaneously using database tracking
+- When a user tries to log in from a 3rd device, the login is **blocked** with an error message
+- Session count is stored in the `profiles.logged_in_number` column
+- Sessions are automatically decremented when users sign out
 
-### Automatic Session Warnings
-- Users receive warnings when session limits are reached
-- Invalid sessions (ended from another device) trigger automatic sign-out
-- Session status is displayed in the UI with visual indicators
+### Session Enforcement
+- **Login blocking**: New logins are prevented when limit is reached
+- **Real-time tracking**: Session count is updated immediately on login/logout
+- **Error feedback**: Users see clear messages when session limit is exceeded
+- **Manual reset**: Users can force end all other sessions
 
 ### Session Management Components
-- `SessionWarning`: Displays warnings and handles session enforcement (automatically included in layout)
-- `SessionStatus`: Shows current session count and status indicator
-- `useSessionLimit`: Hook for accessing session management functionality
+- `SessionStatus`: Full session management card with status and controls
+- `SessionStatusBadge`: Compact session indicator for headers/status bars  
+- `useSessionStatus`: Hook for accessing session data and management functions
 
-### Usage Example
+### API Endpoints
+- `POST /api/auth/reset-sessions`: Reset user's session count to 1 (end all other sessions)
 
-To show session status in a component:
+### Usage Examples
+
+To show full session management in a profile page:
 
 ```tsx
-import { SessionStatus } from "@/components/auth/session-warning"
+import { SessionStatus } from "@/components/auth/session-status"
 
 export function UserProfilePage() {
   return (
@@ -108,18 +119,35 @@ export function UserProfilePage() {
 }
 ```
 
-To access session management in a component:
+To show compact session status:
 
 ```tsx
-import { useSessionLimit } from "@/hooks/use-session-limit"
+import { SessionStatusBadge } from "@/components/auth/session-status"
+
+export function Header() {
+  return (
+    <div className="flex items-center gap-4">
+      <SessionStatusBadge />
+      {/* Other header items */}
+    </div>
+  )
+}
+```
+
+To access session data programmatically:
+
+```tsx
+import { useSessionStatus } from "@/hooks/use-session-status"
 
 export function MyComponent() {
   const { 
-    isSessionValid, 
-    sessionWarning, 
-    activeSessionCount,
-    endAllOtherSessions 
-  } = useSessionLimit()
+    sessionCount, 
+    loading, 
+    error, 
+    refreshSessionCount,
+    resetOtherSessions,
+    isAtLimit 
+  } = useSessionStatus()
 
   // Use session data...
 }
@@ -146,11 +174,11 @@ export function MyComponent() {
 
 ## Security Considerations
 
-1. **Client-Side Storage**: Session data is stored in localStorage per user, isolated by user ID
-2. **Automatic Cleanup**: Expired sessions (24h+ inactive) are automatically cleaned up
-3. **Session Validation**: Regular checks ensure session validity with Supabase auth
-4. **Device Identification**: Sessions include user agent for basic device identification
-5. **No Server Storage**: No sensitive session data is stored server-side beyond Supabase's built-in auth
+1. **Database Storage**: Session counts are stored securely in the database with proper access controls
+2. **Server-Side Enforcement**: Session limits are enforced server-side, preventing client-side bypass
+3. **Immediate Updates**: Session counts are updated atomically during login/logout operations
+4. **Row Level Security**: Uses existing RLS policies on the profiles table
+5. **Reliable Tracking**: No dependency on client-side storage that can be cleared or manipulated
 
 ## Troubleshooting
 
@@ -165,8 +193,8 @@ export function MyComponent() {
    - Verify Client ID and Secret are correctly entered
 
 3. **Session limiting not working**
-   - Check browser localStorage for session data
-   - Verify that localStorage is not being cleared by browser settings
+   - Check that the `logged_in_number` column exists in your `profiles` table
+   - Verify the column is of type `integer` and allows updates
 
 4. **Redirect issues after login**
    - Verify Site URL is correctly set in Supabase Authentication settings

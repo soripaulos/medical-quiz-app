@@ -1,17 +1,27 @@
 "use client"
 
 import type React from "react"
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { Loader2, AlertCircle } from "lucide-react"
 import { createClient } from "@/lib/supabase/client"
 import { LoadingSpinner } from "@/components/ui/loading-spinner"
+import { useSearchParams } from "next/navigation"
 
 export function LoginForm() {
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const searchParams = useSearchParams()
+
+  // Check for error in URL parameters (from auth callback)
+  useEffect(() => {
+    const urlError = searchParams.get('error')
+    if (urlError) {
+      setError(decodeURIComponent(urlError))
+    }
+  }, [searchParams])
 
   const handleGoogleSignIn = async () => {
     setLoading(true)
