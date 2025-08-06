@@ -41,9 +41,7 @@ export async function GET() {
     const totalSessions = completedSessions.length
     const totalQuestions = completedSessions.reduce((sum, s) => sum + (s.total_questions || 0), 0)
     
-    // Use latest answers per question for correct/incorrect counts (same as question filters)
-    const latestCorrectCount = latestAnswerMap.size > 0 ? Array.from(latestAnswerMap.values()).filter(answer => answer.is_correct).length : 0
-    const latestIncorrectCount = latestAnswerMap.size > 0 ? Array.from(latestAnswerMap.values()).filter(answer => !answer.is_correct).length : 0
+    // Note: latestCorrectCount and latestIncorrectCount will be calculated after latestAnswerMap is created
     
     // Calculate total time spent using total_active_time for completed sessions and real-time for active ones
     let totalTimeSpentSeconds = 0
