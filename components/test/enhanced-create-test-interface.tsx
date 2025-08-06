@@ -245,7 +245,7 @@ export function EnhancedCreateTestInterface({ userProfile }: EnhancedCreateTestI
         const filteredRes = await fetch("/api/questions/filtered", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ filters, userId: user?.id, countOnly: true }),
+          body: JSON.stringify({ filters, userId: user?.id }),
         })
 
         const filteredData = await safeJson(filteredRes)
@@ -391,17 +391,10 @@ export function EnhancedCreateTestInterface({ userProfile }: EnhancedCreateTestI
     setCreating(true)
     try {
       // Fetch the actual questions for test creation
-      // Use a larger pageSize when randomizing to ensure good diversity
-      const fetchSize = randomizeOrder ? Math.max(2000, (maxQuestions || 200) * 5) : 1000
       const questionsRes = await fetch("/api/questions/filtered", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ 
-          filters, 
-          userId: user?.id, 
-          randomize: randomizeOrder,
-          pageSize: fetchSize
-        }),
+        body: JSON.stringify({ filters, userId: user?.id }),
       })
 
       const questionsData = await safeJson(questionsRes)
@@ -413,9 +406,9 @@ export function EnhancedCreateTestInterface({ userProfile }: EnhancedCreateTestI
       const questions = questionsData.questions || []
       const questionIds = questions.map((q: any) => q.id)
       
-      // Questions are already randomized at the API level if randomizeOrder is true
-      // Apply final question limit
-      const finalQuestionIds = maxQuestions ? questionIds.slice(0, maxQuestions) : questionIds
+      // Apply randomization first to ensure diverse selection across specialties
+      const shuffledQuestionIds = randomizeOrder ? shuffleArray([...questionIds]) : questionIds
+      const finalQuestionIds = maxQuestions ? shuffledQuestionIds.slice(0, maxQuestions) : shuffledQuestionIds
 
       if (finalQuestionIds.length === 0) {
         throw new Error("No questions available with the current filters")

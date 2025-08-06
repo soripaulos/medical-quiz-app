@@ -2,134 +2,72 @@ import { NextResponse } from "next/server"
 import { createClient } from "@/lib/supabase/server"
 
 export async function POST(req: Request) {
-  const { filters, userId, countOnly = false, page = 0, pageSize = 1000, randomize = false } = await req.json()
+  const { filters, userId } = await req.json()
 
   const supabase = await createClient()
 
   try {
-    // Helper function to build base query conditions
-    const buildQueryConditions = async (baseQuery: any) => {
-      let query = baseQuery
-
-      // Apply specialty filters - if empty array, include all
-      if (filters.specialties && filters.specialties.length > 0) {
-        const { data: specialtyIds, error: specialtyError } = await supabase.from("specialties").select("id").in("name", filters.specialties)
-
-        if (specialtyError) {
-          console.error("Error fetching specialty IDs:", specialtyError)
-          throw new Error(`Failed to fetch specialties: ${specialtyError.message}`)
-        }
-
-        if (specialtyIds && specialtyIds.length > 0) {
-          query = query.in(
-            "specialty_id",
-            specialtyIds.map((s) => s.id),
-          )
-        }
-      }
-
-      // Apply exam type filters - if empty array, include all
-      if (filters.examTypes && filters.examTypes.length > 0) {
-        const { data: examTypeIds, error: examTypeError } = await supabase.from("exam_types").select("id").in("name", filters.examTypes)
-
-        if (examTypeError) {
-          console.error("Error fetching exam type IDs:", examTypeError)
-          throw new Error(`Failed to fetch exam types: ${examTypeError.message}`)
-        }
-
-        if (examTypeIds && examTypeIds.length > 0) {
-          query = query.in(
-            "exam_type_id",
-            examTypeIds.map((e) => e.id),
-          )
-        }
-      }
-
-      // Apply year filters - if empty array, include all
-      if (filters.years && filters.years.length > 0) {
-        query = query.in("year", filters.years)
-      }
-
-      // Apply difficulty filters - if empty array, include all
-      if (filters.difficulties && filters.difficulties.length > 0) {
-        query = query.in("difficulty", filters.difficulties)
-      }
-
-      return query
-    }
-
-    // If only count is requested, use a more efficient count query
-    if (countOnly) {
-      let countQuery = supabase.from("questions").select("id", { count: "exact", head: true })
-      countQuery = await buildQueryConditions(countQuery)
-      
-      const { count, error: countError } = await countQuery
-      
-      if (countError) throw countError
-      
-      return NextResponse.json({ count: count || 0 })
-    }
-
-    // Build the main query with pagination
-    const startRange = page * pageSize
-    const endRange = startRange + pageSize - 1
-    
+    // Build the base query
     let query = supabase.from("questions").select(`
         *,
         specialty:specialties(id, name),
         exam_type:exam_types(id, name)
       `)
 
-    query = await buildQueryConditions(query)
-    
-    // Apply pagination after filtering
-    query = query.range(startRange, endRange)
+    // Apply specialty filters - if empty array, include all
+    if (filters.specialties && filters.specialties.length > 0) {
+      const { data: specialtyIds } = await supabase.from("specialties").select("id").in("name", filters.specialties)
 
-    // Also get the total count for pagination info
-    let countQuery = supabase.from("questions").select("id", { count: "exact", head: true })
-    countQuery = await buildQueryConditions(countQuery)
-
-    const [questionsResult, countResult] = await Promise.all([
-      query,
-      countQuery
-    ])
-
-    const { data: questions, error } = questionsResult
-    const { count: totalCount, error: countError } = countResult
-
-    if (error) {
-      console.error("Error fetching questions:", error)
-      throw new Error(`Failed to fetch questions: ${error.message}`)
+      if (specialtyIds && specialtyIds.length > 0) {
+        query = query.in(
+          "specialty_id",
+          specialtyIds.map((s) => s.id),
+        )
+      }
     }
-    if (countError) {
-      console.error("Error counting questions:", countError)
-      throw new Error(`Failed to count questions: ${countError.message}`)
+
+    // Apply exam type filters - if empty array, include all
+    if (filters.examTypes && filters.examTypes.length > 0) {
+      const { data: examTypeIds } = await supabase.from("exam_types").select("id").in("name", filters.examTypes)
+
+      if (examTypeIds && examTypeIds.length > 0) {
+        query = query.in(
+          "exam_type_id",
+          examTypeIds.map((e) => e.id),
+        )
+      }
     }
+
+    // Apply year filters - if empty array, include all
+    if (filters.years && filters.years.length > 0) {
+      query = query.in("year", filters.years)
+    }
+
+    // Apply difficulty filters - if empty array, include all
+    if (filters.difficulties && filters.difficulties.length > 0) {
+      query = query.in("difficulty", filters.difficulties)
+    }
+
+    const { data: questions, error } = await query
+
+    if (error) throw error
 
     // Get user progress and answers for filtering by question status
     let userProgress: any[] = []
     let userAnswers: any[] = []
 
     if (userId && userId !== "temp-user-id") {
-      // Use parallel queries for better performance
-      const [progressResult, answersResult] = await Promise.all([
-        supabase.from("user_question_progress").select("*").eq("user_id", userId),
-        supabase
-          .from("user_answers")
-          .select("question_id, is_correct, answered_at")
-          .eq("user_id", userId)
-          .order("answered_at", { ascending: false }) // Most recent first
-      ])
+      const { data: progressData } = await supabase.from("user_question_progress").select("*").eq("user_id", userId)
 
-      if (progressResult.error) {
-        console.error("Error fetching user progress:", progressResult.error)
-      }
-      if (answersResult.error) {
-        console.error("Error fetching user answers:", answersResult.error)
-      }
+      // Get all user answers with question_id, is_correct, and answered_at
+      const { data: answersData } = await supabase
+        .from("user_answers")
+        .select("question_id, is_correct, answered_at")
+        .eq("user_id", userId)
+        .order("answered_at", { ascending: false }) // Most recent first
 
-      userProgress = progressResult.data || []
-      userAnswers = answersResult.data || []
+      userProgress = progressData || []
+      userAnswers = answersData || []
     }
 
     // Filter questions based on status - if empty array, include all
@@ -178,22 +116,9 @@ export async function POST(req: Request) {
       })
     }
 
-    // Apply randomization at application level if requested
-    if (randomize && filteredQuestions.length > 0) {
-      // Fisher-Yates shuffle
-      for (let i = filteredQuestions.length - 1; i > 0; i--) {
-        const j = Math.floor(Math.random() * (i + 1));
-        [filteredQuestions[i], filteredQuestions[j]] = [filteredQuestions[j], filteredQuestions[i]]
-      }
-    }
-
     return NextResponse.json({
       questions: filteredQuestions,
       count: filteredQuestions.length,
-      totalCount: totalCount || 0,
-      page,
-      pageSize,
-      hasMore: (totalCount || 0) > endRange + 1
     })
   } catch (err) {
     console.error("Error filtering questions:", err)
