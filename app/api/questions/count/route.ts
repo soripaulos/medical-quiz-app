@@ -31,11 +31,19 @@ export async function POST(req: Request) {
 
     // Apply specialty filters - if empty array, include all
     if (filters.specialties && filters.specialties.length > 0) {
+      // Get count of specialties first
+      const { count: specialtyCount } = await supabase
+        .from("specialties")
+        .select("*", { count: "exact", head: true })
+        .in("name", filters.specialties)
+      
+      const specialtyRangeEnd = Math.max(999, specialtyCount || 999)
+      
       const { data: specialtyIds } = await supabase
         .from("specialties")
         .select("id")
         .in("name", filters.specialties)
-        .range(0, 999) // Ensure we get all matching specialties
+        .range(0, specialtyRangeEnd) // Ensure we get all matching specialties
 
       if (specialtyIds && specialtyIds.length > 0) {
         countQuery = countQuery.in(
@@ -47,11 +55,19 @@ export async function POST(req: Request) {
 
     // Apply exam type filters - if empty array, include all
     if (filters.examTypes && filters.examTypes.length > 0) {
+      // Get count of exam types first
+      const { count: examTypeCount } = await supabase
+        .from("exam_types")
+        .select("*", { count: "exact", head: true })
+        .in("name", filters.examTypes)
+      
+      const examTypeRangeEnd = Math.max(999, examTypeCount || 999)
+      
       const { data: examTypeIds } = await supabase
         .from("exam_types")
         .select("id")
         .in("name", filters.examTypes)
-        .range(0, 999) // Ensure we get all matching exam types
+        .range(0, examTypeRangeEnd) // Ensure we get all matching exam types
 
       if (examTypeIds && examTypeIds.length > 0) {
         countQuery = countQuery.in(
