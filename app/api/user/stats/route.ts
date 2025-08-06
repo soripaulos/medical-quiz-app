@@ -115,13 +115,18 @@ export async function GET() {
     const incorrectPercentage = totalQuestionsInDatabase > 0 ? (latestIncorrectCount / totalQuestionsInDatabase) * 100 : 0
     const unansweredPercentage = totalQuestionsInDatabase > 0 ? (unansweredCount / totalQuestionsInDatabase) * 100 : 0
 
+    // Calculate overall score as correct answers out of attempted answers (excluding unanswered)
+    const totalAttemptedQuestions = totalCorrect + totalIncorrect
+    const overallScore = totalAttemptedQuestions > 0 ? (totalCorrect / totalAttemptedQuestions) * 100 : 0
+
     const stats = {
       totalSessions,
       totalQuestions,
       totalCorrect,
       totalIncorrect,
       totalTimeSpent: totalTimeSpentSeconds, // Return in seconds for proper conversion
-      averageScore: totalQuestions > 0 ? (totalCorrect / totalQuestions) * 100 : 0,
+      averageScore: overallScore, // Now calculated as correct/(correct + incorrect)
+      totalAttemptedQuestions, // Add this for display
       totalUniqueQuestions: totalAnsweredQuestions,
       answerDistribution: {
         correct: correctPercentage,

@@ -37,6 +37,7 @@ interface UserStats {
   totalQuestions: number
   totalCorrect: number
   totalIncorrect: number
+  totalAttemptedQuestions: number
   totalTimeSpent: number
   averageScore: number
   totalUniqueQuestions: number
@@ -185,13 +186,14 @@ export function UserProgressDashboard() {
 
   const formatTime = (seconds: number) => {
     const totalSeconds = seconds || 0
-    const hours = Math.floor(totalSeconds / 3600)
-    const minutes = Math.floor((totalSeconds % 3600) / 60)
+    const totalMinutes = Math.floor(totalSeconds / 60)
+    const hours = Math.floor(totalMinutes / 60)
+    const remainingMinutes = totalMinutes % 60
 
-    if (hours > 0) {
-      return `${hours}h ${minutes}m`
+    if (totalMinutes >= 60) {
+      return `${hours}h ${remainingMinutes}m`
     }
-    return `${minutes}m`
+    return `${totalMinutes} minutes`
   }
 
   const getScoreColor = (score: number) => {
@@ -271,7 +273,7 @@ export function UserProgressDashboard() {
                 {stats?.averageScore?.toFixed(1) || 0}%
               </div>
               <p className="text-xs text-muted-foreground">
-                {stats?.totalCorrect || 0} of {stats?.totalQuestions || 0} correct
+                {stats?.totalCorrect || 0} of {stats?.totalAttemptedQuestions || 0} correct
               </p>
             </CardContent>
           </Card>
