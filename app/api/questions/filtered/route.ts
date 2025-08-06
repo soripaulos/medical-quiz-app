@@ -7,16 +7,20 @@ export async function POST(req: Request) {
   const supabase = await createClient()
 
   try {
-    // Build the base query
+    // Build the base query with high limit to ensure we get all matching questions
     let query = supabase.from("questions").select(`
         *,
         specialty:specialties(id, name),
         exam_type:exam_types(id, name)
-      `)
+      `).limit(50000)
 
     // Apply specialty filters - if empty array, include all
     if (filters.specialties && filters.specialties.length > 0) {
-      const { data: specialtyIds } = await supabase.from("specialties").select("id").in("name", filters.specialties)
+      const { data: specialtyIds } = await supabase
+        .from("specialties")
+        .select("id")
+        .in("name", filters.specialties)
+        .limit(1000) // Ensure we get all matching specialties
 
       if (specialtyIds && specialtyIds.length > 0) {
         query = query.in(
@@ -28,7 +32,11 @@ export async function POST(req: Request) {
 
     // Apply exam type filters - if empty array, include all
     if (filters.examTypes && filters.examTypes.length > 0) {
-      const { data: examTypeIds } = await supabase.from("exam_types").select("id").in("name", filters.examTypes)
+      const { data: examTypeIds } = await supabase
+        .from("exam_types")
+        .select("id")
+        .in("name", filters.examTypes)
+        .limit(1000) // Ensure we get all matching exam types
 
       if (examTypeIds && examTypeIds.length > 0) {
         query = query.in(
@@ -57,7 +65,11 @@ export async function POST(req: Request) {
     let userAnswers: any[] = []
 
     if (userId && userId !== "temp-user-id") {
-      const { data: progressData } = await supabase.from("user_question_progress").select("*").eq("user_id", userId)
+      const { data: progressData } = await supabase
+        .from("user_question_progress")
+        .select("*")
+        .eq("user_id", userId)
+        .limit(50000) // Ensure we get all user progress data
 
       // Get all user answers with question_id, is_correct, and answered_at
       const { data: answersData } = await supabase
@@ -65,6 +77,7 @@ export async function POST(req: Request) {
         .select("question_id, is_correct, answered_at")
         .eq("user_id", userId)
         .order("answered_at", { ascending: false }) // Most recent first
+        .limit(50000) // Ensure we get all user answers
 
       userProgress = progressData || []
       userAnswers = answersData || []
