@@ -413,7 +413,8 @@ export function EnhancedCreateTestInterface({ userProfile }: EnhancedCreateTestI
       const questions = questionsData.questions || []
       const questionIds = questions.map((q: any) => q.id)
       
-      // Questions are already randomized at the database level if randomizeOrder is true
+      // Questions are already randomized at the API level if randomizeOrder is true
+      // Apply final question limit
       const finalQuestionIds = maxQuestions ? questionIds.slice(0, maxQuestions) : questionIds
 
       if (finalQuestionIds.length === 0) {

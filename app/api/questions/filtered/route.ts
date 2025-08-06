@@ -13,7 +13,12 @@ export async function POST(req: Request) {
 
       // Apply specialty filters - if empty array, include all
       if (filters.specialties && filters.specialties.length > 0) {
-        const { data: specialtyIds } = await supabase.from("specialties").select("id").in("name", filters.specialties)
+        const { data: specialtyIds, error: specialtyError } = await supabase.from("specialties").select("id").in("name", filters.specialties)
+
+        if (specialtyError) {
+          console.error("Error fetching specialty IDs:", specialtyError)
+          throw new Error(`Failed to fetch specialties: ${specialtyError.message}`)
+        }
 
         if (specialtyIds && specialtyIds.length > 0) {
           query = query.in(
@@ -25,7 +30,12 @@ export async function POST(req: Request) {
 
       // Apply exam type filters - if empty array, include all
       if (filters.examTypes && filters.examTypes.length > 0) {
-        const { data: examTypeIds } = await supabase.from("exam_types").select("id").in("name", filters.examTypes)
+        const { data: examTypeIds, error: examTypeError } = await supabase.from("exam_types").select("id").in("name", filters.examTypes)
+
+        if (examTypeError) {
+          console.error("Error fetching exam type IDs:", examTypeError)
+          throw new Error(`Failed to fetch exam types: ${examTypeError.message}`)
+        }
 
         if (examTypeIds && examTypeIds.length > 0) {
           query = query.in(
@@ -72,12 +82,7 @@ export async function POST(req: Request) {
 
     query = await buildQueryConditions(query)
     
-    // Add randomization if requested - use PostgreSQL's RANDOM() function
-    if (randomize) {
-      query = query.order('random()')
-    }
-    
-    // Apply pagination after filtering and randomization
+    // Apply pagination after filtering
     query = query.range(startRange, endRange)
 
     // Also get the total count for pagination info
@@ -92,8 +97,14 @@ export async function POST(req: Request) {
     const { data: questions, error } = questionsResult
     const { count: totalCount, error: countError } = countResult
 
-    if (error) throw error
-    if (countError) throw countError
+    if (error) {
+      console.error("Error fetching questions:", error)
+      throw new Error(`Failed to fetch questions: ${error.message}`)
+    }
+    if (countError) {
+      console.error("Error counting questions:", countError)
+      throw new Error(`Failed to count questions: ${countError.message}`)
+    }
 
     // Get user progress and answers for filtering by question status
     let userProgress: any[] = []
@@ -102,14 +113,20 @@ export async function POST(req: Request) {
     if (userId && userId !== "temp-user-id") {
       // Use parallel queries for better performance
       const [progressResult, answersResult] = await Promise.all([
-        supabase.from("user_question_progress").select("*").eq("user_id", userId).range(0, 9999),
+        supabase.from("user_question_progress").select("*").eq("user_id", userId),
         supabase
           .from("user_answers")
           .select("question_id, is_correct, answered_at")
           .eq("user_id", userId)
           .order("answered_at", { ascending: false }) // Most recent first
-          .range(0, 9999)
       ])
+
+      if (progressResult.error) {
+        console.error("Error fetching user progress:", progressResult.error)
+      }
+      if (answersResult.error) {
+        console.error("Error fetching user answers:", answersResult.error)
+      }
 
       userProgress = progressResult.data || []
       userAnswers = answersResult.data || []
@@ -159,6 +176,15 @@ export async function POST(req: Request) {
           }
         })
       })
+    }
+
+    // Apply randomization at application level if requested
+    if (randomize && filteredQuestions.length > 0) {
+      // Fisher-Yates shuffle
+      for (let i = filteredQuestions.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [filteredQuestions[i], filteredQuestions[j]] = [filteredQuestions[j], filteredQuestions[i]]
+      }
     }
 
     return NextResponse.json({
