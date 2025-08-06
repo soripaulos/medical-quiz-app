@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server"
 import { createClient } from "@/lib/supabase/server"
+import { createAdminClient } from "@/lib/supabase/admin-client"
 
 export async function GET() {
   const supabase = await createClient()
@@ -8,12 +9,13 @@ export async function GET() {
     // Try the optimized RPC function first (gets distinct years directly)
     try {
       const { data: yearsFromRPC, error: rpcError } = await supabase.rpc('get_distinct_years')
+      
       if (!rpcError && yearsFromRPC && yearsFromRPC.length > 0) {
         const sortedYears = yearsFromRPC.map((row: any) => row.year).sort((a: number, b: number) => b - a)
         return NextResponse.json({ years: sortedYears })
       }
     } catch (rpcErr) {
-      console.log("RPC function not available, falling back to regular query")
+      // RPC function not available, continue to fallback
     }
 
     // Fallback: Get all questions with high limit
@@ -22,6 +24,23 @@ export async function GET() {
       .select("year")
       .not("year", "is", null)
       .limit(50000) // High limit to ensure we get all questions
+
+    // If regular client failed or returned no results, try admin client
+    if (error || !questions || questions.length === 0) {
+      const adminSupabase = createAdminClient()
+      const { data: adminQuestions, error: adminError } = await adminSupabase
+        .from("questions")
+        .select("year")
+        .not("year", "is", null)
+        .limit(50000)
+
+      if (!adminError && adminQuestions && adminQuestions.length > 0) {
+        const allYears = adminQuestions.map((q) => q.year).filter(Boolean) || []
+        const uniqueYears = [...new Set(allYears)] as number[]
+        const sortedYears = uniqueYears.sort((a, b) => b - a)
+        return NextResponse.json({ years: sortedYears })
+      }
+    }
 
     if (error) throw error
 
