@@ -479,6 +479,21 @@ export function QuizInterface({
           {/* Question */}
           <Card>
             <CardContent className="p-6">
+              {/* Question metadata */}
+              {(currentQuestion.year || currentQuestion.exam_type) && (
+                <div className="flex flex-wrap gap-2 mb-4">
+                  {currentQuestion.year && (
+                    <Badge variant="secondary" className="text-xs font-medium">
+                      Year {currentQuestion.year}
+                    </Badge>
+                  )}
+                  {currentQuestion.exam_type && (
+                    <Badge variant="outline" className="text-xs font-medium">
+                      {currentQuestion.exam_type.name}
+                    </Badge>
+                  )}
+                </div>
+              )}
               <p className="text-lg leading-relaxed">{currentQuestion.question_text}</p>
               {currentQuestion.question_image_url && (
                 <img
