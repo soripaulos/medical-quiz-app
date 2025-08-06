@@ -5,7 +5,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { Alert, AlertDescription } from "@/components/ui/alert"
-import { Smartphone, AlertCircle, LogOut, RefreshCw } from "lucide-react"
+import { Smartphone, AlertCircle, RefreshCw } from "lucide-react"
 import { useSessionStatus } from "@/hooks/use-session-status"
 
 export function SessionStatus() {
@@ -14,28 +14,11 @@ export function SessionStatus() {
     loading, 
     error, 
     refreshSessionCount, 
-    resetOtherSessions, 
     isAtLimit 
   } = useSessionStatus()
-  const [resetting, setResetting] = useState(false)
   const [message, setMessage] = useState<string | null>(null)
 
-  const handleResetSessions = async () => {
-    setResetting(true)
-    setMessage(null)
 
-    const result = await resetOtherSessions()
-    
-    if (result.success) {
-      setMessage(result.message || "All other sessions have been ended")
-      setTimeout(() => setMessage(null), 5000)
-    } else {
-      setMessage(result.error || "Failed to reset sessions")
-      setTimeout(() => setMessage(null), 5000)
-    }
-
-    setResetting(false)
-  }
 
   const getStatusColor = () => {
     if (sessionCount === 0) return 'bg-gray-500'
@@ -81,7 +64,7 @@ export function SessionStatus() {
           </Badge>
         </CardTitle>
         <CardDescription>
-          You can have up to 2 active sessions at the same time. If you try to sign in from a third device, you'll be blocked.
+          You can have up to 2 active sessions at the same time. If you try to sign in from a third device, you'll be blocked. To free up a session, sign out from one of your devices.
         </CardDescription>
       </CardHeader>
       <CardContent className="space-y-4">
@@ -122,19 +105,6 @@ export function SessionStatus() {
             >
               <RefreshCw className={`h-4 w-4 ${loading ? 'animate-spin' : ''}`} />
             </Button>
-            
-            {sessionCount > 1 && (
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={handleResetSessions}
-                disabled={resetting}
-                className="text-red-600 hover:text-red-700 hover:bg-red-50"
-              >
-                <LogOut className="h-4 w-4 mr-1" />
-                {resetting ? 'Ending...' : 'End Other Sessions'}
-              </Button>
-            )}
           </div>
         </div>
 
@@ -144,7 +114,7 @@ export function SessionStatus() {
             <li>• Each time you sign in, your session count increases</li>
             <li>• When you sign out, your session count decreases</li>
             <li>• If you reach 2 sessions, new sign-ins will be blocked</li>
-            <li>• Use "End Other Sessions" to force sign out all other devices</li>
+            <li>• To free up a session slot, sign out from one of your devices</li>
           </ul>
         </div>
       </CardContent>

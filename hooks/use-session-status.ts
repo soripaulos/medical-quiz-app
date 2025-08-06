@@ -44,31 +44,7 @@ export function useSessionStatus() {
     }
   }
 
-  // Reset all other sessions (keep current session only)
-  const resetOtherSessions = async (): Promise<{ success: boolean; message?: string; error?: string }> => {
-    try {
-      const response = await fetch('/api/auth/reset-sessions', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-      })
 
-      const data = await response.json()
-
-      if (!response.ok) {
-        return { success: false, error: data.error || 'Failed to reset sessions' }
-      }
-
-      // Refresh session count after reset
-      await fetchSessionCount()
-
-      return { success: true, message: data.message }
-    } catch (err) {
-      console.error('Error resetting sessions:', err)
-      return { success: false, error: 'Failed to reset sessions' }
-    }
-  }
 
   // Fetch session count when user changes
   useEffect(() => {
@@ -88,7 +64,6 @@ export function useSessionStatus() {
     loading,
     error,
     refreshSessionCount: fetchSessionCount,
-    resetOtherSessions,
     isAtLimit: sessionCount >= 2,
   }
 }

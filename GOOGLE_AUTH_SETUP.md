@@ -92,15 +92,14 @@ NEXT_PUBLIC_SUPABASE_ANON_KEY=your_supabase_anon_key
 - **Login blocking**: New logins are prevented when limit is reached
 - **Real-time tracking**: Session count is updated immediately on login/logout
 - **Error feedback**: Users see clear messages when session limit is exceeded
-- **Manual reset**: Users can force end all other sessions
+- **Natural cleanup**: Sessions are freed only when users manually sign out from their devices
 
 ### Session Management Components
 - `SessionStatus`: Full session management card with status and controls
 - `SessionStatusBadge`: Compact session indicator for headers/status bars  
 - `useSessionStatus`: Hook for accessing session data and management functions
 
-### API Endpoints
-- `POST /api/auth/reset-sessions`: Reset user's session count to 1 (end all other sessions)
+
 
 ### Usage Examples
 
@@ -145,7 +144,6 @@ export function MyComponent() {
     loading, 
     error, 
     refreshSessionCount,
-    resetOtherSessions,
     isAtLimit 
   } = useSessionStatus()
 
@@ -164,13 +162,13 @@ export function MyComponent() {
 2. **Test Session Limiting**:
    - Log in from one browser/device
    - Log in from a second browser/device
-   - Log in from a third browser/device
-   - Verify that the first session was automatically ended
+   - Try to log in from a third browser/device
+   - Verify that the third login is blocked with an error message
 
 3. **Test Session Management**:
-   - Add the `ActiveSessions` component to a page
-   - Verify you can see active sessions
-   - Test ending a session manually
+   - Add the `SessionStatus` component to a page
+   - Verify you can see current session count
+   - Test signing out to decrease the session count
 
 ## Security Considerations
 
