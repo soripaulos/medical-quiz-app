@@ -2,109 +2,88 @@ import { NextResponse } from "next/server"
 import { createClient } from "@/lib/supabase/server"
 
 export async function POST(req: Request) {
-  const { filters, userId, countOnly = false, page = 0, pageSize = 1000 } = await req.json()
+  const { filters, userId } = await req.json()
 
   const supabase = await createClient()
 
   try {
-    // Helper function to build base query conditions
-    const buildQueryConditions = async (baseQuery: any) => {
-      let query = baseQuery
-
-      // Apply specialty filters - if empty array, include all
-      if (filters.specialties && filters.specialties.length > 0) {
-        const { data: specialtyIds } = await supabase.from("specialties").select("id").in("name", filters.specialties)
-
-        if (specialtyIds && specialtyIds.length > 0) {
-          query = query.in(
-            "specialty_id",
-            specialtyIds.map((s) => s.id),
-          )
-        }
-      }
-
-      // Apply exam type filters - if empty array, include all
-      if (filters.examTypes && filters.examTypes.length > 0) {
-        const { data: examTypeIds } = await supabase.from("exam_types").select("id").in("name", filters.examTypes)
-
-        if (examTypeIds && examTypeIds.length > 0) {
-          query = query.in(
-            "exam_type_id",
-            examTypeIds.map((e) => e.id),
-          )
-        }
-      }
-
-      // Apply year filters - if empty array, include all
-      if (filters.years && filters.years.length > 0) {
-        query = query.in("year", filters.years)
-      }
-
-      // Apply difficulty filters - if empty array, include all
-      if (filters.difficulties && filters.difficulties.length > 0) {
-        query = query.in("difficulty", filters.difficulties)
-      }
-
-      return query
-    }
-
-    // If only count is requested, use a more efficient count query
-    if (countOnly) {
-      let countQuery = supabase.from("questions").select("id", { count: "exact", head: true })
-      countQuery = await buildQueryConditions(countQuery)
-      
-      const { count, error: countError } = await countQuery
-      
-      if (countError) throw countError
-      
-      return NextResponse.json({ count: count || 0 })
-    }
-
-    // Build the main query with pagination
-    const startRange = page * pageSize
-    const endRange = startRange + pageSize - 1
-    
+    // Build the base query
     let query = supabase.from("questions").select(`
         *,
         specialty:specialties(id, name),
         exam_type:exam_types(id, name)
-      `).range(startRange, endRange)
+      `)
 
-    query = await buildQueryConditions(query)
+    // Apply specialty filters - if empty array, include all
+    if (filters.specialties && filters.specialties.length > 0) {
+      const { data: specialtyIds } = await supabase
+        .from("specialties")
+        .select("id")
+        .in("name", filters.specialties)
+        .range(0, 999) // Ensure we get all matching specialties
 
-    // Also get the total count for pagination info
-    let countQuery = supabase.from("questions").select("id", { count: "exact", head: true })
-    countQuery = await buildQueryConditions(countQuery)
+      if (specialtyIds && specialtyIds.length > 0) {
+        query = query.in(
+          "specialty_id",
+          specialtyIds.map((s) => s.id),
+        )
+      }
+    }
 
-    const [questionsResult, countResult] = await Promise.all([
-      query,
-      countQuery
-    ])
+    // Apply exam type filters - if empty array, include all
+    if (filters.examTypes && filters.examTypes.length > 0) {
+      const { data: examTypeIds } = await supabase
+        .from("exam_types")
+        .select("id")
+        .in("name", filters.examTypes)
+        .range(0, 999) // Ensure we get all matching exam types
 
-    const { data: questions, error } = questionsResult
-    const { count: totalCount, error: countError } = countResult
+      if (examTypeIds && examTypeIds.length > 0) {
+        query = query.in(
+          "exam_type_id",
+          examTypeIds.map((e) => e.id),
+        )
+      }
+    }
+
+    // Apply year filters - if empty array, include all
+    if (filters.years && filters.years.length > 0) {
+      query = query.in("year", filters.years)
+    }
+
+    // Apply difficulty filters - if empty array, include all
+    if (filters.difficulties && filters.difficulties.length > 0) {
+      query = query.in("difficulty", filters.difficulties)
+    }
+
+    // Apply range after all filters to ensure we get all matching questions
+    query = query.range(0, 99999)
+
+    const { data: questions, error } = await query
 
     if (error) throw error
-    if (countError) throw countError
 
     // Get user progress and answers for filtering by question status
     let userProgress: any[] = []
     let userAnswers: any[] = []
 
     if (userId && userId !== "temp-user-id") {
-      // Use parallel queries for better performance
-      const [progressResult, answersResult] = await Promise.all([
-        supabase.from("user_question_progress").select("*").eq("user_id", userId).range(0, 9999),
-        supabase
-          .from("user_answers")
-          .select("question_id, is_correct, answered_at")
-          .eq("user_id", userId)
-          .order("answered_at", { ascending: false }) // Most recent first
-          .range(0, 9999)
-      ])
+      const { data: progressData } = await supabase
+        .from("user_question_progress")
+        .select("*")
+        .eq("user_id", userId)
+        .range(0, 99999) // Ensure we get all user progress data
 
-      userProgress = progressResult.data || []
-      userAnswers = answersResult.data || []
+      // Get all user answers with question_id, is_correct, and answered_at
+      const { data: answersData } = await supabase
+        .from("user_answers")
+        .select("question_id, is_correct, answered_at")
+        .eq("user_id", userId)
+        .order("answered_at", { ascending: false }) // Most recent first
+        .range(0, 99999) // Ensure we get all user answers
+
+      userProgress = progressData || []
+      userAnswers = answersData || []
     }
 
     // Filter questions based on status - if empty array, include all
@@ -156,10 +135,6 @@ export async function POST(req: Request) {
     return NextResponse.json({
       questions: filteredQuestions,
       count: filteredQuestions.length,
-      totalCount: totalCount || 0,
-      page,
-      pageSize,
-      hasMore: (totalCount || 0) > endRange + 1
     })
   } catch (err) {
     console.error("Error filtering questions:", err)

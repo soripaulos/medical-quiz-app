@@ -31,7 +31,11 @@ export async function POST(req: Request) {
 
     // Apply specialty filters - if empty array, include all
     if (filters.specialties && filters.specialties.length > 0) {
-      const { data: specialtyIds } = await supabase.from("specialties").select("id").in("name", filters.specialties)
+      const { data: specialtyIds } = await supabase
+        .from("specialties")
+        .select("id")
+        .in("name", filters.specialties)
+        .range(0, 999) // Ensure we get all matching specialties
 
       if (specialtyIds && specialtyIds.length > 0) {
         countQuery = countQuery.in(
@@ -43,7 +47,11 @@ export async function POST(req: Request) {
 
     // Apply exam type filters - if empty array, include all
     if (filters.examTypes && filters.examTypes.length > 0) {
-      const { data: examTypeIds } = await supabase.from("exam_types").select("id").in("name", filters.examTypes)
+      const { data: examTypeIds } = await supabase
+        .from("exam_types")
+        .select("id")
+        .in("name", filters.examTypes)
+        .range(0, 999) // Ensure we get all matching exam types
 
       if (examTypeIds && examTypeIds.length > 0) {
         countQuery = countQuery.in(
