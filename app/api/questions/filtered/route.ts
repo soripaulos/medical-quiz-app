@@ -7,6 +7,8 @@ export async function POST(req: Request) {
   const supabase = await createClient()
 
   try {
+    console.log("Filtering questions with filters:", filters, "for user:", userId)
+
     // Build the base query
     let query = supabase.from("questions").select(`
         *,
@@ -56,40 +58,120 @@ export async function POST(req: Request) {
       query = query.in("difficulty", filters.difficulties)
     }
 
-    // Apply range after all filters to ensure we get all matching questions
-    query = query.range(0, 99999)
+    // Fetch all matching questions using batching to avoid limits
+    console.log("Fetching questions with batching approach...")
+    let allQuestions: any[] = []
+    let attempts = 0
+    let hasMore = true
+    const batchSize = 1000
 
-    const { data: questions, error } = await query
+    while (hasMore && attempts < 50) { // Allow for up to 50k questions
+      const batchQuery = query
+        .range(attempts * batchSize, (attempts + 1) * batchSize - 1)
+        .order("created_at", { ascending: false })
 
-    if (error) throw error
+      const { data: batch, error } = await batchQuery
+
+      if (error) {
+        console.error(`Error in questions batch ${attempts}:`, error)
+        throw error
+      }
+
+      if (batch && batch.length > 0) {
+        allQuestions.push(...batch)
+        console.log(`Questions batch ${attempts}: fetched ${batch.length} questions, total: ${allQuestions.length}`)
+        
+        // If we got less than the batch size, we've reached the end
+        if (batch.length < batchSize) {
+          hasMore = false
+        }
+      } else {
+        hasMore = false
+      }
+      
+      attempts++
+    }
+
+    console.log(`Total questions fetched: ${allQuestions.length}`)
 
     // Get user progress and answers for filtering by question status
     let userProgress: any[] = []
     let userAnswers: any[] = []
 
     if (userId && userId !== "temp-user-id") {
-      const { data: progressData } = await supabase
-        .from("user_question_progress")
-        .select("*")
-        .eq("user_id", userId)
-        .range(0, 99999) // Ensure we get all user progress data
+      console.log("Fetching user progress and answers...")
+      
+      // Fetch user progress with batching
+      let progressAttempts = 0
+      let hasMoreProgress = true
+      
+      while (hasMoreProgress && progressAttempts < 20) { // Allow for up to 20k progress records
+        const { data: progressBatch, error: progressError } = await supabase
+          .from("user_question_progress")
+          .select("*")
+          .eq("user_id", userId)
+          .range(progressAttempts * batchSize, (progressAttempts + 1) * batchSize - 1)
 
-      // Get all user answers with question_id, is_correct, and answered_at
-      const { data: answersData } = await supabase
-        .from("user_answers")
-        .select("question_id, is_correct, answered_at")
-        .eq("user_id", userId)
-        .order("answered_at", { ascending: false }) // Most recent first
-        .range(0, 99999) // Ensure we get all user answers
+        if (progressError) {
+          console.error(`Error in progress batch ${progressAttempts}:`, progressError)
+          break
+        }
 
-      userProgress = progressData || []
-      userAnswers = answersData || []
+        if (progressBatch && progressBatch.length > 0) {
+          userProgress.push(...progressBatch)
+          console.log(`Progress batch ${progressAttempts}: fetched ${progressBatch.length} records, total: ${userProgress.length}`)
+          
+          if (progressBatch.length < batchSize) {
+            hasMoreProgress = false
+          }
+        } else {
+          hasMoreProgress = false
+        }
+        
+        progressAttempts++
+      }
+
+      // Fetch user answers with batching
+      let answersAttempts = 0
+      let hasMoreAnswers = true
+      
+      while (hasMoreAnswers && answersAttempts < 50) { // Allow for up to 50k answer records
+        const { data: answersBatch, error: answersError } = await supabase
+          .from("user_answers")
+          .select("question_id, is_correct, answered_at")
+          .eq("user_id", userId)
+          .order("answered_at", { ascending: false })
+          .range(answersAttempts * batchSize, (answersAttempts + 1) * batchSize - 1)
+
+        if (answersError) {
+          console.error(`Error in answers batch ${answersAttempts}:`, answersError)
+          break
+        }
+
+        if (answersBatch && answersBatch.length > 0) {
+          userAnswers.push(...answersBatch)
+          console.log(`Answers batch ${answersAttempts}: fetched ${answersBatch.length} records, total: ${userAnswers.length}`)
+          
+          if (answersBatch.length < batchSize) {
+            hasMoreAnswers = false
+          }
+        } else {
+          hasMoreAnswers = false
+        }
+        
+        answersAttempts++
+      }
+
+      console.log(`Total user progress records: ${userProgress.length}`)
+      console.log(`Total user answer records: ${userAnswers.length}`)
     }
 
     // Filter questions based on status - if empty array, include all
-    let filteredQuestions = questions || []
+    let filteredQuestions = allQuestions
 
     if (filters.questionStatus && filters.questionStatus.length > 0) {
+      console.log("Applying question status filters:", filters.questionStatus)
+      
       // Create a map of question_id to most recent answer
       const latestAnswerMap = new Map<string, { is_correct: boolean; answered_at: string }>()
 
@@ -130,7 +212,11 @@ export async function POST(req: Request) {
           }
         })
       })
+      
+      console.log(`After status filtering: ${filteredQuestions.length} questions`)
     }
+
+    console.log(`Final result: ${filteredQuestions.length} questions`)
 
     return NextResponse.json({
       questions: filteredQuestions,
