@@ -261,7 +261,7 @@ export function CreateTestInterface() {
           <p className="text-base text-gray-600">
             Please sign in to create a test session.
           </p>
-          <Link href="/signin">
+          <Link href="/login">
             <Button className="mt-4">Sign In</Button>
           </Link>
         </div>
