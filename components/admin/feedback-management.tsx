@@ -43,23 +43,23 @@ interface FeedbackWithDetails extends QuestionFeedback {
 }
 
 const FEEDBACK_TYPE_LABELS: Record<FeedbackType, string> = {
-  answer_correction: 'Answer Correction',
-  faulty_question: 'Faulty Question',
-  incorrect_explanation: 'Incorrect Explanation',
-  incomplete_information: 'Incomplete Information',
-  typo_grammar: 'Typo/Grammar',
-  image_issue: 'Image Issue',
-  source_problem: 'Source Problem',
+  ANSWER_CORRECTION: 'Answer Correction',
+  FAULTY_QUESTION: 'Faulty Question',
+  INCORRECT_EXPLANATION: 'Incorrect Explanation',
+  INCOMPLETE_INFO: 'Incomplete Information',
+  TYPO_ERROR: 'Typo/Grammar',
+  IMAGE_ISSUE: 'Image Issue',
+  SOURCE_ISSUE: 'Source Problem',
 }
 
 const FEEDBACK_TYPE_COLORS: Record<FeedbackType, string> = {
-  answer_correction: 'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200',
-  faulty_question: 'bg-orange-100 text-orange-800 dark:bg-orange-900 dark:text-orange-200',
-  incorrect_explanation: 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200',
-  incomplete_information: 'bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200',
-  typo_grammar: 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200',
-  image_issue: 'bg-purple-100 text-purple-800 dark:bg-purple-900 dark:text-purple-200',
-  source_problem: 'bg-gray-100 text-gray-800 dark:bg-gray-900 dark:text-gray-200',
+  ANSWER_CORRECTION: 'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200',
+  FAULTY_QUESTION: 'bg-orange-100 text-orange-800 dark:bg-orange-900 dark:text-orange-200',
+  INCORRECT_EXPLANATION: 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200',
+  INCOMPLETE_INFO: 'bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200',
+  TYPO_ERROR: 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200',
+  IMAGE_ISSUE: 'bg-purple-100 text-purple-800 dark:bg-purple-900 dark:text-purple-200',
+  SOURCE_ISSUE: 'bg-gray-100 text-gray-800 dark:bg-gray-900 dark:text-gray-200',
 }
 
 export function FeedbackManagement() {

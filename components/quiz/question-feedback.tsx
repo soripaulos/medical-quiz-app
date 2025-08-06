@@ -32,37 +32,37 @@ interface QuestionFeedbackProps {
 
 const FEEDBACK_TYPES = [
   {
-    value: 'answer_correction' as FeedbackType,
+    value: 'ANSWER_CORRECTION' as FeedbackType,
     label: 'Answer Correction',
     description: 'The correct answer is wrong or there\'s a better answer',
   },
   {
-    value: 'faulty_question' as FeedbackType,
+    value: 'FAULTY_QUESTION' as FeedbackType,
     label: 'Faulty Question',
     description: 'The question is unclear, ambiguous, or poorly written',
   },
   {
-    value: 'incorrect_explanation' as FeedbackType,
+    value: 'INCORRECT_EXPLANATION' as FeedbackType,
     label: 'Incorrect Explanation',
     description: 'The explanation contains errors or is misleading',
   },
   {
-    value: 'incomplete_information' as FeedbackType,
+    value: 'INCOMPLETE_INFO' as FeedbackType,
     label: 'Incomplete Information',
     description: 'Missing important details or context',
   },
   {
-    value: 'typo_grammar' as FeedbackType,
+    value: 'TYPO_ERROR' as FeedbackType,
     label: 'Typo/Grammar Error',
     description: 'Spelling mistakes, grammar errors, or formatting issues',
   },
   {
-    value: 'image_issue' as FeedbackType,
+    value: 'IMAGE_ISSUE' as FeedbackType,
     label: 'Image Issue',
     description: 'Image is unclear, missing, or doesn\'t load properly',
   },
   {
-    value: 'source_problem' as FeedbackType,
+    value: 'SOURCE_ISSUE' as FeedbackType,
     label: 'Source Problem',
     description: 'Issues with source citation or reference accuracy',
   },
@@ -80,7 +80,7 @@ export function QuestionFeedback({ question, sessionId }: QuestionFeedbackProps)
   const supabase = createClient()
 
   const answerChoices = getAnswerChoices(question)
-  const requiresAnswerSelection = selectedType === 'answer_correction'
+  const requiresAnswerSelection = selectedType === 'ANSWER_CORRECTION'
   const canSubmit = selectedType && (!requiresAnswerSelection || suggestedAnswer)
 
   const handleSubmit = async () => {

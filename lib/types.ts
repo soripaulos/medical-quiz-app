@@ -177,10 +177,10 @@ export interface QuestionFeedback {
 }
 
 export type FeedbackType = 
-  | 'answer_correction'
-  | 'faulty_question'
-  | 'incorrect_explanation'
-  | 'incomplete_information'
-  | 'typo_grammar'
-  | 'image_issue'
-  | 'source_problem'
+  | 'ANSWER_CORRECTION'
+  | 'FAULTY_QUESTION'
+  | 'INCORRECT_EXPLANATION'
+  | 'INCOMPLETE_INFO'
+  | 'TYPO_ERROR'
+  | 'IMAGE_ISSUE'
+  | 'SOURCE_ISSUE'
