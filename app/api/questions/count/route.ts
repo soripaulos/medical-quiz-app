@@ -35,7 +35,7 @@ export async function POST(req: Request) {
         .from("specialties")
         .select("id")
         .in("name", filters.specialties)
-        .limit(1000) // Ensure we get all matching specialties
+        .range(0, 999) // Ensure we get all matching specialties
 
       if (specialtyIds && specialtyIds.length > 0) {
         countQuery = countQuery.in(
@@ -51,7 +51,7 @@ export async function POST(req: Request) {
         .from("exam_types")
         .select("id")
         .in("name", filters.examTypes)
-        .limit(1000) // Ensure we get all matching exam types
+        .range(0, 999) // Ensure we get all matching exam types
 
       if (examTypeIds && examTypeIds.length > 0) {
         countQuery = countQuery.in(

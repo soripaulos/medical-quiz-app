@@ -18,21 +18,21 @@ export async function GET() {
       // RPC function not available, continue to fallback
     }
 
-    // Fallback: Get all questions with high limit
+    // Fallback: Get all questions using range to bypass default limits
     const { data: questions, error } = await supabase
       .from("questions")
       .select("year")
       .not("year", "is", null)
-      .limit(50000) // High limit to ensure we get all questions
+      .range(0, 99999) // Use range instead of limit to get more records
 
     // If regular client failed or returned no results, try admin client
     if (error || !questions || questions.length === 0) {
       const adminSupabase = createAdminClient()
-      const { data: adminQuestions, error: adminError } = await adminSupabase
-        .from("questions")
-        .select("year")
-        .not("year", "is", null)
-        .limit(50000)
+                      const { data: adminQuestions, error: adminError } = await adminSupabase
+          .from("questions")
+          .select("year")
+          .not("year", "is", null)
+          .range(0, 99999)
 
       if (!adminError && adminQuestions && adminQuestions.length > 0) {
         const allYears = adminQuestions.map((q) => q.year).filter(Boolean) || []
