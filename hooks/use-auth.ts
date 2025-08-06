@@ -71,19 +71,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const signOut = async () => {
     setLoading(true)
     try {
-      // Update session record to inactive before signing out
-      const { data: { user } } = await supabase.auth.getUser()
-      if (user) {
-        // End current session
-        await supabase
-          .from('user_sessions')
-          .update({ 
-            is_active: false, 
-            ended_at: new Date().toISOString() 
-          })
-          .eq('user_id', user.id)
-          .eq('is_active', true)
-      }
+      // Clear session tracking data
+      localStorage.removeItem('auth_session_id')
+      localStorage.removeItem('auth_session_timestamp')
 
       const { error } = await supabase.auth.signOut()
       if (error) throw error

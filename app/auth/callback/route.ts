@@ -1,7 +1,6 @@
 import { createClient } from '@/lib/supabase/server'
 import { NextResponse } from 'next/server'
 import type { NextRequest } from 'next/server'
-import { SessionManager } from '@/lib/session-management'
 
 export async function GET(request: NextRequest) {
   const { searchParams, origin } = new URL(request.url)
@@ -20,19 +19,7 @@ export async function GET(request: NextRequest) {
       }
 
       if (user) {
-        // Get user agent and IP for session tracking
-        const userAgent = request.headers.get('user-agent') || undefined
-        const forwardedFor = request.headers.get('x-forwarded-for')
-        const realIp = request.headers.get('x-real-ip')
-        const ipAddress = forwardedFor?.split(',')[0] || realIp || request.ip || undefined
-
-        // Check and manage active sessions (limit to 2)
-        const sessionManager = new SessionManager(supabase)
-        const sessionResult = await sessionManager.createSession(user.id, userAgent, ipAddress)
-        
-        if (!sessionResult.success) {
-          console.error('Failed to create user session')
-        }
+        // Session management will be handled client-side
         
         // Create or update user profile
         const { error: profileError } = await supabase

@@ -12,24 +12,7 @@ The authentication system has been updated to:
 
 ## Database Setup
 
-1. **Run the database migration** to create the `user_sessions` table:
-
-```sql
--- Execute the contents of scripts/create-user-sessions-table.sql in your Supabase SQL editor
--- This creates the user_sessions table with proper indexes and RLS policies
-```
-
-2. **Verify the table was created** by checking your Supabase dashboard:
-   - Navigate to Table Editor
-   - Confirm `user_sessions` table exists with the following columns:
-     - `id` (UUID, primary key)
-     - `user_id` (UUID, references auth.users)
-     - `is_active` (boolean)
-     - `created_at` (timestamp)
-     - `last_activity` (timestamp)
-     - `ended_at` (timestamp, nullable)
-     - `user_agent` (text, nullable)
-     - `ip_address` (inet, nullable)
+**No database changes required!** The session management system uses client-side localStorage and Supabase's built-in authentication to manage concurrent sessions without modifying your database schema.
 
 ## Google OAuth Configuration
 
@@ -92,33 +75,53 @@ NEXT_PUBLIC_SUPABASE_ANON_KEY=your_supabase_anon_key
 
 ## Session Management Features
 
-### Automatic Session Limiting
-- Users are limited to 2 active sessions simultaneously
+### Client-Side Session Limiting
+- Users are limited to 2 active sessions simultaneously using localStorage
 - When a user logs in from a 3rd device, the oldest session is automatically ended
-- Session tracking includes device type, browser, IP address, and activity timestamps
+- Session tracking includes device type, browser information, and activity timestamps
+- Sessions automatically expire after 24 hours of inactivity
 
-### Session Management Component
-- Users can view their active sessions in the UI
-- The `ActiveSessions` component shows:
-  - Device type and browser information
-  - Login time and last activity
-  - IP address (if available)
-  - Option to manually end other sessions
+### Automatic Session Warnings
+- Users receive warnings when session limits are reached
+- Invalid sessions (ended from another device) trigger automatic sign-out
+- Session status is displayed in the UI with visual indicators
+
+### Session Management Components
+- `SessionWarning`: Displays warnings and handles session enforcement (automatically included in layout)
+- `SessionStatus`: Shows current session count and status indicator
+- `useSessionLimit`: Hook for accessing session management functionality
 
 ### Usage Example
 
-To add the session management component to a user profile or settings page:
+To show session status in a component:
 
 ```tsx
-import { ActiveSessions } from "@/components/auth/active-sessions"
+import { SessionStatus } from "@/components/auth/session-warning"
 
 export function UserProfilePage() {
   return (
     <div className="space-y-6">
+      <SessionStatus />
       {/* Other profile components */}
-      <ActiveSessions />
     </div>
   )
+}
+```
+
+To access session management in a component:
+
+```tsx
+import { useSessionLimit } from "@/hooks/use-session-limit"
+
+export function MyComponent() {
+  const { 
+    isSessionValid, 
+    sessionWarning, 
+    activeSessionCount,
+    endAllOtherSessions 
+  } = useSessionLimit()
+
+  // Use session data...
 }
 ```
 
@@ -143,10 +146,11 @@ export function UserProfilePage() {
 
 ## Security Considerations
 
-1. **Row Level Security**: The `user_sessions` table has RLS enabled with appropriate policies
-2. **Session Cleanup**: Old inactive sessions are automatically cleaned up after 30 days
-3. **IP Tracking**: IP addresses are logged for security auditing (respects privacy)
-4. **Secure Headers**: Session data includes user agent for device identification
+1. **Client-Side Storage**: Session data is stored in localStorage per user, isolated by user ID
+2. **Automatic Cleanup**: Expired sessions (24h+ inactive) are automatically cleaned up
+3. **Session Validation**: Regular checks ensure session validity with Supabase auth
+4. **Device Identification**: Sessions include user agent for basic device identification
+5. **No Server Storage**: No sensitive session data is stored server-side beyond Supabase's built-in auth
 
 ## Troubleshooting
 
@@ -160,9 +164,9 @@ export function UserProfilePage() {
    - Ensure Google provider is enabled in Supabase Authentication settings
    - Verify Client ID and Secret are correctly entered
 
-3. **Session table errors**
-   - Run the database migration script in Supabase SQL editor
-   - Check that RLS policies are properly configured
+3. **Session limiting not working**
+   - Check browser localStorage for session data
+   - Verify that localStorage is not being cleared by browser settings
 
 4. **Redirect issues after login**
    - Verify Site URL is correctly set in Supabase Authentication settings
