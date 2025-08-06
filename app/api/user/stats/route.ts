@@ -43,33 +43,7 @@ export async function GET() {
     
     // Note: latestCorrectCount and latestIncorrectCount will be calculated after latestAnswerMap is created
     
-    // Calculate total time spent using total_active_time for completed sessions and real-time for active ones
-    let totalTimeSpentSeconds = 0
-    console.log(`Processing ${sessions?.length || 0} sessions for time calculation`)
-    for (const session of sessions || []) {
-      try {
-        if (session.is_active) {
-          // For active sessions, get real-time calculation
-          const { data: activeTime } = await supabase.rpc('calculate_session_active_time', {
-            session_id: session.id
-          })
-          const timeToAdd = activeTime || session.total_active_time || 0
-          console.log(`Active session ${session.id}: adding ${timeToAdd} seconds`)
-          totalTimeSpentSeconds += timeToAdd
-        } else {
-          // For completed sessions, use stored total_active_time
-          const timeToAdd = session.total_active_time || 0
-          console.log(`Completed session ${session.id}: adding ${timeToAdd} seconds`)
-          totalTimeSpentSeconds += timeToAdd
-        }
-      } catch (error) {
-        console.error(`Error calculating active time for session ${session.id}:`, error)
-        const timeToAdd = session.total_active_time || 0
-        console.log(`Fallback for session ${session.id}: adding ${timeToAdd} seconds`)
-        totalTimeSpentSeconds += timeToAdd
-      }
-    }
-    console.log(`Total time spent: ${totalTimeSpentSeconds} seconds (${Math.floor(totalTimeSpentSeconds / 60)} minutes)`)
+    // Note: Total time spent calculation removed as it was unstable and not needed
 
     // Get latest answers per question for answer distribution (not across all sessions)
     const { data: latestAnswers, error: answersError } = await supabase
@@ -133,7 +107,6 @@ export async function GET() {
       totalQuestions,
       totalCorrect: latestCorrectCount, // Use latest answers per question
       totalIncorrect: latestIncorrectCount, // Use latest answers per question
-      totalTimeSpent: totalTimeSpentSeconds, // Return in seconds for proper conversion
       averageScore: overallScore, // Now calculated as correct/(correct + incorrect) using latest answers
       totalAttemptedQuestions, // Add this for display
       totalUniqueQuestions: totalAnsweredQuestions,

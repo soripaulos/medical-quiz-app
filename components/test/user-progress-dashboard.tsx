@@ -19,7 +19,7 @@ import {
   Pie,
   Cell,
 } from "recharts"
-import { Trophy, Target, Clock, BookOpen, Eye, FileText, GraduationCap, Timer, BookOpenCheck, ChevronDown, ChevronUp } from "lucide-react"
+import { Trophy, Target, BookOpen, Eye, FileText, GraduationCap, Timer, BookOpenCheck, ChevronDown, ChevronUp } from "lucide-react"
 import { SourcesDisplay } from "@/components/ui/sources-display"
 import Link from "next/link"
 import { useRouter } from "next/navigation"
@@ -38,7 +38,6 @@ interface UserStats {
   totalCorrect: number
   totalIncorrect: number
   totalAttemptedQuestions: number
-  totalTimeSpent: number
   averageScore: number
   totalUniqueQuestions: number
   answerDistribution: {
@@ -184,17 +183,7 @@ export function UserProgressDashboard() {
     }
   }
 
-  const formatTime = (seconds: number) => {
-    const totalSeconds = seconds || 0
-    const totalMinutes = Math.floor(totalSeconds / 60)
-    const hours = Math.floor(totalMinutes / 60)
-    const remainingMinutes = totalMinutes % 60
 
-    if (totalMinutes >= 60) {
-      return `${hours}h ${remainingMinutes}m`
-    }
-    return `${totalMinutes} minutes`
-  }
 
   const getScoreColor = (score: number) => {
     if (score >= 80) return "text-green-600"
@@ -262,7 +251,7 @@ export function UserProgressDashboard() {
         </div>
 
         {/* Overview Cards */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
           <Card>
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
               <CardTitle className="text-sm font-medium">Overall Score</CardTitle>
@@ -275,17 +264,6 @@ export function UserProgressDashboard() {
               <p className="text-xs text-muted-foreground">
                 {stats?.totalCorrect || 0} of {stats?.totalAttemptedQuestions || 0} correct
               </p>
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Time Spent</CardTitle>
-              <Clock className="h-4 w-4 text-muted-foreground" />
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold text-foreground">{formatTime(stats?.totalTimeSpent || 0)}</div>
-              <p className="text-xs text-muted-foreground">Across {stats?.totalSessions || 0} sessions</p>
             </CardContent>
           </Card>
 
