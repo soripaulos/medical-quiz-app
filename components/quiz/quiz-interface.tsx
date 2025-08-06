@@ -11,6 +11,7 @@ import { QuestionSidebar } from "./question-sidebar"
 import { LabValuesModal } from "./lab-values-modal"
 import { CalculatorModal } from "./calculator-modal"
 import { NotesPanel } from "./notes-panel"
+import { QuestionFeedback } from "./question-feedback"
 import { AppLogo } from "@/components/ui/app-logo"
 import type { Question, UserSession, UserAnswer, UserQuestionProgress, UserNote } from "@/lib/types"
 import { useRouter } from "next/navigation"
@@ -444,6 +445,10 @@ export function QuizInterface({
         </div>
 
         <div className="flex items-center gap-1 sm:gap-2 flex-wrap justify-end">
+          <QuestionFeedback 
+            question={currentQuestion} 
+            sessionId={session.id} 
+          />
           <Button variant="ghost" size="icon" onClick={handleFlagQuestion}>
             <Flag
               className={`h-5 w-5 ${currentProgress?.is_flagged ? "text-yellow-500 fill-current" : ""}`}

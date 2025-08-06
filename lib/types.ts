@@ -165,3 +165,22 @@ export function getAnswerChoices(question: Question): AnswerChoice[] {
 
   return choices
 }
+
+export interface QuestionFeedback {
+  id: string
+  user_id: string
+  question_id: string
+  session_id?: string
+  feedback_type: FeedbackType
+  suggested_correct_answer?: string
+  created_at: string
+}
+
+export type FeedbackType = 
+  | 'answer_correction'
+  | 'faulty_question'
+  | 'incorrect_explanation'
+  | 'incomplete_information'
+  | 'typo_grammar'
+  | 'image_issue'
+  | 'source_problem'
