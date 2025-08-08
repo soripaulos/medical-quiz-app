@@ -40,28 +40,10 @@ export async function GET() {
     const completedSessions = sessions?.filter((s) => s.completed_at) || []
     const totalSessions = completedSessions.length
     const totalQuestions = completedSessions.reduce((sum, s) => sum + (s.total_questions || 0), 0)
-    const totalCorrect = completedSessions.reduce((sum, s) => sum + (s.correct_answers || 0), 0)
-    const totalIncorrect = completedSessions.reduce((sum, s) => sum + (s.incorrect_answers || 0), 0)
     
-    // Calculate total time spent using total_active_time for completed sessions and real-time for active ones
-    let totalTimeSpentSeconds = 0
-    for (const session of sessions || []) {
-      try {
-        if (session.is_active) {
-          // For active sessions, get real-time calculation
-          const { data: activeTime } = await supabase.rpc('calculate_session_active_time', {
-            session_id: session.id
-          })
-          totalTimeSpentSeconds += activeTime || session.total_active_time || 0
-        } else {
-          // For completed sessions, use stored total_active_time
-          totalTimeSpentSeconds += session.total_active_time || 0
-        }
-      } catch (error) {
-        console.error(`Error calculating active time for session ${session.id}:`, error)
-        totalTimeSpentSeconds += session.total_active_time || 0
-      }
-    }
+    // Note: latestCorrectCount and latestIncorrectCount will be calculated after latestAnswerMap is created
+    
+    // Note: Total time spent calculation removed as it was unstable and not needed
 
     // Get latest answers per question for answer distribution (not across all sessions)
     const { data: latestAnswers, error: answersError } = await supabase
@@ -115,13 +97,18 @@ export async function GET() {
     const incorrectPercentage = totalQuestionsInDatabase > 0 ? (latestIncorrectCount / totalQuestionsInDatabase) * 100 : 0
     const unansweredPercentage = totalQuestionsInDatabase > 0 ? (unansweredCount / totalQuestionsInDatabase) * 100 : 0
 
+    // Calculate overall score as correct answers out of attempted answers (excluding unanswered)
+    // Use the same logic as question filters - latest answer per question
+    const totalAttemptedQuestions = latestCorrectCount + latestIncorrectCount
+    const overallScore = totalAttemptedQuestions > 0 ? (latestCorrectCount / totalAttemptedQuestions) * 100 : 0
+
     const stats = {
       totalSessions,
       totalQuestions,
-      totalCorrect,
-      totalIncorrect,
-      totalTimeSpent: totalTimeSpentSeconds, // Return in seconds for proper conversion
-      averageScore: totalQuestions > 0 ? (totalCorrect / totalQuestions) * 100 : 0,
+      totalCorrect: latestCorrectCount, // Use latest answers per question
+      totalIncorrect: latestIncorrectCount, // Use latest answers per question
+      averageScore: overallScore, // Now calculated as correct/(correct + incorrect) using latest answers
+      totalAttemptedQuestions, // Add this for display
       totalUniqueQuestions: totalAnsweredQuestions,
       answerDistribution: {
         correct: correctPercentage,

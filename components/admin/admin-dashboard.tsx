@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { Plus, FileText, Upload, BarChart3, Users, Settings } from "lucide-react"
 import Link from "next/link"
+import { FeedbackButton } from "@/components/feedback/feedback-button"
 
 export function AdminDashboard() {
   const [stats, setStats] = useState({
@@ -67,6 +68,7 @@ export function AdminDashboard() {
             <p className="text-muted-foreground">Manage questions, users, and exam content</p>
           </div>
           <div className="flex items-center gap-2">
+            <FeedbackButton showText={true} size="sm" variant="outline" />
             <Link href="/">
               <Button variant="outline" size="sm">
                 Back to Tests

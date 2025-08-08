@@ -80,52 +80,78 @@ export async function safelyPauseSession(sessionId: string): Promise<{ success: 
 }
 
 /**
- * Safely end a session with fallback mechanisms
+ * Safely end a session with fallback mechanisms and proper time calculation
  */
 export async function safelyEndSession(sessionId: string): Promise<{ success: boolean; metrics?: SessionMetrics }> {
   const supabase = await createClient()
   
   try {
-    // Calculate metrics first
+    // Get session data first
+    const { data: session, error: sessionError } = await supabase
+      .from("user_sessions")
+      .select("*")
+      .eq("id", sessionId)
+      .single()
+
+    if (sessionError || !session) {
+      console.error("Session not found:", sessionError)
+      return { success: false }
+    }
+
+    // Calculate metrics
     const metrics = await calculateSessionMetrics(sessionId)
     
+    // Calculate proper time spent based on session type
+    let timeSpentSeconds = 0
+    
+    if (session.session_type === "exam" && session.time_limit) {
+      // For exam mode: time spent = time_limit - time_remaining
+      const timeRemaining = session.time_remaining || 0
+      timeSpentSeconds = Math.max(0, session.time_limit - timeRemaining)
+    } else {
+      // For practice mode: use active time tracking
+      try {
+        const { data: activeTime } = await supabase.rpc('calculate_session_active_time', {
+          session_id: sessionId
+        })
+        timeSpentSeconds = activeTime || session.total_active_time || 0
+      } catch (error) {
+        console.error("Error calculating active time, using fallback:", error)
+        timeSpentSeconds = session.total_active_time || 0
+      }
+    }
+
     // Try to end using the database function
-    const { data: finalActiveTime, error: endError } = await supabase.rpc('end_session_activity', {
+    const { error: endError } = await supabase.rpc('end_session_activity', {
       session_id: sessionId
     })
 
     if (!endError) {
-      // Update session with metrics
+      // Update session with metrics and proper time spent
       await supabase
         .from("user_sessions")
         .update({
           correct_answers: metrics.correctAnswers,
           incorrect_answers: metrics.incorrectAnswers,
           unanswered_questions: metrics.unansweredQuestions,
+          total_time_spent: timeSpentSeconds, // Store in total_time_spent column
         })
         .eq("id", sessionId)
 
       return { 
         success: true, 
-        metrics: { ...metrics, totalTimeSpent: finalActiveTime || 0 } 
+        metrics: { ...metrics, totalTimeSpent: timeSpentSeconds } 
       }
     }
 
     console.error("Database function failed, using fallback:", endError)
     
     // Fallback: manually end session
-    const { data: session } = await supabase
-      .from("user_sessions")
-      .select("total_active_time")
-      .eq("id", sessionId)
-      .single()
-
-    const fallbackTime = session?.total_active_time || 0
-
     const { error: fallbackError } = await supabase
       .from("user_sessions")
       .update({
-        total_active_time: fallbackTime,
+        total_active_time: timeSpentSeconds, // Also update this for consistency
+        total_time_spent: timeSpentSeconds, // Store the calculated time
         correct_answers: metrics.correctAnswers,
         incorrect_answers: metrics.incorrectAnswers,
         unanswered_questions: metrics.unansweredQuestions,
@@ -142,7 +168,7 @@ export async function safelyEndSession(sessionId: string): Promise<{ success: bo
 
     return { 
       success: true, 
-      metrics: { ...metrics, totalTimeSpent: fallbackTime } 
+      metrics: { ...metrics, totalTimeSpent: timeSpentSeconds } 
     }
   } catch (error) {
     console.error("Error in safelyEndSession:", error)
