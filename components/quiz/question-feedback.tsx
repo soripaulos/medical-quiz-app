@@ -151,9 +151,9 @@ export function QuestionFeedback({ question, sessionId }: QuestionFeedbackProps)
   return (
     <Dialog open={isOpen} onOpenChange={handleOpenChange}>
       <DialogTrigger asChild>
-        <Button variant="ghost" size="sm" className="text-muted-foreground hover:text-foreground">
-          <MessageSquare className="h-4 w-4 mr-1" />
-          Feedback
+        <Button variant="ghost" size="icon" className="text-muted-foreground hover:text-foreground">
+          <MessageSquare className="h-5 w-5" />
+          <span className="sr-only">Question Feedback</span>
         </Button>
       </DialogTrigger>
       <DialogContent className="sm:max-w-md">
