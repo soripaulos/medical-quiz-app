@@ -6,7 +6,6 @@ import { Card, CardContent } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet"
 import { Calculator, Flag, ChevronLeft, ChevronRight, Square, Beaker, StickyNote, Menu, Moon, Sun } from "lucide-react"
-import { FeedbackButton } from "@/components/feedback/feedback-button"
 import { SourcesDisplay } from "@/components/ui/sources-display"
 import { QuestionSidebar } from "./question-sidebar"
 import { LabValuesModal } from "./lab-values-modal"
@@ -14,6 +13,7 @@ import { CalculatorModal } from "./calculator-modal"
 import { NotesPanel } from "./notes-panel"
 import { QuestionFeedback } from "./question-feedback"
 import { AppLogo } from "@/components/ui/app-logo"
+import { SessionCache } from "@/lib/session-cache"
 import type { Question, UserSession, UserAnswer, UserQuestionProgress, UserNote } from "@/lib/types"
 import { useRouter } from "next/navigation"
 import {
@@ -66,9 +66,26 @@ export function QuizInterface({
   const [showSubmitPrompt, setShowSubmitPrompt] = useState(false)
   const [localProgress, setLocalProgress] = useState<UserQuestionProgress[]>(userProgress)
   const [userNotes, setUserNotes] = useState<UserNote[]>([])
+  const [cacheLoaded, setCacheLoaded] = useState(false)
 
   const router = useRouter()
   const { theme, setTheme } = useTheme()
+
+  // Restore state from cache on component mount
+  useEffect(() => {
+    const cached = SessionCache.load()
+    if (cached && cached.sessionId === session.id && !cacheLoaded) {
+      console.log('Restoring UI state from cache')
+      
+      // Restore UI state
+      setCurrentQuestionIndex(cached.currentQuestionIndex)
+      setSelectedAnswers(cached.selectedAnswers)
+      setShowExplanations(cached.showExplanations)
+      setUserNotes(cached.userNotes)
+      
+      setCacheLoaded(true)
+    }
+  }, [session.id, cacheLoaded])
 
   const currentQuestion = questions[currentQuestionIndex]
   const currentAnswer = userAnswers.find((a) => a.question_id === currentQuestion?.id)
@@ -209,12 +226,19 @@ export function QuizInterface({
 
   const handleAnswerSelect = (choiceLetter: string) => {
     const questionId = currentQuestion.id
-    setSelectedAnswers((prev) => ({ ...prev, [questionId]: choiceLetter }))
+    const newSelectedAnswers = { ...selectedAnswers, [questionId]: choiceLetter }
+    setSelectedAnswers(newSelectedAnswers)
     onAnswerSelect(questionId, choiceLetter)
 
+    let newShowExplanations = showExplanations
     if (session.session_type === "practice") {
-      setShowExplanations((prev) => ({ ...prev, [questionId]: true }))
+      newShowExplanations = { ...showExplanations, [questionId]: true }
+      setShowExplanations(newShowExplanations)
     }
+    
+    // Update cache with new UI state
+    SessionCache.updateAnswers(newSelectedAnswers, userAnswers)
+    SessionCache.updateExplanations(newShowExplanations)
   }
 
   const handleFlagQuestion = () => {
@@ -256,15 +280,15 @@ export function QuizInterface({
     onSaveNote(currentQuestion.id, note)
 
     // Update local notes state
-    setUserNotes((prev) => {
-      const existingIndex = prev.findIndex((n) => n.question_id === currentQuestion.id)
+    const updatedNotes = (() => {
+      const existingIndex = userNotes.findIndex((n) => n.question_id === currentQuestion.id)
       if (existingIndex >= 0) {
-        const updated = [...prev]
+        const updated = [...userNotes]
         updated[existingIndex] = { ...updated[existingIndex], note_text: note }
         return updated
       } else {
         return [
-          ...prev,
+          ...userNotes,
           {
             id: `temp-${Date.now()}`,
             question_id: currentQuestion.id,
@@ -275,23 +299,35 @@ export function QuizInterface({
           },
         ]
       }
-    })
+    })()
+    
+    setUserNotes(updatedNotes)
+    
+    // Update cache with new notes
+    SessionCache.updateNotes(updatedNotes)
   }
 
   const handleQuestionSelect = (index: number) => {
     setCurrentQuestionIndex(index)
     setSidebarOpen(false)
+    
+    // Update cache with new question index
+    SessionCache.updateCurrentQuestion(index)
   }
 
   const handleNextQuestion = () => {
     if (currentQuestionIndex < questions.length - 1) {
-      setCurrentQuestionIndex((prev) => prev + 1)
+      const newIndex = currentQuestionIndex + 1
+      setCurrentQuestionIndex(newIndex)
+      SessionCache.updateCurrentQuestion(newIndex)
     }
   }
 
   const handlePreviousQuestion = () => {
     if (currentQuestionIndex > 0) {
-      setCurrentQuestionIndex((prev) => prev - 1)
+      const newIndex = currentQuestionIndex - 1
+      setCurrentQuestionIndex(newIndex)
+      SessionCache.updateCurrentQuestion(newIndex)
     }
   }
 
@@ -467,7 +503,6 @@ export function QuizInterface({
             )}
             <span className="sr-only">Notes</span>
           </Button>
-          <FeedbackButton />
           <Button variant="ghost" size="icon" onClick={toggleDarkMode}>
             <Sun className="h-5 w-5 rotate-0 scale-100 transition-all dark:-rotate-90 dark:scale-0" />
             <Moon className="absolute h-5 w-5 rotate-90 scale-0 transition-all dark:rotate-0 dark:scale-100" />

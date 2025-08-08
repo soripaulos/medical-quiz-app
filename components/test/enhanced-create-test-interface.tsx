@@ -45,6 +45,7 @@ import { useToast } from "@/components/ui/use-toast"
 import { ActiveSessionCard } from "./active-session-card"
 import { AppLogo } from "@/components/ui/app-logo"
 import { FeedbackButton } from "@/components/feedback/feedback-button"
+import { useSessionRestoration } from "@/hooks/use-session-restoration"
 
 // Fisher-Yates shuffle algorithm for proper randomization
 function shuffleArray<T>(array: T[]): T[] {
@@ -109,7 +110,16 @@ export function EnhancedCreateTestInterface({ userProfile }: EnhancedCreateTestI
   const { theme, setTheme } = useTheme()
   const router = useRouter()
   
-  // Session recovery state
+  // Session restoration - automatically redirect to active session if exists
+  const { 
+    isChecking, 
+    hasActiveSession, 
+    showRestorationPrompt, 
+    restoreSession, 
+    dismissRestoration 
+  } = useSessionRestoration()
+  
+  // Legacy session recovery state (kept for backward compatibility)
   const [recoverySession, setRecoverySession] = useState<any>(null)
   const [showRecoveryPrompt, setShowRecoveryPrompt] = useState(false)
 
@@ -464,6 +474,67 @@ export function EnhancedCreateTestInterface({ userProfile }: EnhancedCreateTestI
       // Force redirect to login if signOut fails
       router.push("/login")
     }
+  }
+
+  // Show loading state while checking for active session
+  if (isChecking) {
+    return (
+      <div className="flex items-center justify-center h-screen">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
+          <p className="text-gray-600">Checking for active session...</p>
+        </div>
+      </div>
+    )
+  }
+
+  // Show redirect state while navigating to active session
+  if (hasActiveSession) {
+    return (
+      <div className="flex items-center justify-center h-screen">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
+          <p className="text-gray-600">Resuming your test session...</p>
+        </div>
+      </div>
+    )
+  }
+
+  // Show restoration prompt when user navigated away from active session
+  if (showRestorationPrompt) {
+    return (
+      <div className="flex items-center justify-center h-screen bg-background">
+        <Card className="w-full max-w-md mx-4">
+          <CardHeader className="text-center">
+            <CardTitle className="flex items-center justify-center gap-2">
+              <AlertCircle className="h-5 w-5 text-blue-600" />
+              Active Test Session Found
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <p className="text-center text-muted-foreground">
+              You have an active test session in progress. Would you like to continue where you left off?
+            </p>
+            <div className="flex flex-col sm:flex-row gap-3">
+              <Button 
+                onClick={restoreSession}
+                className="flex-1"
+              >
+                <Play className="h-4 w-4 mr-2" />
+                Continue Test
+              </Button>
+              <Button 
+                onClick={dismissRestoration}
+                variant="outline"
+                className="flex-1"
+              >
+                Stay on Homepage
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+    )
   }
 
   return (

@@ -3,6 +3,7 @@
 import React from 'react'
 import { create } from 'zustand'
 import { createClient } from '@/lib/supabase/client'
+import { SessionCache } from '@/lib/session-cache'
 import type { UserSession, Question, UserAnswer, UserQuestionProgress } from '@/lib/types'
 
 interface SessionState {
@@ -21,11 +22,13 @@ interface SessionState {
   
   // Actions
   loadSession: (sessionId: string) => Promise<void>
+  loadFromCache: () => boolean
   clearSession: () => void
   updateAnswer: (questionId: string, answer: UserAnswer) => void
   updateProgress: (questionId: string, progress: UserQuestionProgress) => void
   refreshSessionData: (sessionId: string) => Promise<void>
   updateSessionStats: (sessionId: string, correctAnswers: number, incorrectAnswers: number, currentQuestionIndex: number) => Promise<void>
+  cacheCurrentState: () => void
   
   // Real-time subscription (Phase 3)
   subscribeToSession: (sessionId: string) => void
@@ -42,9 +45,36 @@ export const useSessionStore = create<SessionState>((set, get) => ({
   error: null,
   isRealTimeEnabled: false,
 
+  // Load session data from cache first, then API if needed
+  loadFromCache: () => {
+    const cached = SessionCache.load()
+    if (cached) {
+      console.log('Loading session from cache')
+      set({
+        session: cached.session,
+        questions: cached.questions,
+        userAnswers: cached.userAnswers,
+        userProgress: cached.userProgress,
+        loading: false,
+        error: null
+      })
+      return true
+    }
+    return false
+  },
+
   // Load session data from API
   loadSession: async (sessionId: string) => {
     set({ loading: true, error: null })
+    
+    // Try to load from cache first
+    if (get().loadFromCache()) {
+      const cached = SessionCache.load()
+      if (cached && cached.sessionId === sessionId) {
+        console.log('Session loaded from cache, skipping API call')
+        return
+      }
+    }
     
     try {
       const response = await fetch(`/api/sessions/${sessionId}`)
@@ -83,6 +113,9 @@ export const useSessionStore = create<SessionState>((set, get) => ({
           loading: false,
           error: null
         })
+        
+        // Cache the loaded data
+        get().cacheCurrentState()
       } else {
         throw new Error("Session not found or invalid response format")
       }
@@ -97,6 +130,7 @@ export const useSessionStore = create<SessionState>((set, get) => ({
 
   // Clear all session data
   clearSession: () => {
+    SessionCache.clear()
     set({
       session: null,
       questions: [],
@@ -131,6 +165,9 @@ export const useSessionStore = create<SessionState>((set, get) => ({
         session: updatedSession
       })
       
+      // Update cache with new answer
+      SessionCache.updateAnswers({}, updatedAnswers)
+      
       // Update session in database for real-time tracking
       get().updateSessionStats(session.id, correctAnswers, incorrectAnswers, currentQuestionIndex)
     } else {
@@ -145,6 +182,9 @@ export const useSessionStore = create<SessionState>((set, get) => ({
     updatedProgress.push(progress)
     
     set({ userProgress: updatedProgress })
+    
+    // Update cache with new progress
+    SessionCache.updateProgress(updatedProgress)
   },
 
   // Refresh session data from API (fallback when realtime fails)
@@ -167,6 +207,23 @@ export const useSessionStore = create<SessionState>((set, get) => ({
       })
     } catch (error) {
       console.error('Error updating session stats:', error)
+    }
+  },
+
+  // Cache current state to localStorage
+  cacheCurrentState: () => {
+    const { session, questions, userAnswers, userProgress } = get()
+    if (session && questions.length > 0) {
+      SessionCache.save({
+        sessionId: session.id,
+        session,
+        questions,
+        userAnswers,
+        userProgress,
+        selectedAnswers: {},
+        showExplanations: {},
+        currentQuestionIndex: session.current_question_index || 0
+      })
     }
   },
 
@@ -284,12 +341,19 @@ export const useSession = (sessionId?: string) => {
   // Auto-load session when sessionId changes or on mount
   React.useEffect(() => {
     if (sessionId) {
-      // Always try to load session data, even if we think we have it
-      // This ensures fresh data after tab switches or page reloads
-      console.log(`Loading/refreshing session: ${sessionId}`)
-      store.loadSession(sessionId)
+      // First try to load from cache for instant restoration
+      const cacheLoaded = store.loadFromCache()
+      const cached = SessionCache.load()
+      
+      if (cacheLoaded && cached && cached.sessionId === sessionId) {
+        console.log(`Session restored from cache: ${sessionId}`)
+      } else {
+        // Cache miss or different session, load from API
+        console.log(`Loading session from API: ${sessionId}`)
+        store.loadSession(sessionId)
+      }
     }
-  }, [sessionId]) // Remove dependency on store.session?.id to force refresh
+  }, [sessionId])
   
   // Set up real-time subscription when session is loaded
   React.useEffect(() => {
