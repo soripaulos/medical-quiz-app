@@ -54,36 +54,3 @@ export function useSessionRestoration() {
     hasActiveSession
   }
 }
-
-// Component wrapper for pages that should support session restoration
-export function withSessionRestoration<T extends object>(
-  Component: React.ComponentType<T>
-) {
-  return function SessionRestorationWrapper(props: T) {
-    const { isChecking, hasActiveSession } = useSessionRestoration()
-
-    if (isChecking) {
-      return (
-        <div className="flex items-center justify-center h-screen">
-          <div className="text-center">
-            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
-            <p className="text-gray-600">Checking for active session...</p>
-          </div>
-        </div>
-      )
-    }
-
-    if (hasActiveSession) {
-      return (
-        <div className="flex items-center justify-center h-screen">
-          <div className="text-center">
-            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
-            <p className="text-gray-600">Resuming your test session...</p>
-          </div>
-        </div>
-      )
-    }
-
-    return <Component {...props} />
-  }
-}
