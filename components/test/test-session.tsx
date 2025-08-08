@@ -2,6 +2,7 @@
 
 import { useEffect } from "react"
 import { QuizInterface } from "@/components/quiz/quiz-interface"
+import { SessionCache } from "@/lib/session-cache"
 import type { Question, UserSession, UserAnswer, UserQuestionProgress } from "@/lib/types"
 import { getAnswerChoices } from "@/lib/types"
 import { AlertCircle } from "lucide-react"
@@ -28,34 +29,35 @@ export function TestSession({ sessionId }: TestSessionProps) {
     updateProgress
   } = useSession(sessionId)
 
-  // Add session persistence to localStorage with better recovery
+  // Enhanced session persistence with complete state caching
   useEffect(() => {
-    if (session && !loading) {
-      // Store comprehensive session info in localStorage for recovery
-      const sessionData = {
+    if (session && questions.length > 0 && !loading) {
+      // Cache complete session state including all data
+      SessionCache.save({
         sessionId: session.id,
-        sessionName: session.session_name,
-        sessionType: session.session_type,
-        currentQuestionIndex: session.current_question_index,
-        startTime: Date.now(),
-        lastActivity: Date.now(),
-        url: window.location.href,
-        isActive: true
-      }
-      localStorage.setItem('activeTestSession', JSON.stringify(sessionData))
+        session,
+        questions,
+        userAnswers,
+        userProgress,
+        selectedAnswers: {},
+        showExplanations: {},
+        currentQuestionIndex: session.current_question_index || 0
+      })
       
-      // Set up periodic updates to localStorage
+      // Set up periodic cache updates
       const updateInterval = setInterval(() => {
-        const currentData = JSON.parse(localStorage.getItem('activeTestSession') || '{}')
-        if (currentData.sessionId === session.id) {
-          currentData.lastActivity = Date.now()
-          localStorage.setItem('activeTestSession', JSON.stringify(currentData))
+        if (SessionCache.isActive()) {
+          SessionCache.update({ 
+            userAnswers,
+            userProgress,
+            lastCached: Date.now()
+          })
         }
-      }, 30000) // Update every 30 seconds
+      }, 30000) // Update cache every 30 seconds
       
       return () => clearInterval(updateInterval)
     }
-  }, [session, loading])
+  }, [session, questions, userAnswers, userProgress, loading])
 
   // Check for session recovery on mount
   useEffect(() => {
@@ -228,7 +230,7 @@ export function TestSession({ sessionId }: TestSessionProps) {
       }
 
       // Clean up localStorage when session is properly ended
-      localStorage.removeItem('activeTestSession')
+      SessionCache.clear()
 
       // Use Next.js router for navigation to preserve client-side state
       router.push(`/test/${sessionId}/results`)
@@ -238,7 +240,7 @@ export function TestSession({ sessionId }: TestSessionProps) {
       alert("Error ending session, but navigating to results anyway")
       
       // Clean up localStorage even if there was an error
-      localStorage.removeItem('activeTestSession')
+      SessionCache.clear()
       
       router.push(`/test/${sessionId}/results`)
     }

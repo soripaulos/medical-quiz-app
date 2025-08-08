@@ -45,6 +45,7 @@ import { useToast } from "@/components/ui/use-toast"
 import { ActiveSessionCard } from "./active-session-card"
 import { AppLogo } from "@/components/ui/app-logo"
 import { FeedbackButton } from "@/components/feedback/feedback-button"
+import { useSessionRestoration } from "@/hooks/use-session-restoration"
 
 // Fisher-Yates shuffle algorithm for proper randomization
 function shuffleArray<T>(array: T[]): T[] {
@@ -109,7 +110,10 @@ export function EnhancedCreateTestInterface({ userProfile }: EnhancedCreateTestI
   const { theme, setTheme } = useTheme()
   const router = useRouter()
   
-  // Session recovery state
+  // Session restoration - automatically redirect to active session if exists
+  const { isChecking, hasActiveSession } = useSessionRestoration()
+  
+  // Legacy session recovery state (kept for backward compatibility)
   const [recoverySession, setRecoverySession] = useState<any>(null)
   const [showRecoveryPrompt, setShowRecoveryPrompt] = useState(false)
 
@@ -464,6 +468,30 @@ export function EnhancedCreateTestInterface({ userProfile }: EnhancedCreateTestI
       // Force redirect to login if signOut fails
       router.push("/login")
     }
+  }
+
+  // Show loading state while checking for active session
+  if (isChecking) {
+    return (
+      <div className="flex items-center justify-center h-screen">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
+          <p className="text-gray-600">Checking for active session...</p>
+        </div>
+      </div>
+    )
+  }
+
+  // Show redirect state while navigating to active session
+  if (hasActiveSession) {
+    return (
+      <div className="flex items-center justify-center h-screen">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
+          <p className="text-gray-600">Resuming your test session...</p>
+        </div>
+      </div>
+    )
   }
 
   return (
