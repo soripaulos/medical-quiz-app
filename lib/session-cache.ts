@@ -62,6 +62,11 @@ export class SessionCache {
       }
       localStorage.setItem('activeTestSession', JSON.stringify(legacyData))
       
+      // Clear any previous dismissal for new sessions
+      if (typeof sessionStorage !== 'undefined') {
+        sessionStorage.removeItem('sessionRestorationDismissed')
+      }
+      
       console.log('Session state cached successfully')
       return true
     } catch (error) {
@@ -135,6 +140,10 @@ export class SessionCache {
     try {
       localStorage.removeItem(CACHE_KEY)
       localStorage.removeItem('activeTestSession')
+      // Also clear session restoration dismissal
+      if (typeof sessionStorage !== 'undefined') {
+        sessionStorage.removeItem('sessionRestorationDismissed')
+      }
       console.log('Session cache cleared')
     } catch (error) {
       console.error('Failed to clear session cache:', error)

@@ -111,7 +111,13 @@ export function EnhancedCreateTestInterface({ userProfile }: EnhancedCreateTestI
   const router = useRouter()
   
   // Session restoration - automatically redirect to active session if exists
-  const { isChecking, hasActiveSession } = useSessionRestoration()
+  const { 
+    isChecking, 
+    hasActiveSession, 
+    showRestorationPrompt, 
+    restoreSession, 
+    dismissRestoration 
+  } = useSessionRestoration()
   
   // Legacy session recovery state (kept for backward compatibility)
   const [recoverySession, setRecoverySession] = useState<any>(null)
@@ -490,6 +496,43 @@ export function EnhancedCreateTestInterface({ userProfile }: EnhancedCreateTestI
           <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
           <p className="text-gray-600">Resuming your test session...</p>
         </div>
+      </div>
+    )
+  }
+
+  // Show restoration prompt when user navigated away from active session
+  if (showRestorationPrompt) {
+    return (
+      <div className="flex items-center justify-center h-screen bg-background">
+        <Card className="w-full max-w-md mx-4">
+          <CardHeader className="text-center">
+            <CardTitle className="flex items-center justify-center gap-2">
+              <AlertCircle className="h-5 w-5 text-blue-600" />
+              Active Test Session Found
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <p className="text-center text-muted-foreground">
+              You have an active test session in progress. Would you like to continue where you left off?
+            </p>
+            <div className="flex flex-col sm:flex-row gap-3">
+              <Button 
+                onClick={restoreSession}
+                className="flex-1"
+              >
+                <Play className="h-4 w-4 mr-2" />
+                Continue Test
+              </Button>
+              <Button 
+                onClick={dismissRestoration}
+                variant="outline"
+                className="flex-1"
+              >
+                Stay on Homepage
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
       </div>
     )
   }
