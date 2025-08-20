@@ -1,0 +1,49 @@
+# Nixpacks configuration for Next.js 15 Medical Prep App
+# This configuration optimizes the build process for a production Next.js deployment
+
+[variables]
+NODE_ENV = 'production'
+NEXT_TELEMETRY_DISABLED = '1'
+
+# Setup phase - Install additional system packages if needed
+[phases.setup]
+nixPkgs = ['...']  # Include default packages detected by Nixpacks
+nixLibs = ['...']  # Include default libraries
+
+# Install phase - Handle package installation
+[phases.install]
+cmds = [
+  # Use pnpm for faster installs since you have pnpm-lock.yaml
+  'corepack enable',
+  'corepack prepare pnpm@latest --activate',
+  'pnpm install --frozen-lockfile --production=false'
+]
+
+# Build phase - Next.js build process
+[phases.build]
+cmds = [
+  # Build the Next.js application
+  'pnpm run build'
+]
+
+# Start command - Run the production server
+[start]
+cmd = 'pnpm run start'
+
+# Provider configuration
+[providers]
+node = true
+
+# Static files configuration for Next.js
+[staticAssets]
+# Next.js static files are handled by the framework itself
+# No additional configuration needed for typical Next.js apps
+
+# Environment variables that might be needed
+# Note: Add your actual environment variables in your deployment platform
+[variables.environment]
+# Uncomment and set these based on your deployment needs:
+# NEXT_PUBLIC_SUPABASE_URL = "your-supabase-url"
+# NEXT_PUBLIC_SUPABASE_ANON_KEY = "your-supabase-anon-key"
+# SUPABASE_SERVICE_ROLE_KEY = "your-service-role-key"
+# DATABASE_URL = "your-database-url"
