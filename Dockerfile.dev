@@ -1,0 +1,36 @@
+# Development Dockerfile for Next.js 15 application
+# This Dockerfile is optimized for development with hot reloading
+
+FROM node:20-alpine
+
+# Set working directory
+WORKDIR /app
+
+# Install dependencies for native modules
+RUN apk add --no-cache libc6-compat
+
+# Enable corepack for pnpm
+RUN corepack enable
+
+# Copy package files
+COPY package.json package-lock.json* pnpm-lock.yaml* ./
+
+# Install dependencies
+RUN \
+  if [ -f pnpm-lock.yaml ]; then pnpm install; \
+  elif [ -f package-lock.json ]; then npm install; \
+  else echo "No lockfile found." && exit 1; \
+  fi
+
+# Copy source code
+COPY . .
+
+# Set environment variables
+ENV NODE_ENV=development
+ENV NEXT_TELEMETRY_DISABLED=1
+
+# Expose port
+EXPOSE 3000
+
+# Start development server
+CMD ["pnpm", "run", "dev"]

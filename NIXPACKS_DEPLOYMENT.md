@@ -93,3 +93,145 @@ docker run -p 3000:3000 \
 4. Monitor logs for any issues
 
 For more advanced configurations, refer to the [Nixpacks documentation](https://nixpacks.com/docs).
+
+## Docker Compose Setup
+
+In addition to Nixpacks, this project includes Docker Compose configurations for local development and production deployment.
+
+### Files Created
+
+- **`docker-compose.yml`** - Production-ready setup with PostgreSQL, Redis, and optional Nginx
+- **`docker-compose.dev.yml`** - Development setup with full Supabase local stack
+- **`Dockerfile`** - Multi-stage production build
+- **`Dockerfile.dev`** - Development build with hot reloading
+- **`.env.example`** - Template for environment variables
+
+### Quick Start
+
+1. **Copy environment file:**
+   ```bash
+   cp .env.example .env
+   ```
+
+2. **Edit `.env` with your actual values:**
+   - Set your Supabase URL and keys
+   - Configure database credentials
+   - Add any custom environment variables
+
+### Development Environment
+
+Run the full development stack with Supabase local:
+
+```bash
+# Start all development services
+docker-compose -f docker-compose.dev.yml up -d
+
+# View logs
+docker-compose -f docker-compose.dev.yml logs -f
+
+# Stop services
+docker-compose -f docker-compose.dev.yml down
+```
+
+**Development Services:**
+- **Next.js App**: http://localhost:3000
+- **Supabase Studio**: http://localhost:54324
+- **Supabase API**: http://localhost:54321
+- **PostgreSQL**: localhost:54322
+- **Redis**: localhost:6380
+
+### Production Environment
+
+Run the production stack:
+
+```bash
+# Build and start production services
+docker-compose up -d --build
+
+# With Nginx reverse proxy
+docker-compose --profile production up -d --build
+
+# View logs
+docker-compose logs -f
+
+# Stop services
+docker-compose down
+```
+
+**Production Services:**
+- **Next.js App**: http://localhost:3000
+- **PostgreSQL**: localhost:5432
+- **Redis**: localhost:6379
+- **Nginx** (optional): http://localhost:80
+
+### Docker Commands
+
+```bash
+# Build only the Next.js app
+docker build -t medprep-app .
+
+# Run standalone container
+docker run -p 3000:3000 --env-file .env medprep-app
+
+# Build development image
+docker build -f Dockerfile.dev -t medprep-app-dev .
+
+# Clean up unused images and volumes
+docker system prune -a
+docker volume prune
+```
+
+### Supabase Local Development
+
+The development setup includes a complete Supabase local stack:
+
+- **Database**: PostgreSQL with Supabase extensions
+- **Auth**: GoTrue authentication server
+- **API**: PostgREST API server
+- **Realtime**: Real-time subscriptions
+- **Studio**: Supabase management interface
+
+Access Supabase Studio at http://localhost:54324 to:
+- Manage database schema
+- View and edit data
+- Test API endpoints
+- Monitor real-time events
+
+### Environment Variables for Docker
+
+Key variables for Docker Compose:
+
+```bash
+# Supabase
+NEXT_PUBLIC_SUPABASE_URL=http://localhost:54321  # For local development
+NEXT_PUBLIC_SUPABASE_ANON_KEY=your-anon-key
+SUPABASE_SERVICE_ROLE_KEY=your-service-role-key
+
+# Database
+POSTGRES_DB=medprep_db
+POSTGRES_USER=medprep_user
+POSTGRES_PASSWORD=secure-password
+
+# Supabase Local (for dev environment)
+SUPABASE_DB_PASSWORD=your-super-secret-and-long-postgres-password
+JWT_SECRET=your-super-secret-jwt-token-with-at-least-32-characters-long
+```
+
+### Troubleshooting Docker
+
+**Port Conflicts:**
+- Development uses different ports (5433, 6380) to avoid conflicts
+- Check if ports are already in use: `netstat -tulpn | grep :3000`
+
+**Volume Issues:**
+- Reset volumes: `docker-compose down -v`
+- Clean up: `docker volume prune`
+
+**Build Issues:**
+- Clear build cache: `docker-compose build --no-cache`
+- Check logs: `docker-compose logs [service-name]`
+
+**Database Connection:**
+- Ensure database is ready before app starts
+- Check connection strings in environment variables
+- Verify network connectivity between services

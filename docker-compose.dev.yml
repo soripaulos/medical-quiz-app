@@ -1,0 +1,202 @@
+version: '3.8'
+
+services:
+  # Next.js Development Server
+  medprep-app-dev:
+    build:
+      context: .
+      dockerfile: Dockerfile.dev
+    ports:
+      - "3000:3000"
+    environment:
+      - NODE_ENV=development
+      - NEXT_TELEMETRY_DISABLED=1
+      - NEXT_PUBLIC_SUPABASE_URL=${NEXT_PUBLIC_SUPABASE_URL:-http://localhost:54321}
+      - NEXT_PUBLIC_SUPABASE_ANON_KEY=${NEXT_PUBLIC_SUPABASE_ANON_KEY}
+      - SUPABASE_SERVICE_ROLE_KEY=${SUPABASE_SERVICE_ROLE_KEY}
+    env_file:
+      - .env
+    volumes:
+      # Mount source code for hot reloading
+      - .:/app
+      - /app/node_modules
+      - /app/.next
+    depends_on:
+      - postgres-dev
+      - redis-dev
+    networks:
+      - medprep-dev-network
+    restart: unless-stopped
+    command: pnpm run dev
+
+  # PostgreSQL for development
+  postgres-dev:
+    image: postgres:15-alpine
+    environment:
+      - POSTGRES_DB=${POSTGRES_DB:-medprep_dev}
+      - POSTGRES_USER=${POSTGRES_USER:-medprep_user}
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD:-medprep_password}
+    ports:
+      - "5433:5432"  # Different port to avoid conflicts
+    volumes:
+      - postgres_dev_data:/var/lib/postgresql/data
+      - ./init-scripts:/docker-entrypoint-initdb.d
+    networks:
+      - medprep-dev-network
+    restart: unless-stopped
+
+  # Redis for development
+  redis-dev:
+    image: redis:7-alpine
+    ports:
+      - "6380:6379"  # Different port to avoid conflicts
+    volumes:
+      - redis_dev_data:/data
+    networks:
+      - medprep-dev-network
+    restart: unless-stopped
+    command: redis-server --appendonly yes
+
+  # Supabase Local Development Stack
+  supabase-db:
+    image: supabase/postgres:15.1.0.117
+    environment:
+      - POSTGRES_PASSWORD=${SUPABASE_DB_PASSWORD:-your-super-secret-and-long-postgres-password}
+      - POSTGRES_DB=postgres
+      - POSTGRES_USER=postgres
+    ports:
+      - "54322:5432"
+    volumes:
+      - supabase_db_data:/var/lib/postgresql/data
+      - ./supabase/migrations:/docker-entrypoint-initdb.d/migrations:ro
+      - ./supabase/seed.sql:/docker-entrypoint-initdb.d/seed.sql:ro
+    networks:
+      - medprep-dev-network
+    command: >
+      postgres
+      -c config_file=/etc/postgresql/postgresql.conf
+      -c log_min_messages=fatal
+
+  supabase-auth:
+    image: supabase/gotrue:v2.99.0
+    environment:
+      - GOTRUE_API_HOST=0.0.0.0
+      - GOTRUE_API_PORT=9999
+      - GOTRUE_DB_DRIVER=postgres
+      - GOTRUE_DB_DATABASE_URL=postgres://supabase_auth_admin:${SUPABASE_DB_PASSWORD:-your-super-secret-and-long-postgres-password}@supabase-db:5432/postgres
+      - GOTRUE_SITE_URL=${SITE_URL:-http://localhost:3000}
+      - GOTRUE_URI_ALLOW_LIST=${ADDITIONAL_REDIRECT_URLS:-http://localhost:3000/**}
+      - GOTRUE_DISABLE_SIGNUP=${DISABLE_SIGNUP:-false}
+      - GOTRUE_JWT_ADMIN_ROLES=service_role
+      - GOTRUE_JWT_AUD=authenticated
+      - GOTRUE_JWT_DEFAULT_GROUP_NAME=authenticated
+      - GOTRUE_JWT_EXP=${JWT_EXPIRY:-3600}
+      - GOTRUE_JWT_SECRET=${JWT_SECRET:-your-super-secret-jwt-token-with-at-least-32-characters-long}
+      - GOTRUE_EXTERNAL_GOOGLE_ENABLED=${ENABLE_GOOGLE_AUTH:-false}
+      - GOTRUE_EXTERNAL_GOOGLE_CLIENT_ID=${GOOGLE_CLIENT_ID}
+      - GOTRUE_EXTERNAL_GOOGLE_SECRET=${GOOGLE_CLIENT_SECRET}
+      - GOTRUE_EXTERNAL_GOOGLE_REDIRECT_URI=${SITE_URL:-http://localhost:3000}/auth/callback
+    ports:
+      - "9999:9999"
+    depends_on:
+      - supabase-db
+    networks:
+      - medprep-dev-network
+
+  supabase-rest:
+    image: postgrest/postgrest:v11.2.0
+    environment:
+      - PGRST_DB_URI=postgres://authenticator:${SUPABASE_DB_PASSWORD:-your-super-secret-and-long-postgres-password}@supabase-db:5432/postgres
+      - PGRST_DB_SCHEMAS=${PGRST_DB_SCHEMAS:-public}
+      - PGRST_DB_ANON_ROLE=anon
+      - PGRST_JWT_SECRET=${JWT_SECRET:-your-super-secret-jwt-token-with-at-least-32-characters-long}
+      - PGRST_DB_USE_LEGACY_GUCS=false
+    ports:
+      - "54321:3000"  # Supabase default REST API port
+    depends_on:
+      - supabase-db
+    networks:
+      - medprep-dev-network
+
+  supabase-realtime:
+    image: supabase/realtime:v2.25.35
+    environment:
+      - PORT=4000
+      - DB_HOST=supabase-db
+      - DB_PORT=5432
+      - DB_USER=supabase_admin
+      - DB_PASSWORD=${SUPABASE_DB_PASSWORD:-your-super-secret-and-long-postgres-password}
+      - DB_NAME=postgres
+      - DB_AFTER_CONNECT_QUERY=SET search_path TO _realtime
+      - DB_ENC_KEY=supabaserealtime
+      - API_JWT_SECRET=${JWT_SECRET:-your-super-secret-jwt-token-with-at-least-32-characters-long}
+      - FLY_ALLOC_ID=fly123
+      - FLY_APP_NAME=realtime
+      - SECRET_KEY_BASE=UpNVntn3cDxHJpq99YMc1T1AQgQpc8kfYTuRgBiYa15BLrx8en4CX3pkc5f1b4YG
+      - ERL_AFLAGS=-proto_dist inet_tcp
+      - ENABLE_TAILSCALE=false
+      - DNS_NODES='["127.0.0.1"]'
+    ports:
+      - "54323:4000"
+    depends_on:
+      - supabase-db
+    networks:
+      - medprep-dev-network
+
+  supabase-studio:
+    image: supabase/studio:20240326-5e5586d
+    environment:
+      - STUDIO_PG_META_URL=http://supabase-meta:8080
+      - POSTGRES_PASSWORD=${SUPABASE_DB_PASSWORD:-your-super-secret-and-long-postgres-password}
+      - DEFAULT_ORGANIZATION_NAME=Default Organization
+      - DEFAULT_PROJECT_NAME=Default Project
+      - SUPABASE_URL=http://kong:8000
+      - SUPABASE_PUBLIC_URL=http://localhost:54321
+      - SUPABASE_ANON_KEY=${SUPABASE_ANON_KEY}
+      - SUPABASE_SERVICE_KEY=${SUPABASE_SERVICE_ROLE_KEY}
+    ports:
+      - "54324:3000"
+    networks:
+      - medprep-dev-network
+
+  supabase-meta:
+    image: supabase/postgres-meta:v0.68.0
+    environment:
+      - PG_META_PORT=8080
+      - PG_META_DB_HOST=supabase-db
+      - PG_META_DB_PORT=5432
+      - PG_META_DB_NAME=postgres
+      - PG_META_DB_USER=supabase_admin
+      - PG_META_DB_PASSWORD=${SUPABASE_DB_PASSWORD:-your-super-secret-and-long-postgres-password}
+    ports:
+      - "54325:8080"
+    depends_on:
+      - supabase-db
+    networks:
+      - medprep-dev-network
+
+  kong:
+    image: kong:2.8.1
+    environment:
+      - KONG_DATABASE=off
+      - KONG_DECLARATIVE_CONFIG=/var/lib/kong/kong.yml
+      - KONG_DNS_ORDER=LAST,A,CNAME
+      - KONG_PLUGINS=request-id,cors,key-auth,acl,basic-auth
+      - KONG_NGINX_PROXY_PROXY_BUFFER_SIZE=160k
+      - KONG_NGINX_PROXY_PROXY_BUFFERS=64 160k
+    ports:
+      - "54320:8000/tcp"
+      - "54326:8443/tcp"
+    volumes:
+      - ./supabase/kong.yml:/var/lib/kong/kong.yml:ro
+    networks:
+      - medprep-dev-network
+
+volumes:
+  postgres_dev_data:
+  redis_dev_data:
+  supabase_db_data:
+
+networks:
+  medprep-dev-network:
+    driver: bridge

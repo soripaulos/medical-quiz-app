@@ -1,0 +1,139 @@
+version: '3.8'
+
+services:
+  # Next.js Application
+  medprep-app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    ports:
+      - "3000:3000"
+    environment:
+      - NODE_ENV=production
+      - NEXT_TELEMETRY_DISABLED=1
+      - NEXT_PUBLIC_SUPABASE_URL=${NEXT_PUBLIC_SUPABASE_URL}
+      - NEXT_PUBLIC_SUPABASE_ANON_KEY=${NEXT_PUBLIC_SUPABASE_ANON_KEY}
+      - SUPABASE_SERVICE_ROLE_KEY=${SUPABASE_SERVICE_ROLE_KEY}
+    env_file:
+      - .env
+    volumes:
+      # Mount source code for development (comment out for production)
+      - .:/app
+      - /app/node_modules
+      - /app/.next
+    depends_on:
+      - postgres
+      - redis
+    networks:
+      - medprep-network
+    restart: unless-stopped
+
+  # PostgreSQL Database (for local development)
+  postgres:
+    image: postgres:15-alpine
+    environment:
+      - POSTGRES_DB=${POSTGRES_DB:-medprep_db}
+      - POSTGRES_USER=${POSTGRES_USER:-medprep_user}
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD:-medprep_password}
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./init-scripts:/docker-entrypoint-initdb.d
+    networks:
+      - medprep-network
+    restart: unless-stopped
+
+  # Redis for caching and session management
+  redis:
+    image: redis:7-alpine
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    networks:
+      - medprep-network
+    restart: unless-stopped
+    command: redis-server --appendonly yes
+
+  # Nginx reverse proxy (optional, for production-like setup)
+  nginx:
+    image: nginx:alpine
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./nginx.conf:/etc/nginx/nginx.conf:ro
+      - ./ssl:/etc/nginx/ssl:ro
+    depends_on:
+      - medprep-app
+    networks:
+      - medprep-network
+    restart: unless-stopped
+    profiles:
+      - production
+
+  # Supabase local stack (for complete local development)
+  supabase-db:
+    image: supabase/postgres:15.1.0.117
+    environment:
+      - POSTGRES_PASSWORD=${SUPABASE_DB_PASSWORD:-your-super-secret-and-long-postgres-password}
+      - POSTGRES_DB=postgres
+    ports:
+      - "54322:5432"
+    volumes:
+      - supabase_db_data:/var/lib/postgresql/data
+    networks:
+      - medprep-network
+    profiles:
+      - supabase-local
+
+  supabase-auth:
+    image: supabase/gotrue:v2.99.0
+    environment:
+      - GOTRUE_API_HOST=0.0.0.0
+      - GOTRUE_API_PORT=9999
+      - GOTRUE_DB_DRIVER=postgres
+      - GOTRUE_DB_DATABASE_URL=postgres://supabase_auth_admin:${SUPABASE_DB_PASSWORD:-your-super-secret-and-long-postgres-password}@supabase-db:5432/postgres
+      - GOTRUE_SITE_URL=${SITE_URL:-http://localhost:3000}
+      - GOTRUE_URI_ALLOW_LIST=${ADDITIONAL_REDIRECT_URLS}
+      - GOTRUE_DISABLE_SIGNUP=${DISABLE_SIGNUP:-false}
+      - GOTRUE_JWT_ADMIN_ROLES=service_role
+      - GOTRUE_JWT_AUD=authenticated
+      - GOTRUE_JWT_DEFAULT_GROUP_NAME=authenticated
+      - GOTRUE_JWT_EXP=${JWT_EXPIRY:-3600}
+      - GOTRUE_JWT_SECRET=${JWT_SECRET:-your-super-secret-jwt-token-with-at-least-32-characters-long}
+    ports:
+      - "9999:9999"
+    depends_on:
+      - supabase-db
+    networks:
+      - medprep-network
+    profiles:
+      - supabase-local
+
+  supabase-rest:
+    image: postgrest/postgrest:v11.2.0
+    environment:
+      - PGRST_DB_URI=postgres://authenticator:${SUPABASE_DB_PASSWORD:-your-super-secret-and-long-postgres-password}@supabase-db:5432/postgres
+      - PGRST_DB_SCHEMAS=${PGRST_DB_SCHEMAS:-public}
+      - PGRST_DB_ANON_ROLE=anon
+      - PGRST_JWT_SECRET=${JWT_SECRET:-your-super-secret-jwt-token-with-at-least-32-characters-long}
+      - PGRST_DB_USE_LEGACY_GUCS=false
+    ports:
+      - "3001:3000"
+    depends_on:
+      - supabase-db
+    networks:
+      - medprep-network
+    profiles:
+      - supabase-local
+
+volumes:
+  postgres_data:
+  redis_data:
+  supabase_db_data:
+
+networks:
+  medprep-network:
+    driver: bridge
