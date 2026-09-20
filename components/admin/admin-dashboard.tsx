@@ -69,7 +69,7 @@ export function AdminDashboard() {
           </div>
           <div className="flex items-center gap-2">
             <FeedbackButton showText={true} size="sm" variant="outline" />
-            <Link href="/">
+            <Link href="/create-test">
               <Button variant="outline" size="sm">
                 Back to Tests
               </Button>

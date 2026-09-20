@@ -113,7 +113,7 @@ export const requireAdmin = cache(async (): Promise<UserProfile> => {
   }
   
   if (session.profile.role !== 'admin') {
-    redirect('/')
+    redirect('/create-test')
   }
   
   return session.profile
@@ -132,7 +132,7 @@ export async function redirectToLogin() {
 }
 
 export async function redirectToDashboard() {
-  redirect('/')
+  redirect('/create-test')
 }
 
 // Check auth status without throwing (for conditional rendering)

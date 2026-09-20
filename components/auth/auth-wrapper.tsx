@@ -44,7 +44,7 @@ export function AuthWrapper({ children, requireAdmin = false }: AuthWrapperProps
             You do not have permission to view this page.
           </p>
           <div className="pt-4 space-x-2">
-            <Button variant="outline" onClick={() => router.push("/")}>
+            <Button variant="outline" onClick={() => router.push("/create-test")}>
               Go to Homepage
             </Button>
             <Button variant="outline" onClick={signOut}>

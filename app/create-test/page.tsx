@@ -9,7 +9,7 @@ export default async function CreateTestPage() {
   const session = await verifySession()
   
   if (!session) {
-    redirect("/")
+    redirect("/login")
     return null
   }
 

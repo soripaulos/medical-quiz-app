@@ -283,7 +283,7 @@ export function TestSession({ sessionId }: TestSessionProps) {
             <Button onClick={() => window.location.reload()} className="w-full">
               Retry Loading Session
             </Button>
-            <Button onClick={() => router.push('/')} variant="outline" className="w-full">
+            <Button onClick={() => router.push('/create-test')} variant="outline" className="w-full">
               Go to Home
             </Button>
           </div>

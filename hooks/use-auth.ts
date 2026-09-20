@@ -39,7 +39,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         router.push('/login')
         router.refresh()
       } else if (event === 'SIGNED_IN') {
-        router.push('/')
+        router.push('/create-test')
         router.refresh()
       }
     })

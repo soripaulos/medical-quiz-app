@@ -156,7 +156,7 @@ export function TestResults({ sessionId }: TestResultsProps) {
           <AlertTitle>No Results Found</AlertTitle>
           <AlertDescription>
             The test session could not be found or results are not available.{" "}
-            <Link href="/" className="underline">
+            <Link href="/create-test" className="underline">
               Go back home
             </Link>
           </AlertDescription>
@@ -558,7 +558,7 @@ export function TestResults({ sessionId }: TestResultsProps) {
             </Link>
           </Button>
           <Button variant="outline" asChild>
-            <Link href="/">
+            <Link href="/create-test">
               <Home className="mr-2 h-4 w-4" />
               Back to Home
             </Link>

@@ -1,23 +1,15 @@
-import { Suspense } from 'react'
+import { redirect } from "next/navigation"
 import { verifySession } from "@/lib/auth"
-import { LoginForm } from "@/components/auth/login-form"
-import { EnhancedCreateTestInterface } from "@/components/test/enhanced-create-test-interface"
-import { FullPageSpinner } from '@/components/ui/loading-spinner'
+import { LandingPage } from "@/components/marketing/landing-page"
 
-export const dynamic = 'force-dynamic'
+export const dynamic = "force-dynamic"
 
 export default async function Page() {
   const session = await verifySession()
 
-  if (!session) {
-    return (
-      <Suspense fallback={<FullPageSpinner />}>
-        <LoginForm />
-      </Suspense>
-    )
+  if (session) {
+    redirect("/create-test")
   }
 
-  return (
-    <EnhancedCreateTestInterface userProfile={session.profile} />
-  )
+  return <LandingPage />
 }
