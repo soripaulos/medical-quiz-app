@@ -2,273 +2,215 @@ import Link from "next/link"
 import {
   ArrowRight,
   BarChart3,
-  BookOpen,
+  BookOpenCheck,
   Calculator,
+  Check,
   CheckCircle2,
-  ClipboardCheck,
   Clock3,
+  FileText,
+  Filter,
+  Flag,
   FlaskConical,
-  GraduationCap,
+  History,
+  MessageSquare,
   NotebookPen,
+  Play,
   RotateCcw,
   Stethoscope,
   Target,
+  Trophy,
 } from "lucide-react"
 import { AppLogo } from "@/components/ui/app-logo"
+import { ProductShowcase } from "@/components/marketing/product-showcase"
+import { Reveal } from "@/components/marketing/reveal"
 
-const featureGroups = [
-  {
-    number: "01",
-    title: "Build the right question set",
-    description:
-      "Choose the specialty, exam type, year and difficulty you want to work on. Use the full bank or set a focused question limit.",
-    points: ["Specialty and exam filters", "Difficulty and year selection", "Randomized question order"],
-    icon: ClipboardCheck,
-  },
-  {
-    number: "02",
-    title: "Practice or simulate the exam",
-    description:
-      "Study without a clock when you are learning, or add a time limit when you want a realistic exam session.",
-    points: ["Practice and exam modes", "Timed sessions", "Pause and resume support"],
-    icon: Clock3,
-  },
-  {
-    number: "03",
-    title: "Learn while you answer",
-    description:
-      "Keep the tools you need inside the question view, so reviewing a calculation or recording a note does not interrupt your session.",
-    points: ["Personal notes", "Calculator and lab values", "Flags and question feedback"],
-    icon: NotebookPen,
-  },
-  {
-    number: "04",
-    title: "Turn attempts into direction",
-    description:
-      "Review results, return to past sessions and see how accuracy changes across topics—not just one final score.",
-    points: ["Detailed result review", "Session history", "Category performance trends"],
-    icon: BarChart3,
-  },
-]
+const workflow = [
+  ["01", "Choose your focus", "Filter by specialty, exam, year, difficulty and your previous answer status.", Filter],
+  ["02", "Set the conditions", "Choose practice or exam mode, set the length and decide whether progress is tracked.", Clock3],
+  ["03", "Work the questions", "Answer, flag, take notes and open clinical reference tools without leaving the test.", BookOpenCheck],
+  ["04", "Review and adjust", "Study your results, category performance and history before building the next session.", BarChart3],
+] as const
 
-const specialties = ["Internal Medicine", "Surgery", "Pediatrics", "OB/GYN", "Public Health"]
+const tools = [
+  [Calculator, "Calculator", "Handle clinical calculations without breaking concentration."],
+  [FlaskConical, "Lab values", "Open blood, serum, urine and CSF reference ranges in-session."],
+  [NotebookPen, "Personal notes", "Save a note against a question and revisit it from your progress dashboard."],
+  [Flag, "Flags", "Mark uncertain or important questions and filter for them later."],
+  [MessageSquare, "Question feedback", "Report an issue from the exact question where you found it."],
+  [FileText, "Explanations and sources", "Review the reasoning and supporting references after answering."],
+] as const
 
 export function LandingPage() {
   return (
-    <main className="min-h-screen overflow-hidden bg-[#f5f1e8] text-[#152a34]">
-      <header className="border-b border-[#152a34]/15 bg-[#f5f1e8]">
-        <div className="mx-auto flex h-20 max-w-7xl items-center justify-between px-5 sm:px-8 lg:px-12">
-          <Link href="/" aria-label="MedPrep ET home">
-            <AppLogo />
-          </Link>
-          <nav className="hidden items-center gap-8 text-sm font-medium md:flex" aria-label="Main navigation">
-            <a className="transition-colors hover:text-[#b54932]" href="#how-it-works">How it works</a>
-            <a className="transition-colors hover:text-[#b54932]" href="#features">Features</a>
-            <a className="transition-colors hover:text-[#b54932]" href="#progress">Progress</a>
+    <main className="min-h-screen overflow-hidden bg-[#f8fafc] text-slate-800">
+      <header className="sticky top-0 z-50 border-b border-slate-200 bg-white">
+        <div className="mx-auto flex h-18 max-w-7xl items-center justify-between px-5 py-4 sm:px-8 lg:px-10">
+          <Link href="/" aria-label="MedPrep ET home"><AppLogo /></Link>
+          <nav className="hidden items-center gap-7 text-sm font-medium text-slate-600 md:flex" aria-label="Main navigation">
+            <a className="transition-colors hover:text-blue-600" href="#workflow">How it works</a>
+            <a className="transition-colors hover:text-blue-600" href="#features">Features</a>
+            <a className="transition-colors hover:text-blue-600" href="#analytics">Progress</a>
           </nav>
-          <Link
-            href="/login"
-            className="inline-flex h-10 items-center gap-2 border border-[#152a34] bg-[#152a34] px-4 text-sm font-semibold text-white transition-colors hover:bg-[#b54932]"
-          >
+          <Link href="/login" className="inline-flex h-10 items-center gap-2 rounded-lg bg-blue-600 px-4 text-sm font-semibold text-white shadow-sm transition-all hover:-translate-y-0.5 hover:bg-blue-700 hover:shadow-md">
             Sign in <ArrowRight className="h-4 w-4" />
           </Link>
         </div>
       </header>
 
-      <section className="relative border-b border-[#152a34]/15">
-        <div className="absolute inset-y-0 right-0 hidden w-[42%] border-l border-[#152a34]/10 bg-[#e4eadf] lg:block" />
-        <div className="relative mx-auto grid max-w-7xl gap-14 px-5 py-16 sm:px-8 sm:py-20 lg:grid-cols-[1.08fr_.92fr] lg:px-12 lg:py-24">
-          <div className="flex flex-col justify-center">
-            <div className="mb-7 flex items-center gap-3 text-xs font-bold uppercase tracking-[0.2em] text-[#b54932]">
-              <span className="h-px w-10 bg-[#b54932]" />
-              Medical exam preparation, built for Ethiopia
+      <section className="relative border-b border-slate-200 bg-white">
+        <div className="pointer-events-none absolute inset-0 mp-grid-pattern opacity-45" />
+        <div className="relative mx-auto grid max-w-7xl gap-12 px-5 py-16 sm:px-8 sm:py-20 lg:grid-cols-[.88fr_1.12fr] lg:items-center lg:px-10 lg:py-24">
+          <div className="mp-hero-copy">
+            <div className="mb-6 inline-flex items-center gap-2 rounded-full border border-blue-200 bg-blue-50 px-3 py-1.5 text-xs font-bold text-blue-700">
+              <Stethoscope className="h-3.5 w-3.5" /> Built for medical exam preparation in Ethiopia
             </div>
-            <h1 className="max-w-3xl font-serif text-5xl font-semibold leading-[1.02] tracking-[-0.035em] sm:text-6xl lg:text-7xl">
-              Make every question count.
+            <h1 className="max-w-2xl text-5xl font-bold leading-[1.04] tracking-[-0.045em] text-slate-900 sm:text-6xl lg:text-[4.35rem]">
+              Prepare with questions that lead somewhere.
             </h1>
-            <p className="mt-7 max-w-2xl text-lg leading-8 text-[#40545c] sm:text-xl">
-              MedPrep ET helps medical students create focused practice sessions, simulate timed exams and use every result to decide what to study next.
+            <p className="mt-6 max-w-xl text-lg leading-8 text-slate-600 sm:text-xl">
+              Build focused tests, practise with immediate explanations, simulate timed exams and turn every session into a clearer study plan.
             </p>
-            <div className="mt-9 flex flex-col gap-3 sm:flex-row">
-              <Link
-                href="/login"
-                className="inline-flex h-12 items-center justify-center gap-2 bg-[#b54932] px-6 font-semibold text-white transition-colors hover:bg-[#943b2a]"
-              >
+            <div className="mt-8 flex flex-col gap-3 sm:flex-row">
+              <Link href="/login" className="inline-flex h-12 items-center justify-center gap-2 rounded-lg bg-blue-600 px-6 font-semibold text-white shadow-sm transition-all hover:-translate-y-0.5 hover:bg-blue-700 hover:shadow-lg">
                 Start studying <ArrowRight className="h-4 w-4" />
               </Link>
-              <a
-                href="#features"
-                className="inline-flex h-12 items-center justify-center border border-[#152a34]/30 px-6 font-semibold transition-colors hover:border-[#152a34] hover:bg-white/50"
-              >
-                Explore the platform
+              <a href="#features" className="inline-flex h-12 items-center justify-center rounded-lg border border-slate-300 bg-white px-6 font-semibold text-slate-700 transition-all hover:border-blue-300 hover:text-blue-700">
+                See what is inside
               </a>
             </div>
-            <div className="mt-10 flex flex-wrap gap-x-7 gap-y-3 border-t border-[#152a34]/15 pt-6 text-sm text-[#40545c]">
-              <span className="flex items-center gap-2"><CheckCircle2 className="h-4 w-4 text-[#397267]" /> Focused question sets</span>
-              <span className="flex items-center gap-2"><CheckCircle2 className="h-4 w-4 text-[#397267]" /> Timed exam mode</span>
-              <span className="flex items-center gap-2"><CheckCircle2 className="h-4 w-4 text-[#397267]" /> Progress tracking</span>
+            <div className="mt-9 grid max-w-xl grid-cols-2 gap-x-5 gap-y-3 border-t border-slate-200 pt-6 text-sm text-slate-600">
+              {["Practice and timed exam modes", "2,600+ question bank", "Detailed explanations", "Progress and note history"].map((item) => <span key={item} className="flex items-center gap-2"><CheckCircle2 className="h-4 w-4 shrink-0 text-emerald-500" />{item}</span>)}
             </div>
           </div>
-
-          <div className="relative lg:pl-10">
-            <div className="absolute -left-3 top-10 hidden font-serif text-[10rem] leading-none text-[#152a34]/[0.035] lg:block">M</div>
-            <div className="relative border border-[#152a34]/20 bg-[#fffdf8] shadow-[12px_12px_0_0_#152a34]">
-              <div className="flex items-center justify-between border-b border-[#152a34]/15 px-5 py-4">
-                <div>
-                  <p className="text-xs font-bold uppercase tracking-[0.18em] text-[#6b7b80]">New study session</p>
-                  <p className="mt-1 font-serif text-xl font-semibold">Clinical review · 40 questions</p>
-                </div>
-                <span className="border border-[#397267]/30 bg-[#e4eadf] px-3 py-1 text-xs font-bold text-[#28594f]">Practice</span>
-              </div>
-              <div className="p-5 sm:p-6">
-                <p className="mb-3 text-xs font-bold uppercase tracking-[0.15em] text-[#6b7b80]">Selected specialties</p>
-                <div className="flex flex-wrap gap-2">
-                  {specialties.slice(0, 3).map((specialty, index) => (
-                    <span
-                      key={specialty}
-                      className={index === 0 ? "bg-[#152a34] px-3 py-2 text-sm text-white" : "border border-[#152a34]/20 px-3 py-2 text-sm"}
-                    >
-                      {specialty}
-                    </span>
-                  ))}
-                </div>
-                <div className="my-6 grid grid-cols-3 divide-x divide-[#152a34]/15 border-y border-[#152a34]/15 py-4 text-center">
-                  <div><strong className="block font-serif text-2xl">40</strong><span className="text-xs text-[#6b7b80]">Questions</span></div>
-                  <div><strong className="block font-serif text-2xl">All</strong><span className="text-xs text-[#6b7b80]">Years</span></div>
-                  <div><strong className="block font-serif text-2xl">Mix</strong><span className="text-xs text-[#6b7b80]">Difficulty</span></div>
-                </div>
-                <div className="space-y-3">
-                  <div className="flex items-center justify-between border border-[#152a34]/15 p-3">
-                    <span className="flex items-center gap-3 text-sm font-medium"><RotateCcw className="h-4 w-4 text-[#397267]" /> Randomize question order</span>
-                    <span className="h-5 w-9 rounded-full bg-[#397267] p-0.5"><span className="block h-4 w-4 translate-x-4 rounded-full bg-white" /></span>
-                  </div>
-                  <div className="flex items-center justify-between border border-[#152a34]/15 p-3">
-                    <span className="flex items-center gap-3 text-sm font-medium"><Target className="h-4 w-4 text-[#397267]" /> Track this session in progress</span>
-                    <span className="h-5 w-9 rounded-full bg-[#397267] p-0.5"><span className="block h-4 w-4 translate-x-4 rounded-full bg-white" /></span>
-                  </div>
-                </div>
-                <div className="mt-5 flex h-12 items-center justify-center gap-2 bg-[#152a34] font-semibold text-white">
-                  Begin session <ArrowRight className="h-4 w-4" />
-                </div>
-              </div>
-            </div>
-            <p className="mt-6 max-w-md text-sm leading-6 text-[#40545c] lg:ml-8">
-              Filter the bank to match today&apos;s objective—not somebody else&apos;s study plan.
-            </p>
+          <div className="mp-hero-demo relative">
+            <div className="absolute -left-6 top-10 hidden h-24 w-2 rounded-full bg-blue-500 lg:block" />
+            <ProductShowcase />
           </div>
         </div>
       </section>
 
-      <section id="how-it-works" className="border-b border-[#152a34]/15 bg-[#fffdf8]">
-        <div className="mx-auto max-w-7xl px-5 py-16 sm:px-8 lg:px-12 lg:py-20">
-          <div className="grid gap-10 lg:grid-cols-[.62fr_1.38fr]">
-            <div>
-              <p className="text-xs font-bold uppercase tracking-[0.2em] text-[#b54932]">A clearer study loop</p>
-              <h2 className="mt-4 max-w-sm font-serif text-4xl font-semibold tracking-tight sm:text-5xl">Choose. Answer. Review. Adjust.</h2>
-            </div>
-            <div className="grid border-l border-t border-[#152a34]/15 sm:grid-cols-2">
-              {[
-                ["1", "Choose your focus", "Build a session from the specialties, years, exam types and difficulty levels you need."],
-                ["2", "Set the conditions", "Use open practice for learning or a timed exam when you need pressure and pacing."],
-                ["3", "Work through the questions", "Navigate, flag, take notes and use clinical reference tools without leaving the session."],
-                ["4", "Review what changed", "Inspect results and performance history, then build the next session around weak areas."],
-              ].map(([step, title, copy]) => (
-                <article key={step} className="border-b border-r border-[#152a34]/15 p-6 sm:p-8">
-                  <span className="font-serif text-3xl text-[#b54932]">{step}</span>
-                  <h3 className="mt-8 text-lg font-bold">{title}</h3>
-                  <p className="mt-3 text-sm leading-6 text-[#52646b]">{copy}</p>
+      <section className="border-b border-slate-200 bg-slate-50">
+        <div className="mx-auto grid max-w-7xl grid-cols-2 divide-x divide-y divide-slate-200 border-x border-slate-200 sm:grid-cols-4 sm:divide-y-0">
+          {[["2,600+", "Questions available"], ["6", "Specialty groups"], ["4", "Exam formats"], ["1", "Continuous study record"]].map(([value, label]) => (
+            <div key={label} className="px-5 py-7 text-center"><strong className="block text-2xl font-bold text-slate-900 sm:text-3xl">{value}</strong><span className="mt-1 block text-xs font-medium text-slate-500 sm:text-sm">{label}</span></div>
+          ))}
+        </div>
+      </section>
+
+      <section id="workflow" className="bg-white py-18 sm:py-24">
+        <div className="mx-auto max-w-7xl px-5 sm:px-8 lg:px-10">
+          <Reveal className="max-w-2xl">
+            <p className="text-xs font-bold uppercase tracking-[0.18em] text-blue-600">A complete study loop</p>
+            <h2 className="mt-3 text-4xl font-bold tracking-tight text-slate-900 sm:text-5xl">From choosing a topic to knowing what comes next.</h2>
+            <p className="mt-5 text-lg leading-8 text-slate-600">MedPrep ET keeps test creation, focused practice and performance review in one connected workflow.</p>
+          </Reveal>
+          <div className="mt-12 grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+            {workflow.map(([number, title, copy, Icon], index) => (
+              <Reveal key={number} delay={index * 90}>
+                <article className="group h-full rounded-xl border border-slate-200 bg-white p-6 transition-all hover:-translate-y-1 hover:border-blue-200 hover:shadow-xl hover:shadow-blue-100/50">
+                  <div className="flex items-center justify-between"><span className="text-xs font-bold tracking-widest text-blue-600">{number}</span><span className="flex h-10 w-10 items-center justify-center rounded-lg bg-blue-50 text-blue-600 transition-colors group-hover:bg-blue-600 group-hover:text-white"><Icon className="h-5 w-5" /></span></div>
+                  <h3 className="mt-8 text-xl font-bold text-slate-900">{title}</h3>
+                  <p className="mt-3 text-sm leading-6 text-slate-600">{copy}</p>
                 </article>
-              ))}
-            </div>
-          </div>
-        </div>
-      </section>
-
-      <section id="features" className="border-b border-[#152a34]/15">
-        <div className="mx-auto max-w-7xl px-5 py-16 sm:px-8 lg:px-12 lg:py-24">
-          <div className="mb-12 flex flex-col justify-between gap-6 border-b border-[#152a34]/20 pb-8 md:flex-row md:items-end">
-            <div>
-              <p className="text-xs font-bold uppercase tracking-[0.2em] text-[#b54932]">What is inside</p>
-              <h2 className="mt-4 max-w-2xl font-serif text-4xl font-semibold tracking-tight sm:text-5xl">A complete workspace for question-based revision.</h2>
-            </div>
-            <p className="max-w-md text-base leading-7 text-[#52646b]">Everything is organized around the work of preparing: selecting useful questions, completing a serious session and understanding the outcome.</p>
-          </div>
-          <div className="grid gap-px overflow-hidden border border-[#152a34]/15 bg-[#152a34]/15 md:grid-cols-2">
-            {featureGroups.map(({ number, title, description, points, icon: Icon }) => (
-              <article key={number} className="bg-[#f5f1e8] p-6 sm:p-8 lg:p-10">
-                <div className="flex items-start justify-between">
-                  <span className="font-mono text-xs font-bold tracking-[0.15em] text-[#b54932]">{number}</span>
-                  <Icon className="h-7 w-7 text-[#397267]" />
-                </div>
-                <h3 className="mt-10 font-serif text-2xl font-semibold">{title}</h3>
-                <p className="mt-4 max-w-xl leading-7 text-[#52646b]">{description}</p>
-                <ul className="mt-7 space-y-3 text-sm font-medium">
-                  {points.map((point) => <li key={point} className="flex items-center gap-3"><span className="h-1.5 w-1.5 bg-[#b54932]" />{point}</li>)}
-                </ul>
-              </article>
+              </Reveal>
             ))}
           </div>
         </div>
       </section>
 
-      <section id="progress" className="border-b border-[#152a34]/15 bg-[#152a34] text-white">
-        <div className="mx-auto grid max-w-7xl gap-14 px-5 py-16 sm:px-8 lg:grid-cols-[.9fr_1.1fr] lg:px-12 lg:py-24">
-          <div className="flex flex-col justify-center">
-            <p className="text-xs font-bold uppercase tracking-[0.2em] text-[#e6a56c]">Progress with context</p>
-            <h2 className="mt-4 max-w-xl font-serif text-4xl font-semibold tracking-tight sm:text-5xl">Your score is one signal. The pattern matters more.</h2>
-            <p className="mt-6 max-w-xl text-lg leading-8 text-white/70">MedPrep ET keeps session history, accuracy, question coverage and category performance together so you can see both effort and understanding.</p>
-            <div className="mt-9 grid gap-4 sm:grid-cols-2">
-              {[
-                [Target, "Accuracy by category"],
-                [BookOpen, "Unique questions covered"],
-                [Clock3, "Study time and pacing"],
-                [BarChart3, "Progress over time"],
-              ].map(([Icon, label]) => {
-                const FeatureIcon = Icon as typeof Target
-                return <div key={label as string} className="flex items-center gap-3 border-t border-white/20 pt-4 text-sm font-semibold"><FeatureIcon className="h-5 w-5 text-[#e6a56c]" />{label as string}</div>
-              })}
-            </div>
-          </div>
-          <div className="border border-white/20 bg-[#1b3540] p-5 sm:p-7">
-            <div className="flex items-center justify-between border-b border-white/15 pb-5">
-              <div><p className="text-xs uppercase tracking-[0.18em] text-white/50">Study overview</p><p className="mt-1 font-serif text-2xl">Your recent performance</p></div>
-              <GraduationCap className="h-7 w-7 text-[#e6a56c]" />
-            </div>
-            <div className="grid grid-cols-3 divide-x divide-white/15 border-b border-white/15 py-6 text-center">
-              <div><strong className="block font-serif text-3xl">74%</strong><span className="text-xs text-white/50">Accuracy</span></div>
-              <div><strong className="block font-serif text-3xl">286</strong><span className="text-xs text-white/50">Reviewed</span></div>
-              <div><strong className="block font-serif text-3xl">8</strong><span className="text-xs text-white/50">Sessions</span></div>
-            </div>
-            <div className="space-y-5 pt-6">
-              {[["Internal Medicine", "82%", "w-[82%]"], ["Pediatrics", "71%", "w-[71%]"], ["Surgery", "64%", "w-[64%]"]].map(([name, value, width]) => (
-                <div key={name}>
-                  <div className="mb-2 flex justify-between text-sm"><span>{name}</span><span className="font-mono text-[#e6a56c]">{value}</span></div>
-                  <div className="h-2 bg-white/10"><div className={`h-full bg-[#e6a56c] ${width}`} /></div>
+      <section id="features" className="border-y border-slate-200 bg-slate-50 py-18 sm:py-24">
+        <div className="mx-auto max-w-7xl px-5 sm:px-8 lg:px-10">
+          <Reveal className="grid gap-6 lg:grid-cols-[.8fr_1.2fr] lg:items-end">
+            <div><p className="text-xs font-bold uppercase tracking-[0.18em] text-blue-600">Create the right test</p><h2 className="mt-3 text-4xl font-bold tracking-tight text-slate-900 sm:text-5xl">The question bank adapts to today&apos;s objective.</h2></div>
+            <p className="max-w-2xl text-lg leading-8 text-slate-600 lg:justify-self-end">Start broad or narrow the bank using exactly the filters already available in the app. Revisit unanswered, incorrect or flagged questions when revision becomes more targeted.</p>
+          </Reveal>
+
+          <div className="mt-12 grid gap-7 lg:grid-cols-[1.08fr_.92fr]">
+            <Reveal>
+              <div className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
+                <div className="flex items-center justify-between bg-blue-500 px-5 py-4 text-white"><span className="flex items-center gap-2 font-bold"><Filter className="h-5 w-5" /> Question Filters</span><span className="rounded-full border border-white/40 px-3 py-1 text-xs">2,663 questions</span></div>
+                <div className="grid gap-0 sm:grid-cols-2">
+                  {[["Specialties", "Internal Medicine", "OB/GYN", "Pediatrics", "Surgery"], ["Years", "2025", "2024", "2023", "2022"], ["Question status", "Unanswered", "Correct", "Incorrect", "Flagged"], ["Exam types", "COC", "COC-EXIT", "Exit Exam", "Mock"]].map(([title, ...items]) => (
+                    <div key={title} className="border-b border-slate-100 p-5 sm:border-r"><p className="mb-3 text-sm font-bold text-slate-700">{title} <span className="font-normal text-emerald-600">(All)</span></p><div className="grid grid-cols-2 gap-2">{items.map((item, index) => <span key={item} className="flex items-center gap-2 text-xs text-slate-600"><span className={`h-4 w-4 rounded border ${index === 0 ? "border-blue-500 bg-blue-500" : "border-slate-300"}`}>{index === 0 && <Check className="h-3.5 w-3.5 text-white" />}</span>{item}</span>)}</div></div>
+                  ))}
                 </div>
-              ))}
-            </div>
-            <p className="mt-7 border-l-2 border-[#e6a56c] pl-4 text-sm leading-6 text-white/65">Illustrative dashboard preview. Your account reflects your own completed and tracked sessions.</p>
+              </div>
+            </Reveal>
+            <Reveal delay={120}>
+              <div className="h-full rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
+                <div className="mb-6 flex items-center justify-between"><div><p className="text-xs font-bold uppercase tracking-wide text-blue-600">Test configuration</p><h3 className="mt-1 text-xl font-bold text-slate-900">Practice Session 53</h3></div><Play className="h-7 w-7 text-blue-600" /></div>
+                <div className="space-y-5 text-sm">
+                  <div><div className="mb-2 flex justify-between text-slate-600"><span>Test mode</span><b className="text-slate-800">Practice</b></div><div className="rounded-lg border border-slate-200 bg-slate-50 p-3 text-slate-700">Immediate feedback after each question</div></div>
+                  <div className="rounded-lg border border-blue-200 bg-blue-50 p-4"><p className="flex items-center gap-2 font-bold text-blue-800"><Target className="h-4 w-4" /> Track my progress</p><p className="mt-1 text-xs leading-5 text-blue-700">Record answers for history, performance and status-based filtering.</p></div>
+                  <div><div className="mb-2 flex justify-between text-slate-600"><span>Number of questions</span><b className="text-slate-800">40</b></div><div className="h-2 overflow-hidden rounded-full bg-slate-100"><div className="mp-progress-bar h-full w-2/5 rounded-full bg-blue-500" /></div></div>
+                  <div className="flex items-center justify-between border-t border-slate-100 pt-4"><span className="flex items-center gap-2 text-slate-700"><RotateCcw className="h-4 w-4 text-blue-600" /> Randomize order</span><span className="h-5 w-9 rounded-full bg-blue-600 p-0.5"><span className="block h-4 w-4 translate-x-4 rounded-full bg-white" /></span></div>
+                </div>
+                <div className="mt-6 flex h-12 items-center justify-center gap-2 rounded-lg bg-blue-600 font-semibold text-white">Start test <ArrowRight className="h-4 w-4" /></div>
+              </div>
+            </Reveal>
           </div>
         </div>
       </section>
 
-      <section className="bg-[#e4eadf]">
-        <div className="mx-auto grid max-w-7xl gap-10 px-5 py-16 sm:px-8 lg:grid-cols-[1fr_auto] lg:items-center lg:px-12 lg:py-20">
-          <div>
-            <div className="flex items-center gap-3 text-xs font-bold uppercase tracking-[0.2em] text-[#397267]"><Stethoscope className="h-4 w-4" /> Ready for the next session?</div>
-            <h2 className="mt-4 max-w-3xl font-serif text-4xl font-semibold tracking-tight sm:text-5xl">Study with a purpose, not just a question count.</h2>
-            <p className="mt-5 max-w-2xl text-lg leading-8 text-[#52646b]">Sign in with Google to build a focused test and continue from where you left off.</p>
+      <section className="bg-white py-18 sm:py-24">
+        <div className="mx-auto max-w-7xl px-5 sm:px-8 lg:px-10">
+          <div className="grid gap-12 lg:grid-cols-[.92fr_1.08fr] lg:items-center">
+            <Reveal>
+              <p className="text-xs font-bold uppercase tracking-[0.18em] text-blue-600">Inside every session</p>
+              <h2 className="mt-3 text-4xl font-bold tracking-tight text-slate-900 sm:text-5xl">Stay inside the question, even when you need more context.</h2>
+              <p className="mt-5 text-lg leading-8 text-slate-600">The practice interface combines immediate answer feedback with the small tools students repeatedly need during revision.</p>
+              <div className="mt-8 grid gap-3 sm:grid-cols-2">
+                {tools.map(([Icon, title, copy]) => <div key={title} className="rounded-xl border border-slate-200 p-4"><Icon className="h-5 w-5 text-blue-600" /><h3 className="mt-3 font-bold text-slate-900">{title}</h3><p className="mt-1 text-xs leading-5 text-slate-500">{copy}</p></div>)}
+              </div>
+            </Reveal>
+            <Reveal delay={120}>
+              <div className="overflow-hidden rounded-2xl border border-slate-200 bg-slate-50 shadow-xl shadow-slate-200/60">
+                <div className="flex items-center justify-between bg-blue-500 px-5 py-4 text-white"><span className="text-sm font-bold">Item 6 of 16</span><div className="flex gap-4"><MessageSquare className="h-4 w-4" /><Flag className="h-4 w-4 text-yellow-300" /><FlaskConical className="h-4 w-4" /><Calculator className="h-4 w-4" /></div></div>
+                <div className="p-5">
+                  <div className="rounded-xl border border-slate-200 bg-white p-5 text-sm leading-7 text-slate-700 shadow-sm"><div className="mb-3 flex gap-2"><span className="rounded-full bg-slate-100 px-2 py-0.5 text-[11px]">Year 2025</span><span className="rounded-full bg-slate-100 px-2 py-0.5 text-[11px]">Exit Exam</span></div>A patient presents with fever, nausea and pain that migrated from the umbilicus to the right lower quadrant. What is the most likely diagnosis?</div>
+                  <div className="mt-4 space-y-2"><div className="flex items-center rounded-xl border-2 border-emerald-400 bg-emerald-50 p-3 text-sm font-medium text-emerald-800"><span className="mr-3 flex h-7 w-7 items-center justify-center rounded-full border border-emerald-200">A</span>Acute appendicitis<Check className="ml-auto h-4 w-4" /></div><div className="flex items-center rounded-xl border border-red-200 bg-red-50 p-3 text-sm text-red-700"><span className="mr-3 flex h-7 w-7 items-center justify-center rounded-full border border-red-200">B</span>Diverticulitis</div><div className="flex items-center rounded-xl border border-slate-200 bg-white p-3 text-sm text-slate-600"><span className="mr-3 flex h-7 w-7 items-center justify-center rounded-full border border-slate-200">C</span>Acute gastroenteritis</div></div>
+                  <div className="mt-4 rounded-xl border border-slate-200 bg-white p-4"><p className="text-sm font-bold text-slate-800">Explanation</p><p className="mt-2 text-xs leading-5 text-slate-500">Migratory periumbilical pain localizing to the right lower quadrant is characteristic of acute appendicitis.</p></div>
+                </div>
+              </div>
+            </Reveal>
           </div>
-          <Link href="/login" className="inline-flex h-14 items-center justify-center gap-3 bg-[#b54932] px-7 font-bold text-white transition-colors hover:bg-[#943b2a]">Open MedPrep ET <ArrowRight className="h-5 w-5" /></Link>
         </div>
       </section>
 
-      <footer className="border-t border-[#152a34]/15 bg-[#f5f1e8]">
-        <div className="mx-auto flex max-w-7xl flex-col gap-5 px-5 py-8 text-sm text-[#52646b] sm:px-8 md:flex-row md:items-center md:justify-between lg:px-12">
-          <AppLogo size="sm" />
-          <p>Focused preparation for medical students in Ethiopia.</p>
-          <Link href="/login" className="font-semibold text-[#152a34] hover:text-[#b54932]">Sign in to your account</Link>
+      <section id="analytics" className="border-y border-slate-200 bg-slate-950 py-18 text-white sm:py-24">
+        <div className="mx-auto max-w-7xl px-5 sm:px-8 lg:px-10">
+          <Reveal className="grid gap-6 lg:grid-cols-[.8fr_1.2fr] lg:items-end">
+            <div><p className="text-xs font-bold uppercase tracking-[0.18em] text-blue-400">Progress with context</p><h2 className="mt-3 text-4xl font-bold tracking-tight sm:text-5xl">One score is not the whole story.</h2></div>
+            <p className="max-w-2xl text-lg leading-8 text-slate-400 lg:justify-self-end">Follow attempts, accuracy, question coverage, session history and saved notes. Category views expose the subjects that need the next block of attention.</p>
+          </Reveal>
+          <div className="mt-12 grid gap-6 lg:grid-cols-[.72fr_1.28fr]">
+            <Reveal>
+              <div className="grid h-full grid-cols-2 gap-3">
+                {[[Trophy, "Overall score", "74%", "75 of 101 correct"], [BookOpenCheck, "Questions attempted", "286", "Across tracked sessions"], [History, "Study sessions", "33", "Completed and active"], [NotebookPen, "Saved notes", "12", "Linked to questions"]].map(([Icon, label, value, caption]) => { const ItemIcon = Icon as typeof Trophy; return <div key={label as string} className="rounded-xl border border-white/10 bg-white/[0.04] p-5"><ItemIcon className="h-5 w-5 text-blue-400" /><p className="mt-5 text-xs text-slate-400">{label as string}</p><strong className="mt-1 block text-3xl">{value as string}</strong><span className="mt-1 block text-[11px] text-slate-500">{caption as string}</span></div> })}
+              </div>
+            </Reveal>
+            <Reveal delay={120}>
+              <div className="rounded-2xl border border-white/10 bg-white/[0.04] p-6">
+                <div className="flex items-center justify-between"><div><p className="text-xs uppercase tracking-widest text-slate-500">Performance by category</p><h3 className="mt-1 text-xl font-bold">Your learning pattern</h3></div><BarChart3 className="h-6 w-6 text-blue-400" /></div>
+                <div className="mt-8 flex h-52 items-end gap-3 border-b border-l border-white/10 px-4 pb-0">
+                  {[["IM", 82], ["PH", 78], ["PED", 66], ["OB", 58], ["SUR", 49], ["MIN", 35]].map(([name, height], index) => <div key={name as string} className="flex flex-1 flex-col items-center justify-end gap-2"><span className="text-[10px] text-slate-400">{height}%</span><div className="mp-chart-bar w-full max-w-12 rounded-t bg-blue-500" style={{ height: `${height}%`, animationDelay: `${index * 110}ms` }} /><span className="pb-2 text-[10px] text-slate-500">{name}</span></div>)}
+                </div>
+                <div className="mt-5 flex flex-wrap gap-4 text-xs text-slate-400"><span className="flex items-center gap-2"><span className="h-2 w-2 rounded-full bg-emerald-500" /> Correct</span><span className="flex items-center gap-2"><span className="h-2 w-2 rounded-full bg-red-500" /> Incorrect</span><span className="flex items-center gap-2"><span className="h-2 w-2 rounded-full bg-slate-500" /> Unanswered</span></div>
+              </div>
+            </Reveal>
+          </div>
         </div>
+      </section>
+
+      <section className="bg-blue-600">
+        <div className="mx-auto grid max-w-7xl gap-7 px-5 py-14 text-white sm:px-8 lg:grid-cols-[1fr_auto] lg:items-center lg:px-10 lg:py-16">
+          <div><p className="text-xs font-bold uppercase tracking-[0.18em] text-blue-100">Ready for the next session?</p><h2 className="mt-3 text-3xl font-bold tracking-tight sm:text-4xl">Open MedPrep ET and make the next questions count.</h2><p className="mt-3 text-blue-100">Sign in with Google to create a test or continue an active session.</p></div>
+          <Link href="/login" className="inline-flex h-13 items-center justify-center gap-2 rounded-lg bg-white px-7 py-4 font-bold text-blue-700 shadow-lg transition-all hover:-translate-y-0.5 hover:shadow-xl">Open MedPrep ET <ArrowRight className="h-5 w-5" /></Link>
+        </div>
+      </section>
+
+      <footer className="border-t border-slate-200 bg-white">
+        <div className="mx-auto flex max-w-7xl flex-col gap-5 px-5 py-8 text-sm text-slate-500 sm:px-8 md:flex-row md:items-center md:justify-between lg:px-10"><AppLogo size="sm" /><p>Focused medical exam preparation for Ethiopia.</p><Link href="/login" className="font-semibold text-slate-700 hover:text-blue-600">Sign in to your account</Link></div>
       </footer>
     </main>
   )

@@ -93,3 +93,30 @@ body {
     @apply bg-background text-foreground;
   }
 }
+
+/* MedPrep public experience */
+.mp-grid-pattern {
+  background-image:
+    linear-gradient(to right, rgba(59, 130, 246, 0.055) 1px, transparent 1px),
+    linear-gradient(to bottom, rgba(59, 130, 246, 0.055) 1px, transparent 1px);
+  background-size: 34px 34px;
+  mask-image: linear-gradient(to bottom, black, transparent 88%);
+}
+
+.mp-hero-copy { animation: mp-rise .7s cubic-bezier(.2,.8,.2,1) both; }
+.mp-hero-demo { animation: mp-rise .8s .12s cubic-bezier(.2,.8,.2,1) both; }
+.mp-demo-enter { animation: mp-demo-enter .35s ease-out both; }
+.mp-progress-bar { transform-origin: left; animation: mp-grow-x .9s .18s cubic-bezier(.2,.8,.2,1) both; }
+.mp-chart-bar { transform-origin: bottom; animation: mp-grow-y .85s .15s cubic-bezier(.2,.8,.2,1) both; }
+.mp-reveal { opacity: 0; transform: translateY(22px); transition: opacity .65s ease, transform .65s cubic-bezier(.2,.8,.2,1); }
+.mp-reveal-visible { opacity: 1; transform: translateY(0); }
+
+@keyframes mp-rise { from { opacity: 0; transform: translateY(24px); } to { opacity: 1; transform: translateY(0); } }
+@keyframes mp-demo-enter { from { opacity: 0; transform: translateX(10px); } to { opacity: 1; transform: translateX(0); } }
+@keyframes mp-grow-x { from { transform: scaleX(0); } to { transform: scaleX(1); } }
+@keyframes mp-grow-y { from { transform: scaleY(0); } to { transform: scaleY(1); } }
+
+@media (prefers-reduced-motion: reduce) {
+  .mp-hero-copy, .mp-hero-demo, .mp-demo-enter, .mp-progress-bar, .mp-chart-bar { animation: none !important; }
+  .mp-reveal { opacity: 1; transform: none; transition: none; }
+}

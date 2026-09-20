@@ -41,54 +41,54 @@ export function LoginForm() {
   }
 
   return (
-    <main className="grid min-h-screen bg-[#f5f1e8] text-[#152a34] lg:grid-cols-[.88fr_1.12fr]">
-      <section className="relative hidden overflow-hidden border-r border-[#152a34]/15 bg-[#152a34] p-12 text-white lg:flex lg:flex-col lg:justify-between">
-        <div className="absolute -bottom-28 -right-16 font-serif text-[24rem] leading-none text-white/[0.025]">M</div>
-        <Link href="/" className="relative inline-flex w-fit items-center gap-2 text-white">
-          <Stethoscope className="h-7 w-7 text-[#e6a56c]" />
-          <span className="text-xl font-bold">MedPrep<span className="text-[#e6a56c]">ET</span></span>
+    <main className="grid min-h-screen bg-slate-50 text-slate-800 lg:grid-cols-[.92fr_1.08fr]">
+      <section className="relative hidden overflow-hidden bg-blue-600 p-12 text-white lg:flex lg:flex-col lg:justify-between">
+        <div className="absolute inset-0 mp-grid-pattern opacity-25" />
+        <Link href="/" className="relative inline-flex w-fit items-center gap-2">
+          <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-white/15"><Stethoscope className="h-6 w-6" /></span>
+          <span className="text-xl font-bold">MedPrepET</span>
         </Link>
         <div className="relative max-w-lg">
-          <p className="text-xs font-bold uppercase tracking-[0.2em] text-[#e6a56c]">Your study workspace</p>
-          <h1 className="mt-5 font-serif text-5xl font-semibold leading-tight">Return to the questions that move you forward.</h1>
-          <p className="mt-6 text-lg leading-8 text-white/65">Build focused practice, continue active sessions and review the patterns in your performance.</p>
-          <div className="mt-10 grid gap-4 border-t border-white/15 pt-7 text-sm text-white/75 sm:grid-cols-2">
-            <span className="flex items-center gap-2"><CheckCircle2 className="h-4 w-4 text-[#e6a56c]" /> Practice and exam modes</span>
-            <span className="flex items-center gap-2"><CheckCircle2 className="h-4 w-4 text-[#e6a56c]" /> Session history</span>
-            <span className="flex items-center gap-2"><CheckCircle2 className="h-4 w-4 text-[#e6a56c]" /> In-test study tools</span>
-            <span className="flex items-center gap-2"><CheckCircle2 className="h-4 w-4 text-[#e6a56c]" /> Performance tracking</span>
+          <p className="text-xs font-bold uppercase tracking-[0.2em] text-blue-100">Your study workspace</p>
+          <h1 className="mt-5 text-5xl font-bold leading-tight tracking-tight">Return to the questions that move you forward.</h1>
+          <p className="mt-6 text-lg leading-8 text-blue-100">Build focused practice, continue active sessions and review the patterns in your performance.</p>
+          <div className="mt-9 grid gap-3 border-t border-white/20 pt-7 text-sm text-blue-50 sm:grid-cols-2">
+            <span className="flex items-center gap-2"><CheckCircle2 className="h-4 w-4" /> Practice and exam modes</span>
+            <span className="flex items-center gap-2"><CheckCircle2 className="h-4 w-4" /> Session history</span>
+            <span className="flex items-center gap-2"><CheckCircle2 className="h-4 w-4" /> In-test study tools</span>
+            <span className="flex items-center gap-2"><CheckCircle2 className="h-4 w-4" /> Performance tracking</span>
           </div>
         </div>
-        <p className="relative text-xs text-white/40">Medical exam preparation, built for Ethiopia.</p>
+        <p className="relative text-xs text-blue-100">Focused medical exam preparation for Ethiopia.</p>
       </section>
 
-      <section className="flex min-h-screen flex-col">
-        <div className="flex h-20 items-center justify-between border-b border-[#152a34]/15 px-5 sm:px-10 lg:px-14">
+      <section className="flex min-h-screen flex-col bg-white">
+        <div className="flex h-20 items-center justify-between border-b border-slate-200 px-5 sm:px-10 lg:px-14">
           <Link href="/" className="lg:hidden"><AppLogo /></Link>
-          <Link href="/" className="ml-auto inline-flex items-center gap-2 text-sm font-semibold text-[#40545c] hover:text-[#b54932] lg:ml-0">
+          <Link href="/" className="ml-auto inline-flex items-center gap-2 text-sm font-semibold text-slate-600 transition-colors hover:text-blue-600 lg:ml-0">
             <ArrowLeft className="h-4 w-4" /> Back to home
           </Link>
         </div>
         <div className="flex flex-1 items-center justify-center px-5 py-12 sm:px-10 lg:px-14">
-          <div className="w-full max-w-md">
+          <div className="mp-hero-copy w-full max-w-md">
             <div className="mb-8">
-              <div className="mb-5 flex h-12 w-12 items-center justify-center border border-[#397267]/30 bg-[#e4eadf] text-[#397267]">
+              <div className="mb-5 flex h-12 w-12 items-center justify-center rounded-xl bg-blue-50 text-blue-600">
                 <ShieldCheck className="h-6 w-6" />
               </div>
-              <p className="text-xs font-bold uppercase tracking-[0.2em] text-[#b54932]">Student access</p>
-              <h2 className="mt-3 font-serif text-4xl font-semibold tracking-tight">Sign in to MedPrep ET</h2>
-              <p className="mt-4 leading-7 text-[#52646b]">Use your Google account to open your study dashboard and continue your preparation.</p>
+              <p className="text-xs font-bold uppercase tracking-[0.2em] text-blue-600">Student access</p>
+              <h2 className="mt-3 text-4xl font-bold tracking-tight text-slate-900">Sign in to MedPrep ET</h2>
+              <p className="mt-4 leading-7 text-slate-600">Use your Google account to open your dashboard, create a test or continue an active session.</p>
             </div>
 
             {error && (
-              <Alert variant="destructive" className="mb-5 rounded-none">
+              <Alert variant="destructive" className="mb-5">
                 <AlertDescription>{error}</AlertDescription>
               </Alert>
             )}
 
             <Button
               onClick={handleGoogleSignIn}
-              className="h-13 w-full rounded-none bg-[#152a34] py-6 text-base text-white hover:bg-[#b54932]"
+              className="w-full rounded-lg bg-blue-600 py-6 text-base text-white shadow-sm transition-all hover:-translate-y-0.5 hover:bg-blue-700 hover:shadow-md"
               disabled={loading}
             >
               {loading ? <LoadingSpinner /> : (
@@ -104,7 +104,8 @@ export function LoginForm() {
               )}
             </Button>
 
-            <p className="mt-5 text-center text-xs leading-5 text-[#6b7b80]">By continuing, you agree to the terms of service and privacy policy.</p>
+            <div className="mt-6 flex items-center justify-center gap-2 text-xs text-slate-500"><ShieldCheck className="h-4 w-4 text-emerald-500" /> Secure Google authentication</div>
+            <p className="mt-4 text-center text-xs leading-5 text-slate-400">By continuing, you agree to the terms of service and privacy policy.</p>
           </div>
         </div>
       </section>
