@@ -45,7 +45,7 @@ export function LandingPage() {
     <main className="min-h-screen overflow-hidden bg-[#f8fafc] text-slate-800">
       <header className="sticky top-0 z-50 border-b border-slate-200 bg-white">
         <div className="mx-auto flex h-18 max-w-7xl items-center justify-between px-5 py-4 sm:px-8 lg:px-10">
-          <Link href="/" aria-label="MedPrep ET home"><AppLogo /></Link>
+          <Link href="/" aria-label="MedPrep ET home"><AppLogo tone="dark" /></Link>
           <nav className="hidden items-center gap-7 text-sm font-medium text-slate-600 md:flex" aria-label="Main navigation">
             <a className="transition-colors hover:text-blue-600" href="#workflow">How it works</a>
             <a className="transition-colors hover:text-blue-600" href="#features">Features</a>
@@ -62,13 +62,13 @@ export function LandingPage() {
         <div className="relative mx-auto grid max-w-7xl gap-12 px-5 py-16 sm:px-8 sm:py-20 lg:grid-cols-[.88fr_1.12fr] lg:items-center lg:px-10 lg:py-24">
           <div className="mp-hero-copy">
             <div className="mb-6 inline-flex items-center gap-2 rounded-full border border-blue-200 bg-blue-50 px-3 py-1.5 text-xs font-bold text-blue-700">
-              <Stethoscope className="h-3.5 w-3.5" /> Built for medical exam preparation in Ethiopia
+              <Stethoscope className="h-3.5 w-3.5" /> Exit Exam and COC Exam preparation for Ethiopian medical graduates
             </div>
             <h1 className="max-w-2xl text-5xl font-bold leading-[1.04] tracking-[-0.045em] text-slate-900 sm:text-6xl lg:text-[4.35rem]">
-              Prepare with questions that lead somewhere.
+              The shortcut Ethiopian graduates use for Exit and COC exams.
             </h1>
             <p className="mt-6 max-w-xl text-lg leading-8 text-slate-600 sm:text-xl">
-              Build focused tests, practise with immediate explanations, simulate timed exams and turn every session into a clearer study plan.
+              MedPrep ET turns the medical school question bank into focused practice for the Exit Exam and COC Exam, with timed simulations, immediate explanations and performance tracking for every subject.
             </p>
             <div className="mt-8 flex flex-col gap-3 sm:flex-row">
               <Link href="/login" className="inline-flex h-12 items-center justify-center gap-2 rounded-lg bg-blue-600 px-6 font-semibold text-white shadow-sm transition-all hover:-translate-y-0.5 hover:bg-blue-700 hover:shadow-lg">
@@ -79,7 +79,7 @@ export function LandingPage() {
               </a>
             </div>
             <div className="mt-9 grid max-w-xl grid-cols-2 gap-x-5 gap-y-3 border-t border-slate-200 pt-6 text-sm text-slate-600">
-              {["Practice and timed exam modes", "2,600+ question bank", "Detailed explanations", "Progress and note history"].map((item) => <span key={item} className="flex items-center gap-2"><CheckCircle2 className="h-4 w-4 shrink-0 text-emerald-500" />{item}</span>)}
+              {["Exit Exam and COC Exam coverage", "2,600+ medical question bank", "Detailed explanations for every answer", "Progress across all six subjects"].map((item) => <span key={item} className="flex items-center gap-2"><CheckCircle2 className="h-4 w-4 shrink-0 text-emerald-500" />{item}</span>)}
             </div>
           </div>
           <div className="mp-hero-demo relative">
@@ -204,13 +204,13 @@ export function LandingPage() {
 
       <section className="bg-blue-600">
         <div className="mx-auto grid max-w-7xl gap-7 px-5 py-14 text-white sm:px-8 lg:grid-cols-[1fr_auto] lg:items-center lg:px-10 lg:py-16">
-          <div><p className="text-xs font-bold uppercase tracking-[0.18em] text-blue-100">Ready for the next session?</p><h2 className="mt-3 text-3xl font-bold tracking-tight sm:text-4xl">Open MedPrep ET and make the next questions count.</h2><p className="mt-3 text-blue-100">Sign in with Google to create a test or continue an active session.</p></div>
-          <Link href="/login" className="inline-flex h-13 items-center justify-center gap-2 rounded-lg bg-white px-7 py-4 font-bold text-blue-700 shadow-lg transition-all hover:-translate-y-0.5 hover:shadow-xl">Open MedPrep ET <ArrowRight className="h-5 w-5" /></Link>
+          <div><p className="text-xs font-bold uppercase tracking-[0.18em] text-blue-100">Step into the Exit Exam ready</p><h2 className="mt-3 text-3xl font-bold tracking-tight sm:text-4xl">Walk into the COC Exam sharp.</h2><p className="mt-3 text-blue-100">Sign in with Google to start an Exit Exam or COC Exam test, or continue an active practice session.</p></div>
+          <Link href="/login" className="inline-flex h-13 items-center justify-center gap-2 rounded-lg bg-white px-7 py-4 font-bold text-blue-700 shadow-lg transition-all hover:-translate-y-0.5 hover:shadow-xl">Start an Exit Exam or COC test <ArrowRight className="h-5 w-5" /></Link>
         </div>
       </section>
 
       <footer className="border-t border-slate-200 bg-white">
-        <div className="mx-auto flex max-w-7xl flex-col gap-5 px-5 py-8 text-sm text-slate-500 sm:px-8 md:flex-row md:items-center md:justify-between lg:px-10"><AppLogo size="sm" /><p>Focused medical exam preparation for Ethiopia.</p><Link href="/login" className="font-semibold text-slate-700 hover:text-blue-600">Sign in to your account</Link></div>
+        <div className="mx-auto flex max-w-7xl flex-col gap-5 px-5 py-8 text-sm text-slate-500 sm:px-8 md:flex-row md:items-center md:justify-between lg:px-10"><AppLogo size="sm" tone="dark" /><p>Focused medical exam preparation for Ethiopia.</p><Link href="/login" className="font-semibold text-slate-700 hover:text-blue-600">Sign in to your account</Link></div>
       </footer>
     </main>
   )

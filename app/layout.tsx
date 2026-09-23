@@ -8,8 +8,8 @@ import "./globals.css"
 const inter = Inter({ subsets: ["latin"] })
 
 export const metadata: Metadata = {
-  title: "MedPrep ET | Medical Exam Preparation",
-  description: "Build focused medical question sessions, practise for Ethiopian medical exams and track your performance over time.",
+  title: "MedPrep ET | Exit Exam and COC Exam Preparation",
+  description: "The shortcut Ethiopian medical graduates use for the Exit Exam and COC Exam: focused practice, timed simulations, and progress tracking across every subject."
   icons: {
     icon: "/app-icon.png",
     shortcut: "/app-icon.png",
